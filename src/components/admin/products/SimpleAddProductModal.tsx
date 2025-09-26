@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   XMarkIcon,
   PlusIcon,
@@ -48,7 +48,11 @@ interface SimpleAddProductModalProps {
   isEdit?: boolean;
 }
 
-export default function SimpleAddProductModal({
+export interface SimpleAddProductModalRef {
+  resetImageState: () => void;
+}
+
+const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProductModalProps>(({
   isOpen,
   onClose,
   onSubmit,
@@ -58,7 +62,7 @@ export default function SimpleAddProductModal({
   onShowError,
   initialData = null,
   isEdit = false
-}: SimpleAddProductModalProps) {
+}, ref) => {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -75,6 +79,7 @@ export default function SimpleAddProductModal({
   const [uploadedImages, setUploadedImages] = useState<string[]>([]); // Отслеживаем загруженные изображения
   const [originalImages, setOriginalImages] = useState<string[]>([]); // Отслеживаем оригинальные изображения
   const [attributes, setAttributes] = useState<{key: string, value: string}[]>([]);
+  const [resetImageState, setResetImageState] = useState(false); // Флаг для сброса состояния изображений
 
   // Инициализация формы при открытии модального окна
   useEffect(() => {
@@ -217,6 +222,7 @@ export default function SimpleAddProductModal({
     setUploadedImages([]);
     setOriginalImages([]);
     setAttributes([]);
+    setResetImageState(true); // Сбрасываем состояние изображений
   };
 
   const handleClose = async () => {
@@ -300,24 +306,42 @@ export default function SimpleAddProductModal({
     setFormData(prev => ({ ...prev, attributes: attributesObject }));
   }, [attributes]);
 
+  // Сброс флага resetImageState после сброса состояния
+  useEffect(() => {
+    if (resetImageState) {
+      const timer = setTimeout(() => {
+        setResetImageState(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [resetImageState]);
+
+  // Экспорт функции сброса состояния изображений
+  useImperativeHandle(ref, () => ({
+    resetImageState: () => {
+      setResetImageState(true);
+    }
+  }), []);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-[9999]">
-      <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl max-h-[90vh] overflow-y-auto mb-16 sm:mb-0">
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+    <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-[9999] safe-area-inset">
+      <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl max-h-[90vh] overflow-hidden">
+        <div className="sticky top-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-700/50 p-4 sm:p-6 z-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">{isEdit ? 'Редактировать товар' : 'Добавить товар'}</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-white truncate pr-4">{isEdit ? 'Редактировать товар' : 'Добавить товар'}</h2>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-colors flex-shrink-0 p-1"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
+        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
           {/* Основная информация */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Основная информация</h3>
@@ -454,6 +478,7 @@ export default function SimpleAddProductModal({
               onImagesChange={handleImagesChange}
               maxImages={5}
               originalImages={originalImages}
+              resetState={resetImageState}
             />
           </div>
 
@@ -536,7 +561,12 @@ export default function SimpleAddProductModal({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );
-}
+});
+
+SimpleAddProductModal.displayName = 'SimpleAddProductModal';
+
+export default SimpleAddProductModal;

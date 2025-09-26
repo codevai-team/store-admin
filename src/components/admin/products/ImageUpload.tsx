@@ -15,6 +15,7 @@ interface ImageUploadProps {
   maxImages?: number;
   onClearAll?: () => void;
   originalImages?: string[]; // Для отслеживания оригинальных изображений
+  resetState?: boolean; // Флаг для сброса состояния
 }
 
 export default function ImageUpload({ 
@@ -22,12 +23,14 @@ export default function ImageUpload({
   onImagesChange, 
   maxImages = 5,
   onClearAll,
-  originalImages = []
+  originalImages = [],
+  resetState = false
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [originalImagesState, setOriginalImagesState] = useState<string[]>([]);
+  const [processedImages, setProcessedImages] = useState<Set<number>>(new Set()); // Отслеживаем обработанные изображения
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Инициализируем состояние оригинальных изображений только один раз
@@ -36,6 +39,15 @@ export default function ImageUpload({
       setOriginalImagesState(originalImages);
     }
   }, [originalImages]);
+
+  // Сброс состояния при изменении флага resetState
+  React.useEffect(() => {
+    if (resetState) {
+      setOriginalImagesState([]);
+      setProcessedImages(new Set());
+      setUploadError(null);
+    }
+  }, [resetState]);
 
   // Обновляем оригинальные изображения только при добавлении новых
   React.useEffect(() => {
@@ -147,6 +159,23 @@ export default function ImageUpload({
 
     // Удаляем изображение из списка
     const newImages = images.filter((_, i) => i !== index);
+    
+    // Обновляем индексы в processedImages
+    setProcessedImages(prev => {
+      const newSet = new Set<number>();
+      prev.forEach(processedIndex => {
+        if (processedIndex < index) {
+          // Индексы до удаленного остаются без изменений
+          newSet.add(processedIndex);
+        } else if (processedIndex > index) {
+          // Индексы после удаленного сдвигаются на -1
+          newSet.add(processedIndex - 1);
+        }
+        // processedIndex === index не добавляем (удаляем)
+      });
+      return newSet;
+    });
+    
     onImagesChange(newImages);
   };
 
@@ -165,6 +194,9 @@ export default function ImageUpload({
       newOriginalImages[index] = images[index];
     }
     setOriginalImagesState(newOriginalImages);
+    
+    // Отмечаем изображение как обработанное
+    setProcessedImages(prev => new Set([...prev, index]));
     
     onImagesChange(newImages);
   };
@@ -185,13 +217,21 @@ export default function ImageUpload({
     const index = newImages.findIndex(img => img === processedUrl);
     if (index !== -1) {
       newImages[index] = originalUrl;
+      
+      // Убираем изображение из списка обработанных
+      setProcessedImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
+      
       onImagesChange(newImages);
     }
   };
 
   // Проверка, является ли изображение обработанным
   const isImageProcessed = (index: number) => {
-    return !!(originalImagesState[index] && originalImagesState[index] !== images[index]);
+    return processedImages.has(index);
   };
 
   // Обновляем оригинальные изображения при изменении текущих

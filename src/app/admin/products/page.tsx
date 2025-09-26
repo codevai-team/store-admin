@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   PlusIcon,
   PencilIcon,
@@ -27,7 +27,9 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
-import SimpleAddProductModal from '@/components/admin/products/SimpleAddProductModal';
+import SimpleAddProductModal, { SimpleAddProductModalRef } from '@/components/admin/products/SimpleAddProductModal';
+import MobileProductViewModal from '@/components/admin/products/MobileProductViewModal';
+import MobileProductCard from '@/components/admin/products/MobileProductCard';
 import CustomSelect from '@/components/admin/products/CustomSelect';
 import { ToastContainer } from '@/components/admin/products/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -99,6 +101,9 @@ type SortOrder = 'asc' | 'desc';
 export default function ProductsPage() {
   const { toasts, removeToast, showSuccess, showError, showWarning } = useToast();
   
+  // Ref для модального окна редактирования
+  const editModalRef = useRef<SimpleAddProductModalRef>(null);
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [availableColors, setAvailableColors] = useState<string[]>([]);
@@ -128,6 +133,10 @@ export default function ProductsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Mobile modal states
+  const [isMobileViewModalOpen, setIsMobileViewModalOpen] = useState(false);
+  const [mobileViewingProduct, setMobileViewingProduct] = useState<Product | null>(null);
 
   // Mobile filters state
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -410,14 +419,26 @@ export default function ProductsPage() {
     setIsViewModalOpen(true);
   };
 
+  const openMobileViewModal = (product: Product) => {
+    setMobileViewingProduct(product);
+    setIsMobileViewModalOpen(true);
+  };
+
   const closeModals = () => {
+    // Сбрасываем состояние изображений в модальном окне редактирования
+    if (editModalRef.current) {
+      editModalRef.current.resetImageState();
+    }
+    
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
     setIsViewModalOpen(false);
+    setIsMobileViewModalOpen(false);
     setEditingProduct(null);
     setDeletingProduct(null);
     setViewingProduct(null);
+    setMobileViewingProduct(null);
     setFormData({ 
       name: '', 
       description: '', 
@@ -991,131 +1012,22 @@ export default function ProductsPage() {
             </div>
           ) : (
             paginatedProducts.map(product => (
-              <div key={product.id} className="bg-gray-800/50 border border-gray-700/50 rounded-xl hover:bg-gray-800/70 transition-all duration-200 cursor-pointer group relative z-10" onClick={() => openViewModal(product)}>
+              <div key={product.id}>
                 {/* Mobile Layout */}
                 <div className="lg:hidden">
-                  <div className="p-3">
-                    {/* Top Row: Image, Title, Price, Actions */}
-                    <div className="flex items-start gap-3 mb-3">
-                      {/* Product Image */}
-                      <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg overflow-hidden">
-                        {product.mainImage ? (
-                          <img 
-                            src={product.mainImage} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <PhotoIcon className="h-6 w-6 text-gray-500" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Title and Price */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white text-sm leading-tight mb-1 line-clamp-2">{product.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-1 text-sm font-medium text-indigo-400">
-                            <CurrencyDollarIcon className="h-4 w-4" />
-                            <span>{formatPrice(product.price || product.minPrice)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Tags Row */}
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      {/* Category */}
-                      <span className="text-xs text-gray-300 bg-gray-700/60 px-2 py-1 rounded-md">
-                        {product.category.name}
-                      </span>
-                      
-                      {/* Status */}
-                      <span className={`text-xs px-2 py-1 rounded-md font-medium ${
-                        product.status === 'ACTIVE' 
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                          : product.status === 'INACTIVE'
-                          ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      }`}>
-                        {product.status === 'ACTIVE' ? 'Активный' : product.status === 'INACTIVE' ? 'Неактивный' : 'Удален'}
-                      </span>
-                    </div>
-                    
-                    {/* Seller and Date */}
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      {product.seller && (
-                        <div className="flex items-center space-x-1">
-                          <UserIcon className="h-3 w-3" />
-                          <span className="truncate">
-                            {product.seller.fullname}
-                            {sellers.find(s => s.id === product.seller?.id)?.role === 'ADMIN' && (
-                              <span className="ml-1 text-indigo-400">(Админ)</span>
-                            )}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center space-x-1">
-                        <CalendarDaysIcon className="h-3 w-3" />
-                        <span>{new Date(product.createdAt).toLocaleDateString('ru-RU')}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Sizes and Colors - Compact */}
-                    {((product.sizes && product.sizes.length > 0) || (product.colors && product.colors.length > 0)) && (
-                      <div className="mt-3 pt-3 border-t border-gray-700/50">
-                        <div className="flex flex-wrap gap-2">
-                          {product.sizes && product.sizes.length > 0 && (
-                            <div className="flex items-center space-x-1">
-                              <span className="text-xs text-gray-400">Размеры:</span>
-                              <div className="flex gap-1">
-                                {product.sizes.slice(0, 3).map((size, index) => (
-                                  <span 
-                                    key={index}
-                                    className="px-1.5 py-0.5 bg-gray-700 text-gray-300 rounded text-xs"
-                                  >
-                                    {size}
-                                  </span>
-                                ))}
-                                {product.sizes.length > 3 && (
-                                  <span className="px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded text-xs">
-                                    +{product.sizes.length - 3}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {product.colors && product.colors.length > 0 && (
-                            <div className="flex items-center space-x-1">
-                              <span className="text-xs text-gray-400">Цвета:</span>
-                              <div className="flex gap-1">
-                                {product.colors.slice(0, 4).map((color, index) => (
-                                  <div 
-                                    key={index}
-                                    className="w-3 h-3 rounded-full border border-gray-600 flex-shrink-0"
-                                    style={{ backgroundColor: color.colorCode }}
-                                    title={color.name}
-                                  />
-                                ))}
-                                {product.colors.length > 4 && (
-                                  <span className="text-xs text-gray-400">
-                                    +{product.colors.length - 4}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <MobileProductCard
+                    product={product}
+                    onView={openMobileViewModal}
+                    sellers={sellers}
+                  />
                 </div>
 
                 {/* Desktop Layout */}
                 <div className="hidden lg:block p-4">
-                <div className="flex items-start sm:items-center justify-between gap-3">
+                <div 
+                  className="flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-gray-700/30 rounded-lg p-2 -m-2 transition-colors duration-200"
+                  onClick={() => openViewModal(product)}
+                >
                   <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
                     {/* Product Image */}
                       <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg overflow-hidden">
@@ -1476,6 +1388,7 @@ export default function ProductsPage() {
         {/* Edit Product Modal */}
         {isEditModalOpen && editingProduct && (
           <SimpleAddProductModal
+            ref={editModalRef}
             isOpen={isEditModalOpen}
             onClose={closeModals}
             onSubmit={handleUpdateProduct}
@@ -1754,9 +1667,9 @@ export default function ProductsPage() {
                   </div>
 
                   {/* Product Details - Compact */}
-                  <div className="space-y-4 flex flex-col">
+                  <div className="grid grid-rows-3 gap-4 h-full">
                     {/* Basic Info - Compact */}
-                    <div className="bg-gray-700/30 rounded-xl p-4">
+                    <div className="bg-gray-700/30 rounded-xl p-4 flex flex-col">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="text-lg font-semibold text-white">{viewingProduct.name}</h3>
@@ -1776,12 +1689,12 @@ export default function ProductsPage() {
                       </div>
                       
                       {viewingProduct.description && (
-                        <p className="text-gray-300 text-sm leading-relaxed mb-3">
+                        <p className="text-gray-300 text-sm leading-relaxed mb-3 flex-grow">
                           {viewingProduct.description}
                         </p>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-2 gap-4 text-sm mt-auto">
                         <div>
                           <span className="text-gray-400">Категория:</span>
                           <p className="text-white font-medium">{viewingProduct.category.name}</p>
@@ -1801,10 +1714,10 @@ export default function ProductsPage() {
                     </div>
 
                     {/* Sizes, Colors and Attributes - Compact */}
-                    {((viewingProduct.sizes && viewingProduct.sizes.length > 0) || (viewingProduct.colors && viewingProduct.colors.length > 0) || (viewingProduct.attributes && Object.keys(viewingProduct.attributes).length > 0)) && (
-                      <div className="bg-gray-700/30 rounded-xl p-4">
+                    {((viewingProduct.sizes && viewingProduct.sizes.length > 0) || (viewingProduct.colors && viewingProduct.colors.length > 0) || (viewingProduct.attributes && Object.keys(viewingProduct.attributes).length > 0)) ? (
+                      <div className="bg-gray-700/30 rounded-xl p-4 flex flex-col">
                         <h4 className="text-sm font-semibold text-white mb-3">Характеристики</h4>
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-grow">
                           {viewingProduct.sizes && viewingProduct.sizes.length > 0 && (
                             <div>
                               <span className="text-xs text-gray-400 block mb-1">Размеры:</span>
@@ -1856,10 +1769,17 @@ export default function ProductsPage() {
                           )}
                         </div>
                       </div>
+                    ) : (
+                      <div className="bg-gray-700/30 rounded-xl p-4 flex flex-col">
+                        <h4 className="text-sm font-semibold text-white mb-3">Характеристики</h4>
+                        <div className="flex-grow flex items-center justify-center">
+                          <p className="text-gray-500 text-sm">Характеристики не указаны</p>
+                        </div>
+                      </div>
                     )}
 
                     {/* Dates - Compact */}
-                    <div className="bg-gray-700/30 rounded-xl p-4 flex-grow">
+                    <div className="bg-gray-700/30 rounded-xl p-4 flex flex-col">
                       <h4 className="text-sm font-semibold text-white mb-2">Информация</h4>
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
@@ -1873,48 +1793,22 @@ export default function ProductsPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons - Mobile Only */}
-                    <div className="lg:hidden bg-gray-700/30 rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-white mb-3">Действия</h4>
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={() => {
-                            closeModals();
-                            setTimeout(() => openEditModal(viewingProduct), 100);
-                          }}
-                          disabled={viewingProduct.status === 'DELETED'}
-                          className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
-                            viewingProduct.status === 'DELETED'
-                              ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed opacity-50'
-                              : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
-                          }`}
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                          <span>Редактировать</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            closeModals();
-                            setTimeout(() => openDeleteModal(viewingProduct), 100);
-                          }}
-                          disabled={viewingProduct.status === 'DELETED'}
-                          className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
-                            viewingProduct.status === 'DELETED'
-                              ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed opacity-50'
-                              : 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-                          }`}
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                          <span>Удалить</span>
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Mobile Product View Modal */}
+        <MobileProductViewModal
+          isOpen={isMobileViewModalOpen}
+          onClose={closeModals}
+          product={mobileViewingProduct}
+          onEdit={openEditModal}
+          onDelete={openDeleteModal}
+          sellers={sellers}
+        />
       </div>
       
       {/* Toast Container */}
