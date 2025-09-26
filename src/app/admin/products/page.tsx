@@ -125,6 +125,9 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Form state
   const [formData, setFormData] = useState<ProductFormData>({
@@ -386,12 +389,20 @@ export default function ProductsPage() {
     setIsDeleteModalOpen(true);
   };
 
+  const openViewModal = (product: Product) => {
+    setViewingProduct(product);
+    setCurrentImageIndex(0);
+    setIsViewModalOpen(true);
+  };
+
   const closeModals = () => {
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
+    setIsViewModalOpen(false);
     setEditingProduct(null);
     setDeletingProduct(null);
+    setViewingProduct(null);
     setFormData({ 
       name: '', 
       description: '', 
@@ -791,7 +802,7 @@ export default function ProductsPage() {
             </div>
           ) : (
             paginatedProducts.map(product => (
-              <div key={product.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200">
+              <div key={product.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer" onClick={() => openViewModal(product)}>
                 <div className="flex items-start sm:items-center justify-between gap-3">
                   <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
                     {/* Product Image */}
@@ -892,7 +903,7 @@ export default function ProductsPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => openEditModal(product)}
                       disabled={product.status === 'DELETED'}
@@ -1263,6 +1274,293 @@ export default function ProductsPage() {
                   >
                     {formLoading ? 'Удаление...' : 'Удалить'}
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Product Modal */}
+        {isViewModalOpen && viewingProduct && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-50">
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-5xl border border-gray-700/50 shadow-2xl mx-4 max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-white">{viewingProduct.name}</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                  {/* Images Section */}
+                  <div className="space-y-4 flex flex-col">
+                    {/* Main Image Display */}
+                    <div className="bg-gray-700/30 rounded-xl p-4">
+                      <div className="aspect-square bg-gray-600/30 rounded-lg overflow-hidden relative">
+                        {(() => {
+                          // Создаем массив дополнительных изображений, исключая mainImage
+                          const additionalImages = Array.isArray(viewingProduct.imageUrl) 
+                            ? viewingProduct.imageUrl.filter(img => img !== viewingProduct.mainImage)
+                            : [];
+                          
+                          // Формируем полный массив: mainImage + дополнительные (без дублирования)
+                          const allImages = [];
+                          if (viewingProduct.mainImage) {
+                            allImages.push(viewingProduct.mainImage);
+                          }
+                          allImages.push(...additionalImages);
+                          
+                          const currentImage = allImages[currentImageIndex];
+                          
+                          return currentImage ? (
+                            <img 
+                              src={currentImage} 
+                              alt={viewingProduct.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <PhotoIcon className="h-16 w-16 text-gray-500" />
+                            </div>
+                          );
+                        })()}
+                        
+                        {/* Navigation arrows */}
+                        {(() => {
+                          // Создаем массив дополнительных изображений, исключая mainImage
+                          const additionalImages = Array.isArray(viewingProduct.imageUrl) 
+                            ? viewingProduct.imageUrl.filter(img => img !== viewingProduct.mainImage)
+                            : [];
+                          
+                          // Формируем полный массив: mainImage + дополнительные (без дублирования)
+                          const allImages = [];
+                          if (viewingProduct.mainImage) {
+                            allImages.push(viewingProduct.mainImage);
+                          }
+                          allImages.push(...additionalImages);
+                          
+                          if (allImages.length > 1) {
+                            return (
+                              <>
+                                <button
+                                  onClick={() => setCurrentImageIndex(prev => 
+                                    prev === 0 ? allImages.length - 1 : prev - 1
+                                  )}
+                                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200"
+                                >
+                                  <ChevronLeftIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setCurrentImageIndex(prev => 
+                                    prev === allImages.length - 1 ? 0 : prev + 1
+                                  )}
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200"
+                                >
+                                  <ChevronLeftIcon className="h-4 w-4 rotate-180" />
+                                </button>
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      
+                      {/* Image counter */}
+                      {(() => {
+                        // Создаем массив дополнительных изображений, исключая mainImage
+                        const additionalImages = Array.isArray(viewingProduct.imageUrl) 
+                          ? viewingProduct.imageUrl.filter(img => img !== viewingProduct.mainImage)
+                          : [];
+                        
+                        // Формируем полный массив: mainImage + дополнительные (без дублирования)
+                        const allImages = [];
+                        if (viewingProduct.mainImage) {
+                          allImages.push(viewingProduct.mainImage);
+                        }
+                        allImages.push(...additionalImages);
+                        
+                        if (allImages.length > 1) {
+                          return (
+                            <div className="mt-2 text-center text-sm text-gray-400">
+                              {currentImageIndex + 1} из {allImages.length}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
+                    {/* Thumbnail Navigation */}
+                    {(() => {
+                      // Создаем массив дополнительных изображений, исключая mainImage
+                      const additionalImages = Array.isArray(viewingProduct.imageUrl) 
+                        ? viewingProduct.imageUrl.filter(img => img !== viewingProduct.mainImage)
+                        : [];
+                      
+                      // Формируем полный массив: mainImage + дополнительные (без дублирования)
+                      const allImages = [];
+                      if (viewingProduct.mainImage) {
+                        allImages.push(viewingProduct.mainImage);
+                      }
+                      allImages.push(...additionalImages);
+                      
+                      if (allImages.length > 1) {
+                        return (
+                          <div className="bg-gray-700/30 rounded-xl p-4">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                              {allImages.map((image, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setCurrentImageIndex(index)}
+                                  className={`aspect-square bg-gray-600/30 rounded-lg overflow-hidden transition-all duration-200 ${
+                                    index === currentImageIndex 
+                                      ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-800' 
+                                      : 'hover:bg-gray-600/50'
+                                  }`}
+                                >
+                                  <img 
+                                    src={image} 
+                                    alt={`${viewingProduct.name} - изображение ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+
+                  {/* Product Details - Compact */}
+                  <div className="space-y-4 flex flex-col">
+                    {/* Basic Info - Compact */}
+                    <div className="bg-gray-700/30 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">{viewingProduct.name}</h3>
+                          <p className="text-2xl font-bold text-indigo-400 mt-1">
+                            {formatPrice(viewingProduct.price || viewingProduct.minPrice)}
+                          </p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                          viewingProduct.status === 'ACTIVE' 
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                            : viewingProduct.status === 'INACTIVE'
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        }`}>
+                          {viewingProduct.status === 'ACTIVE' ? 'Активный' : viewingProduct.status === 'INACTIVE' ? 'Неактивный' : 'Удален'}
+                        </span>
+                      </div>
+                      
+                      {viewingProduct.description && (
+                        <p className="text-gray-300 text-sm leading-relaxed mb-3">
+                          {viewingProduct.description}
+                        </p>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Категория:</span>
+                          <p className="text-white font-medium">{viewingProduct.category.name}</p>
+                        </div>
+                        {viewingProduct.seller && (
+                          <div>
+                            <span className="text-gray-400">Продавец:</span>
+                            <p className="text-white font-medium">
+                              {viewingProduct.seller.fullname}
+                              {sellers.find(s => s.id === viewingProduct.seller?.id)?.role === 'ADMIN' && (
+                                <span className="ml-1 text-xs text-indigo-400">(Админ)</span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sizes, Colors and Attributes - Compact */}
+                    {((viewingProduct.sizes && viewingProduct.sizes.length > 0) || (viewingProduct.colors && viewingProduct.colors.length > 0) || (viewingProduct.attributes && Object.keys(viewingProduct.attributes).length > 0)) && (
+                      <div className="bg-gray-700/30 rounded-xl p-4">
+                        <h4 className="text-sm font-semibold text-white mb-3">Характеристики</h4>
+                        <div className="space-y-3">
+                          {viewingProduct.sizes && viewingProduct.sizes.length > 0 && (
+                            <div>
+                              <span className="text-xs text-gray-400 block mb-1">Размеры:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {viewingProduct.sizes.map((size, index) => (
+                                  <span 
+                                    key={index}
+                                    className="px-2 py-1 bg-gray-600 text-gray-300 rounded text-xs"
+                                  >
+                                    {size}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {viewingProduct.colors && viewingProduct.colors.length > 0 && (
+                            <div>
+                              <span className="text-xs text-gray-400 block mb-1">Цвета:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {viewingProduct.colors.map((color, index) => (
+                                  <div 
+                                    key={index}
+                                    className="flex items-center space-x-1 px-2 py-1 bg-gray-600 rounded text-xs"
+                                  >
+                                    <div 
+                                      className="w-3 h-3 rounded-full border border-gray-400/50"
+                                      style={{ backgroundColor: color.colorCode }}
+                                    />
+                                    <span className="text-gray-300">{color.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {viewingProduct.attributes && Object.keys(viewingProduct.attributes).length > 0 && (
+                            <div>
+                              <span className="text-xs text-gray-400 block mb-1">Атрибуты:</span>
+                              <div className="space-y-1">
+                                {Object.entries(viewingProduct.attributes).map(([key, value], index) => (
+                                  <div key={index} className="flex justify-between text-xs">
+                                    <span className="text-gray-400 capitalize">{key}:</span>
+                                    <span className="text-gray-300">{String(value)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dates - Compact */}
+                    <div className="bg-gray-700/30 rounded-xl p-4 flex-grow">
+                      <h4 className="text-sm font-semibold text-white mb-2">Информация</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className="text-gray-400">Создан:</span>
+                          <p className="text-white">{new Date(viewingProduct.createdAt).toLocaleDateString('ru-RU')}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Обновлен:</span>
+                          <p className="text-white">{new Date(viewingProduct.updatedAt).toLocaleDateString('ru-RU')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
