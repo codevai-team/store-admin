@@ -53,6 +53,7 @@ export async function GET(
       description: product.description,
       price: Number(product.price),
       categoryId: product.categoryId.trim(),
+      status: product.status,
       category: {
         id: product.category.id.trim(),
         name: product.category.name
@@ -66,7 +67,9 @@ export async function GET(
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
       sizes: product.productSizes.map(ps => ps.size.name),
-      colors: product.productColors.map(pc => pc.color.name)
+      colors: product.productColors.map(pc => pc.color.name),
+      // Для совместимости с фронтендом
+      isActive: product.status === 'ACTIVE'
     };
 
     return NextResponse.json(transformedProduct);
@@ -89,7 +92,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, categoryId, price, sellerId, imageUrl = [], attributes = {}, sizes = [], colors = [] } = body;
+    const { name, description, categoryId, price, sellerId, status, imageUrl = [], attributes = {}, sizes = [], colors = [] } = body;
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -157,17 +160,24 @@ export async function PUT(
 
     const result = await prisma.$transaction(async (tx) => {
       // Обновляем основные данные товара
+      const updateData: any = {
+        name: name.trim(),
+        description: description?.trim() || null,
+        categoryId,
+        sellerId,
+        price: parseFloat(price.toString()),
+        imageUrl: Array.isArray(imageUrl) ? imageUrl : [],
+        attributes: attributes || {}
+      };
+
+      // Добавляем статус, если он передан
+      if (status !== undefined) {
+        updateData.status = status as 'ACTIVE' | 'INACTIVE' | 'DELETED';
+      }
+
       const updatedProduct = await tx.product.update({
         where: { id },
-        data: {
-          name: name.trim(),
-          description: description?.trim() || null,
-          categoryId,
-          sellerId,
-          price: parseFloat(price.toString()),
-          imageUrl: Array.isArray(imageUrl) ? imageUrl : [],
-          attributes: attributes || {}
-        }
+        data: updateData
       });
 
       // Удаляем старые связи с размерами и цветами
@@ -264,6 +274,7 @@ export async function PUT(
       description: result!.description,
       price: Number(result!.price),
       categoryId: result!.categoryId.trim(),
+      status: result!.status,
       category: {
         id: result!.category.id.trim(),
         name: result!.category.name
@@ -278,7 +289,7 @@ export async function PUT(
       createdAt: result!.createdAt.toISOString(),
       updatedAt: result!.updatedAt.toISOString(),
       // Для совместимости с фронтендом
-      isActive: true,
+      isActive: result!.status === 'ACTIVE',
       variantsCount: 1,
       totalQuantity: 1,
       minPrice: Number(result!.price),

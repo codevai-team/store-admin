@@ -29,6 +29,7 @@ interface ProductFormData {
   categoryId: string;
   price: number;
   sellerId: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   imageUrl: string[];
   attributes: any;
   sizes: string[];
@@ -43,6 +44,8 @@ interface SimpleAddProductModalProps {
   loading: boolean;
   onShowWarning: (title: string, message: string) => void;
   onShowError: (title: string, message: string) => void;
+  initialData?: ProductFormData | null;
+  isEdit?: boolean;
 }
 
 export default function SimpleAddProductModal({
@@ -52,7 +55,9 @@ export default function SimpleAddProductModal({
   categories,
   loading,
   onShowWarning,
-  onShowError
+  onShowError,
+  initialData = null,
+  isEdit = false
 }: SimpleAddProductModalProps) {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -60,6 +65,7 @@ export default function SimpleAddProductModal({
     categoryId: '',
     price: 0,
     sellerId: '',
+    status: 'ACTIVE',
     imageUrl: [],
     attributes: {},
     sizes: [],
@@ -69,12 +75,26 @@ export default function SimpleAddProductModal({
   const [uploadedImages, setUploadedImages] = useState<string[]>([]); // Отслеживаем загруженные изображения
   const [attributes, setAttributes] = useState<{key: string, value: string}[]>([]);
 
-  // Получаем ID администратора из API
+  // Инициализация формы при открытии модального окна
   useEffect(() => {
-    if (isOpen && !formData.sellerId) {
-      fetchAdminId();
+    if (isOpen) {
+      if (initialData) {
+        // Если есть начальные данные, используем их
+        setFormData(initialData);
+        // Парсим атрибуты из объекта в массив
+        if (initialData.attributes) {
+          const attributesArray = Object.entries(initialData.attributes).map(([key, value]) => ({
+            key,
+            value: String(value)
+          }));
+          setAttributes(attributesArray);
+        }
+      } else if (!formData.sellerId) {
+        // Если нет начальных данных, получаем ID администратора
+        fetchAdminId();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   const fetchAdminId = async () => {
     try {
@@ -139,6 +159,7 @@ export default function SimpleAddProductModal({
       categoryId: '',
       price: 0,
       sellerId: '', // Будет установлен автоматически при открытии модального окна
+      status: 'ACTIVE',
       imageUrl: [],
       attributes: {},
       sizes: [],
@@ -149,14 +170,16 @@ export default function SimpleAddProductModal({
   };
 
   const handleClose = async () => {
-    // Удаляем загруженные изображения, если товар не был сохранен
-    for (const imageUrl of uploadedImages) {
-      try {
-        await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('Error deleting image:', error);
+    // Удаляем загруженные изображения только при создании товара, не при редактировании
+    if (!isEdit) {
+      for (const imageUrl of uploadedImages) {
+        try {
+          await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
+            method: 'DELETE',
+          });
+        } catch (error) {
+          console.error('Error deleting image:', error);
+        }
       }
     }
     
@@ -205,7 +228,7 @@ export default function SimpleAddProductModal({
       <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">Добавить товар</h2>
+            <h2 className="text-xl font-bold text-white">{isEdit ? 'Редактировать товар' : 'Добавить товар'}</h2>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-white transition-colors"
@@ -309,6 +332,35 @@ export default function SimpleAddProductModal({
                 ]}
                 placeholder="Выберите категорию"
                 icon={<TagIcon className="h-5 w-5" />}
+              />
+            </div>
+
+            {/* Статус */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Статус
+              </label>
+              <CustomSelect
+                value={formData.status}
+                onChange={(value) => setFormData(prev => ({ ...prev, status: value as 'ACTIVE' | 'INACTIVE' | 'DELETED' }))}
+                options={isEdit && formData.status === 'DELETED' ? [
+                  { value: 'DELETED', label: 'Удаленный (нельзя изменить)' }
+                ] : [
+                  { value: 'ACTIVE', label: 'Активный' },
+                  { value: 'INACTIVE', label: 'Неактивный' },
+                  { value: 'DELETED', label: 'Удаленный' }
+                ]}
+                placeholder="Выберите статус"
+                icon={
+                  <div className={`h-3 w-3 rounded-full ${
+                    formData.status === 'ACTIVE' 
+                      ? 'bg-green-400' 
+                      : formData.status === 'INACTIVE'
+                      ? 'bg-yellow-400'
+                      : 'bg-red-400'
+                  }`} />
+                }
+                disabled={isEdit && formData.status === 'DELETED'}
               />
             </div>
 

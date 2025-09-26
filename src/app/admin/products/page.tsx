@@ -45,6 +45,7 @@ interface Product {
   description: string;
   price: number;
   categoryId: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   category: Category;
   seller?: {
     id: string;
@@ -85,13 +86,14 @@ interface ProductFormData {
   categoryId: string;
   price: number;
   sellerId: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   imageUrl: string[];
   attributes: any;
   sizes: string[];
   colors: string[];
 }
 
-type SortOption = 'newest' | 'name' | 'price' | 'quantity' | 'category';
+type SortOption = 'newest' | 'name' | 'price' | 'quantity' | 'category' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export default function ProductsPage() {
@@ -109,7 +111,7 @@ export default function ProductsPage() {
   const [colorFilter, setColorFilter] = useState<string>('');
   const [sizeFilter, setSizeFilter] = useState<string>('');
   const [sellerFilter, setSellerFilter] = useState<string>('');
-  // Убираем фильтр по статусу активности, так как в новой схеме БД нет поля isActive
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,6 +133,7 @@ export default function ProductsPage() {
     categoryId: '',
     price: 0,
     sellerId: '',
+    status: 'ACTIVE',
     imageUrl: [],
     attributes: {},
     sizes: [],
@@ -276,8 +279,13 @@ export default function ProductsPage() {
       matchesSeller = product.seller?.id === sellerFilter;
     }
     
-    // Убираем фильтрацию по статусу - все товары в БД считаются активными
-    return matchesSearch && matchesCategory && matchesColor && matchesSize && matchesSeller;
+    // Фильтрация по статусу
+    let matchesStatus = true;
+    if (statusFilter) {
+      matchesStatus = product.status === statusFilter;
+    }
+    
+    return matchesSearch && matchesCategory && matchesColor && matchesSize && matchesSeller && matchesStatus;
   });
 
   // Сортировка товаров
@@ -300,6 +308,11 @@ export default function ProductsPage() {
       case 'category':
         comparison = a.category.name.localeCompare(b.category.name, 'ru');
         break;
+      case 'status':
+        // Порядок сортировки: ACTIVE -> INACTIVE -> DELETED
+        const statusOrder = { 'ACTIVE': 0, 'INACTIVE': 1, 'DELETED': 2 };
+        comparison = statusOrder[a.status] - statusOrder[b.status];
+        break;
       default:
         return 0;
     }
@@ -317,7 +330,7 @@ export default function ProductsPage() {
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, sortBy, sortOrder]);
+  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
 
   // Клавиатурные сокращения
   useEffect(() => {
@@ -341,6 +354,7 @@ export default function ProductsPage() {
       categoryId: '', 
       price: 0,
       sellerId: '',
+      status: 'ACTIVE',
       imageUrl: [],
       attributes: {},
       sizes: [],
@@ -351,6 +365,19 @@ export default function ProductsPage() {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    // Заполняем форму данными товара
+    setFormData({
+      name: product.name,
+      description: product.description || '',
+      categoryId: product.categoryId,
+      price: product.price,
+      sellerId: product.seller?.id || '',
+      status: product.status,
+      imageUrl: Array.isArray(product.imageUrl) ? product.imageUrl : [],
+      attributes: product.attributes || {},
+      sizes: product.sizes || [],
+      colors: product.colors?.map(color => color.name) || []
+    });
     setIsEditModalOpen(true);
   };
 
@@ -371,6 +398,7 @@ export default function ProductsPage() {
       categoryId: '', 
       price: 0,
       sellerId: '',
+      status: 'ACTIVE',
       imageUrl: [],
       attributes: {},
       sizes: [],
@@ -448,26 +476,42 @@ export default function ProductsPage() {
     }
   };
 
-  // Удаление товара
+  // Удаление товара (изменение статуса на DELETED)
   const handleDelete = async () => {
     if (!deletingProduct) return;
 
     setFormLoading(true);
     try {
       const response = await fetch(`/api/admin/products/${deletingProduct.id}`, {
-        method: 'DELETE'
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: deletingProduct.name,
+          description: deletingProduct.description,
+          categoryId: deletingProduct.categoryId,
+          price: deletingProduct.price,
+          sellerId: deletingProduct.seller?.id,
+          status: 'DELETED',
+          imageUrl: deletingProduct.imageUrl,
+          attributes: deletingProduct.attributes,
+          sizes: deletingProduct.sizes || [],
+          colors: deletingProduct.colors?.map(color => color.name) || []
+        })
       });
 
       if (response.ok) {
         await fetchProducts();
         closeModals();
+        showSuccess('Товар удален', 'Товар был помечен как удаленный');
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка удаления товара');
+        showError('Ошибка удаления', error.error || 'Ошибка удаления товара');
       }
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Ошибка удаления товара');
+      showError('Ошибка удаления', 'Ошибка удаления товара');
     } finally {
       setFormLoading(false);
     }
@@ -516,35 +560,35 @@ export default function ProductsPage() {
         {/* Filters and Search */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50">
           <div className="space-y-4">
-            {/* Search - Full width on mobile */}
-            <div className="w-full">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            {/* Search and Sort Row */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search - Left side */}
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Поиск товаров..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-12 h-10 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 text-sm sm:text-base"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Поиск товаров..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 text-sm sm:text-base"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
-                  </button>
-                )}
               </div>
-            </div>
 
-            {/* Controls Row */}
-            <div className="flex flex-col lg:flex-row gap-3">
-              {/* Sort Controls */}
-              <div className="flex items-center space-x-2 flex-1">
-                <div className="flex-1 sm:flex-none min-w-[180px]">
+              {/* Sort Controls - Right side */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <div className="min-w-[200px]">
                   <CustomSelect
                     value={sortBy}
                     onChange={(value) => setSortBy(value as SortOption)}
@@ -553,7 +597,8 @@ export default function ProductsPage() {
                       { value: 'name', label: 'По названию' },
                       { value: 'price', label: 'По цене' },
                       { value: 'quantity', label: 'По количеству' },
-                      { value: 'category', label: 'По категории' }
+                      { value: 'category', label: 'По категории' },
+                      { value: 'status', label: 'По статусу' }
                     ]}
                     icon={<BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
                     className="text-sm"
@@ -576,9 +621,12 @@ export default function ProductsPage() {
                   )}
                 </button>
               </div>
+            </div>
 
+            {/* Filters Row */}
+            <div className="flex flex-col lg:flex-row gap-3">
               {/* Category Filter */}
-              <div className="flex-1 sm:flex-none min-w-[200px]">
+              <div className="flex-1 max-w-full">
                 <CustomSelect
                   value={categoryFilter}
                   onChange={(value) => setCategoryFilter(value)}
@@ -610,7 +658,7 @@ export default function ProductsPage() {
               </div>
 
               {/* Color Filter */}
-              <div className="flex-1 sm:flex-none min-w-[200px]">
+              <div className="flex-1 max-w-full">
                 <CustomSelect
                   value={colorFilter}
                   onChange={(value) => setColorFilter(value)}
@@ -634,7 +682,7 @@ export default function ProductsPage() {
               </div>
 
               {/* Size Filter */}
-              <div className="flex-1 sm:flex-none min-w-[200px]">
+              <div className="flex-1 max-w-full">
                 <CustomSelect
                   value={sizeFilter}
                   onChange={(value) => setSizeFilter(value)}
@@ -652,7 +700,7 @@ export default function ProductsPage() {
               </div>
 
               {/* Seller Filter */}
-              <div className="flex-1 sm:flex-none min-w-[200px]">
+              <div className="flex-1 max-w-full">
                 <CustomSelect
                   value={sellerFilter}
                   onChange={(value) => setSellerFilter(value)}
@@ -669,6 +717,22 @@ export default function ProductsPage() {
                 />
               </div>
 
+              {/* Status Filter */}
+              <div className="flex-1 max-w-full">
+                <CustomSelect
+                  value={statusFilter}
+                  onChange={(value) => setStatusFilter(value)}
+                  options={[
+                    { value: '', label: 'Все статусы' },
+                    { value: 'ACTIVE', label: 'Активные' },
+                    { value: 'INACTIVE', label: 'Неактивные' },
+                    { value: 'DELETED', label: 'Удаленные' }
+                  ]}
+                  placeholder="Все статусы"
+                  icon={<CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  className="text-sm"
+                />
+              </div>
             </div>
           </div>
 
@@ -708,15 +772,15 @@ export default function ProductsPage() {
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <CubeIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
-                {searchTerm || categoryFilter || colorFilter || sizeFilter || sellerFilter ? 'Товары не найдены' : 'Нет товаров'}
+                {searchTerm || categoryFilter || colorFilter || sizeFilter || sellerFilter || statusFilter ? 'Товары не найдены' : 'Нет товаров'}
               </h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm || categoryFilter || colorFilter || sizeFilter || sellerFilter
+                {searchTerm || categoryFilter || colorFilter || sizeFilter || sellerFilter || statusFilter
                   ? 'Попробуйте изменить критерии поиска' 
                   : 'Создайте первый товар для начала работы'
                 }
               </p>
-              {!searchTerm && !categoryFilter && !colorFilter && !sizeFilter && !sellerFilter && (
+              {!searchTerm && !categoryFilter && !colorFilter && !sizeFilter && !sellerFilter && !statusFilter && (
                 <button
                   onClick={openCreateModal}
                   className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200"
@@ -752,6 +816,17 @@ export default function ProductsPage() {
                         <div className="flex items-center space-x-2">
                           <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
                             {product.category.name}
+                          </span>
+                          
+                          {/* Status Tag */}
+                          <span className={`text-xs px-2 py-1 rounded font-medium ${
+                            product.status === 'ACTIVE' 
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                              : product.status === 'INACTIVE'
+                              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                              : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          }`}>
+                            {product.status === 'ACTIVE' ? 'Активный' : product.status === 'INACTIVE' ? 'Неактивный' : 'Удален'}
                           </span>
                           
                         </div>
@@ -820,16 +895,26 @@ export default function ProductsPage() {
                   <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
                     <button
                       onClick={() => openEditModal(product)}
-                      className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
-                      title="Редактировать"
+                      disabled={product.status === 'DELETED'}
+                      className={`p-2 rounded-lg transition-colors ${
+                        product.status === 'DELETED'
+                          ? 'text-gray-600 cursor-not-allowed opacity-50'
+                          : 'text-blue-400 hover:bg-blue-500/20'
+                      }`}
+                      title={product.status === 'DELETED' ? 'Удаленные товары нельзя редактировать' : 'Редактировать'}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     
                     <button
                       onClick={() => openDeleteModal(product)}
-                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
-                      title="Удалить"
+                      disabled={product.status === 'DELETED'}
+                      className={`p-2 rounded-lg transition-colors ${
+                        product.status === 'DELETED'
+                          ? 'text-gray-600 cursor-not-allowed opacity-50'
+                          : 'text-red-400 hover:bg-red-500/20'
+                      }`}
+                      title={product.status === 'DELETED' ? 'Товар уже удален' : 'Удалить'}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -913,6 +998,18 @@ export default function ProductsPage() {
                         <ArrowDownIcon className="h-2 w-2 sm:h-3 sm:w-3 text-orange-400 flex-shrink-0" />
                       ) : (
                         <ArrowUpIcon className="h-2 w-2 sm:h-3 sm:w-3 text-orange-400 flex-shrink-0" />
+                      )}
+                    </div>
+                  )}
+                  {sortBy === 'status' && (
+                    <div className="flex items-center space-x-1 sm:space-x-2">
+                      <CheckIcon className="h-3 w-3 sm:h-4 sm:w-4 text-pink-400 flex-shrink-0" />
+                      <span className="text-pink-400 font-medium hidden sm:inline">По статусу</span>
+                      <span className="text-pink-400 font-medium sm:hidden">Статус</span>
+                      {sortOrder === 'desc' ? (
+                        <ArrowDownIcon className="h-2 w-2 sm:h-3 sm:w-3 text-pink-400 flex-shrink-0" />
+                      ) : (
+                        <ArrowUpIcon className="h-2 w-2 sm:h-3 sm:w-3 text-pink-400 flex-shrink-0" />
                       )}
                     </div>
                   )}
@@ -1053,7 +1150,7 @@ export default function ProductsPage() {
           onShowError={(title, message) => showError(title, message)}
         />
 
-        {/* Edit Product Modal - пока используем то же простое модальное окно */}
+        {/* Edit Product Modal */}
         {isEditModalOpen && editingProduct && (
           <SimpleAddProductModal
             isOpen={isEditModalOpen}
@@ -1063,59 +1160,110 @@ export default function ProductsPage() {
             loading={formLoading}
             onShowWarning={(title, message) => showWarning(title, message)}
             onShowError={(title, message) => showError(title, message)}
+            initialData={formData}
+            isEdit={true}
           />
         )}
 
         {/* Delete Modal */}
         {isDeleteModalOpen && deletingProduct && (
           <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl p-4 sm:p-6 w-full max-w-md border border-gray-700/50 shadow-2xl mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Удалить товар</h2>
-                <button
-                  onClick={closeModals}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-lg border border-gray-700/50 shadow-2xl mx-4">
+              {/* Header */}
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Удалить товар</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
               </div>
 
-              <div className="mb-6">
-                <div className="flex items-center space-x-3 mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              {/* Content */}
+              <div className="p-4 sm:p-6 space-y-6">
+                {/* Warning Section */}
+                <div className="flex items-start space-x-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
                   <div className="flex-shrink-0">
-                    <TrashIcon className="h-8 w-8 text-yellow-400" />
+                    <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                      <TrashIcon className="h-6 w-6 text-red-400" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-yellow-300 mb-1">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-red-300 mb-2">
                       Подтверждение удаления
                     </h3>
-                    <p className="text-gray-300">
-                      Вы уверены, что хотите удалить товар <strong className="text-white">"{deletingProduct.name}"</strong>?
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      Вы уверены, что хотите удалить товар <strong className="text-white font-medium">"{deletingProduct.name}"</strong>?
                     </p>
                   </div>
                 </div>
                 
-                <div className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4">
-                  <p className="text-gray-300 text-sm">
-                    ⚠️ <strong>Внимание:</strong> Это действие необратимо. Товар будет удален навсегда.
-                  </p>
+                {/* Info Section */}
+                <div className="bg-gray-700/30 border border-gray-600/50 rounded-xl p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-5 h-5 bg-yellow-500/20 rounded-full flex items-center justify-center mt-0.5">
+                      <span className="text-yellow-400 text-xs">⚠</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-300 text-sm leading-relaxed">
+                        <strong className="text-yellow-300">Внимание:</strong> Товар будет помечен как удаленный и не может быть восстановлен. Это действие необратимо.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Информация о товаре:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Название:</span>
+                      <span className="text-white font-medium">{deletingProduct.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Категория:</span>
+                      <span className="text-white">{deletingProduct.category.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Цена:</span>
+                      <span className="text-white">{formatPrice(deletingProduct.price)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Текущий статус:</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        deletingProduct.status === 'ACTIVE' 
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          : deletingProduct.status === 'INACTIVE'
+                          ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      }`}>
+                        {deletingProduct.status === 'ACTIVE' ? 'Активный' : deletingProduct.status === 'INACTIVE' ? 'Неактивный' : 'Удален'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
-                <button
-                  onClick={closeModals}
-                  className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={formLoading}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50"
-                >
-                  {formLoading ? 'Удаление...' : 'Удалить'}
-                </button>
+              {/* Footer */}
+              <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700/50 p-4 sm:p-6">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={closeModals}
+                    className="flex-1 px-4 py-3 border border-gray-600/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={formLoading}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 py-3 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-red-500/25"
+                  >
+                    {formLoading ? 'Удаление...' : 'Удалить'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

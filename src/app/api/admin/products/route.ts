@@ -8,6 +8,7 @@ type ProductWithIncludes = {
   price: any;
   categoryId: string;
   sellerId: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   imageUrl: any;
   attributes: any;
   createdAt: Date;
@@ -74,7 +75,7 @@ export async function GET() {
     });
 
     // Преобразуем данные для фронтенда в соответствии с новой схемой
-    const transformedProducts = products.map((product: ProductWithIncludes) => {
+    const transformedProducts = products.map((product: any) => {
       // Получаем главное изображение из JSON поля
       let mainImage = null;
       if (product.imageUrl && Array.isArray(product.imageUrl)) {
@@ -87,6 +88,7 @@ export async function GET() {
         description: product.description,
         price: Number(product.price),
         categoryId: product.categoryId.trim(),
+        status: product.status,
         category: {
           id: product.category.id.trim(),
           name: product.category.name
@@ -101,7 +103,7 @@ export async function GET() {
         createdAt: product.createdAt.toISOString(),
         updatedAt: product.updatedAt.toISOString(),
         // Для совместимости с фронтендом
-        isActive: true, // в новой схеме нет поля isActive, считаем все активными
+        isActive: product.status === 'ACTIVE',
         variantsCount: 1, // простые товары = 1 вариант
         totalQuantity: 1, // заглушка для количества
         minPrice: Number(product.price),
@@ -132,7 +134,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, categoryId, price, sellerId, imageUrl = [], attributes = {}, sizes = [], colors = [] } = body;
+    const { name, description, categoryId, price, sellerId, status = 'ACTIVE', imageUrl = [], attributes = {}, sizes = [], colors = [] } = body;
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -195,6 +197,7 @@ export async function POST(request: Request) {
           description: description?.trim() || null,
           categoryId,
           sellerId,
+          status: status as 'ACTIVE' | 'INACTIVE' | 'DELETED',
           price: parseFloat(price.toString()),
           imageUrl: Array.isArray(imageUrl) ? imageUrl : [],
           attributes: attributes || {}
@@ -319,6 +322,7 @@ export async function POST(request: Request) {
       description: result!.description,
       price: Number(result!.price),
       categoryId: result!.categoryId.trim(),
+      status: result!.status,
       category: {
         id: result!.category.id.trim(),
         name: result!.category.name
@@ -333,7 +337,7 @@ export async function POST(request: Request) {
       createdAt: result!.createdAt.toISOString(),
       updatedAt: result!.updatedAt.toISOString(),
       // Для совместимости с фронтендом
-      isActive: true,
+      isActive: result!.status === 'ACTIVE',
       variantsCount: 1,
       totalQuantity: 1,
       minPrice: Number(result!.price),

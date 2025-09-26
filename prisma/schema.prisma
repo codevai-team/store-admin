@@ -47,16 +47,17 @@ model Category {
 
 // Товары
 model Product {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
-  imageUrl    Json?    @map("image_url") // массив URL изображений
-  price       Decimal  @db.Decimal(10, 2)
-  categoryId  String   @map("category_id")
-  sellerId    String   @map("seller_id")
-  attributes  Json?    // дополнительные атрибуты товара
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  imageUrl    Json?         @map("image_url") // массив URL изображений
+  price       Decimal       @db.Decimal(10, 2)
+  categoryId  String        @map("category_id")
+  sellerId    String        @map("seller_id")
+  status      ProductStatus @default(ACTIVE)
+  attributes  Json?         // дополнительные атрибуты товара
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   // Связи
   category      Category        @relation(fields: [categoryId], references: [id])
@@ -195,4 +196,11 @@ enum OrderStatus {
   ENROUTE       @map("enroute")
   DELIVERED     @map("delivered")
   CANCELED      @map("canceled")
+}
+
+// Enum для статусов товаров
+enum ProductStatus {
+  ACTIVE    @map("active")
+  INACTIVE  @map("inactive")
+  DELETED   @map("deleted")
 }
