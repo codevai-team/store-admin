@@ -309,14 +309,16 @@ export default function ImageUpload({
               </div>
               
               {/* Кнопка удаления фона/возврата в правом верхнем углу */}
-              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <BackgroundRemoveButton
-                  imageUrl={url}
-                  onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
-                  onRevert={handleRevertToOriginal}
-                  isProcessed={isImageProcessed(index)}
-                  originalUrl={originalImagesState[index]}
-                />
+              <div className="absolute top-1 right-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <div className="bg-black/50 rounded-full p-0.5">
+                  <BackgroundRemoveButton
+                    imageUrl={url}
+                    onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
+                    onRevert={handleRevertToOriginal}
+                    isProcessed={isImageProcessed(index)}
+                    originalUrl={originalImagesState[index]}
+                  />
+                </div>
               </div>
 
               {/* Кнопка удаления в левом верхнем углу */}
@@ -326,9 +328,9 @@ export default function ImageUpload({
                   e.stopPropagation();
                   removeImage(index);
                 }}
-                className="absolute top-1 left-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                className="absolute top-1 left-1 p-1.5 bg-red-600 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-700 shadow-lg border border-red-500"
               >
-                <XMarkIcon className="h-4 w-4" />
+                <XMarkIcon className="h-3 w-3" />
               </button>
 
             </div>

@@ -303,8 +303,8 @@ export default function SimpleAddProductModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-[9999]">
+      <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl max-h-[90vh] overflow-y-auto mb-16 sm:mb-0">
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">{isEdit ? 'Редактировать товар' : 'Добавить товар'}</h2>
@@ -519,18 +519,18 @@ export default function SimpleAddProductModal({
           </div>
 
           {/* Кнопки */}
-          <div className="flex space-x-4 pt-4 border-t border-gray-700/50">
+          <div className="flex space-x-4 pt-4 pb-4 sm:pb-0 border-t border-gray-700/50">
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-3 sm:py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-3 sm:py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50"
             >
               {loading ? 'Создание...' : 'Создать товар'}
             </button>
