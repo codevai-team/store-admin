@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Создаем товар в транзакции
+    // Создаем товар в транзакции с увеличенным таймаутом
     const result = await prisma.$transaction(async (tx: any) => {
       // Создаем товар
       const product = await tx.product.create({
@@ -201,52 +201,78 @@ export async function POST(request: Request) {
         }
       });
 
-      // Добавляем размеры, если указаны
+      // Оптимизированное добавление размеров
       if (sizes && sizes.length > 0) {
-        for (const sizeName of sizes) {
-          // Находим или создаем размер
-          let size = await tx.size.findFirst({
-            where: { name: sizeName.trim() }
-          });
-
-          if (!size) {
-            size = await tx.size.create({
-              data: { name: sizeName.trim() }
-            });
+        const uniqueSizes = [...new Set(sizes.map((s: string) => s.trim()))];
+        
+        // Находим существующие размеры одним запросом
+        const existingSizes = await tx.size.findMany({
+          where: { 
+            name: { in: uniqueSizes }
           }
+        });
 
-          // Связываем товар с размером
-          await tx.productSize.create({
-            data: {
-              productId: product.id,
-              sizeId: size.id
-            }
+        const existingSizeNames = existingSizes.map((s: any) => s.name);
+        const sizesToCreate = uniqueSizes.filter(name => !existingSizeNames.includes(name));
+
+        // Создаем недостающие размеры одним запросом
+        if (sizesToCreate.length > 0) {
+          await tx.size.createMany({
+            data: sizesToCreate.map(name => ({ name })),
+            skipDuplicates: true
           });
         }
+
+        // Получаем все размеры (включая только что созданные)
+        const allSizes = await tx.size.findMany({
+          where: { name: { in: uniqueSizes } }
+        });
+
+        // Создаем связи одним запросом
+        await tx.productSize.createMany({
+          data: allSizes.map((size: any) => ({
+            productId: product.id,
+            sizeId: size.id
+          })),
+          skipDuplicates: true
+        });
       }
 
-      // Добавляем цвета, если указаны
+      // Оптимизированное добавление цветов
       if (colors && colors.length > 0) {
-        for (const colorName of colors) {
-          // Находим или создаем цвет
-          let color = await tx.color.findFirst({
-            where: { name: colorName.trim() }
-          });
-
-          if (!color) {
-            color = await tx.color.create({
-              data: { name: colorName.trim() }
-            });
+        const uniqueColors = [...new Set(colors.map((c: string) => c.trim()))];
+        
+        // Находим существующие цвета одним запросом
+        const existingColors = await tx.color.findMany({
+          where: { 
+            name: { in: uniqueColors }
           }
+        });
 
-          // Связываем товар с цветом
-          await tx.productColor.create({
-            data: {
-              productId: product.id,
-              colorId: color.id
-            }
+        const existingColorNames = existingColors.map((c: any) => c.name);
+        const colorsToCreate = uniqueColors.filter(name => !existingColorNames.includes(name));
+
+        // Создаем недостающие цвета одним запросом
+        if (colorsToCreate.length > 0) {
+          await tx.color.createMany({
+            data: colorsToCreate.map(name => ({ name })),
+            skipDuplicates: true
           });
         }
+
+        // Получаем все цвета (включая только что созданные)
+        const allColors = await tx.color.findMany({
+          where: { name: { in: uniqueColors } }
+        });
+
+        // Создаем связи одним запросом
+        await tx.productColor.createMany({
+          data: allColors.map((color: any) => ({
+            productId: product.id,
+            colorId: color.id
+          })),
+          skipDuplicates: true
+        });
       }
 
       // Возвращаем созданный товар с полными данными
@@ -282,6 +308,8 @@ export async function POST(request: Request) {
           }
         }
       });
+    }, {
+      timeout: 15000 // Увеличиваем таймаут до 15 секунд
     });
 
     // Преобразуем данные для ответа

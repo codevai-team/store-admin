@@ -67,6 +67,7 @@ export default function SimpleAddProductModal({
   });
 
   const [uploadedImages, setUploadedImages] = useState<string[]>([]); // Отслеживаем загруженные изображения
+  const [attributes, setAttributes] = useState<{key: string, value: string}[]>([]);
 
   // Получаем ID администратора из API
   useEffect(() => {
@@ -144,6 +145,7 @@ export default function SimpleAddProductModal({
       colors: []
     });
     setUploadedImages([]);
+    setAttributes([]);
   };
 
   const handleClose = async () => {
@@ -167,6 +169,34 @@ export default function SimpleAddProductModal({
     setFormData(prev => ({ ...prev, imageUrl: images }));
     setUploadedImages(images);
   };
+
+  const addAttribute = () => {
+    setAttributes(prev => [...prev, { key: '', value: '' }]);
+  };
+
+  const removeAttribute = (index: number) => {
+    setAttributes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAttribute = (index: number, field: 'key' | 'value', value: string) => {
+    setAttributes(prev => 
+      prev.map((attr, i) => 
+        i === index ? { ...attr, [field]: value } : attr
+      )
+    );
+  };
+
+  // Обновляем formData.attributes при изменении атрибутов
+  useEffect(() => {
+    const attributesObject = attributes.reduce((acc, attr) => {
+      if (attr.key.trim() && attr.value.trim()) {
+        acc[attr.key.trim()] = attr.value.trim();
+      }
+      return acc;
+    }, {} as any);
+    
+    setFormData(prev => ({ ...prev, attributes: attributesObject }));
+  }, [attributes]);
 
   if (!isOpen) return null;
 
@@ -311,6 +341,49 @@ export default function SimpleAddProductModal({
               selectedColors={formData.colors}
               onColorsChange={(colors) => setFormData(prev => ({ ...prev, colors }))}
             />
+          </div>
+
+          {/* Атрибуты */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Атрибуты</h3>
+            
+            <div className="space-y-3">
+              {attributes.map((attr, index) => (
+                <div key={index} className="flex items-center space-x-3">
+                  <input
+                    type="text"
+                    placeholder="Название атрибута"
+                    value={attr.key}
+                    onChange={(e) => updateAttribute(index, 'key', e.target.value)}
+                    className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Значение атрибута"
+                    value={attr.value}
+                    onChange={(e) => updateAttribute(index, 'value', e.target.value)}
+                    className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAttribute(index)}
+                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                    title="Удалить атрибут"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addAttribute}
+                className="w-full p-2 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors flex items-center justify-center space-x-2"
+              >
+                <PlusIcon className="h-5 w-5" />
+                <span>Добавить атрибут</span>
+              </button>
+            </div>
           </div>
 
           {/* Кнопки */}

@@ -58,7 +58,7 @@ export default function CustomSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full flex items-center justify-between px-3 py-2 text-left
+          w-full flex items-center justify-between px-3 py-2 h-10 text-left
           bg-gray-700/50 border border-gray-600/50 rounded-lg
           text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50
           transition-all duration-200
