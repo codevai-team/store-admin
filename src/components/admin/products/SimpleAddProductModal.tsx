@@ -73,6 +73,7 @@ export default function SimpleAddProductModal({
   });
 
   const [uploadedImages, setUploadedImages] = useState<string[]>([]); // Отслеживаем загруженные изображения
+  const [originalImages, setOriginalImages] = useState<string[]>([]); // Отслеживаем оригинальные изображения
   const [attributes, setAttributes] = useState<{key: string, value: string}[]>([]);
 
   // Инициализация формы при открытии модального окна
@@ -81,6 +82,7 @@ export default function SimpleAddProductModal({
       if (initialData) {
         // Если есть начальные данные, используем их
         setFormData(initialData);
+        setOriginalImages(initialData.imageUrl); // Устанавливаем оригинальные изображения
         // Парсим атрибуты из объекта в массив
         if (initialData.attributes) {
           const attributesArray = Object.entries(initialData.attributes).map(([key, value]) => ({
@@ -140,6 +142,9 @@ export default function SimpleAddProductModal({
     try {
       const success = await onSubmit(formData);
       if (success) {
+        // Очищаем неиспользуемые изображения из S3
+        await cleanupUnusedImages();
+        
         // Сбрасываем форму только при успешном сохранении
         resetForm();
         // Получаем ID администратора заново для следующего товара
@@ -147,6 +152,50 @@ export default function SimpleAddProductModal({
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+    }
+  };
+
+  // Функция для очистки неиспользуемых изображений
+  const cleanupUnusedImages = async () => {
+    try {
+      // Собираем все URL, которые были загружены или обработаны
+      const allUploadedUrls: string[] = [...new Set([...uploadedImages, ...originalImages])];
+      const finalImageUrls = formData.imageUrl;
+      
+      // Находим все обработанные изображения (с _no_bg), которые не используются в финальном товаре
+      const processedImages = allUploadedUrls.filter((url: string) => url.includes('_no_bg'));
+      const originalImagesList = allUploadedUrls.filter((url: string) => !url.includes('_no_bg'));
+      
+      // Определяем, какие оригинальные изображения используются
+      const usedOriginalImages = finalImageUrls.filter((url: string) => !url.includes('_no_bg'));
+      
+      // Определяем, какие обработанные изображения используются
+      const usedProcessedImages = finalImageUrls.filter((url: string) => url.includes('_no_bg'));
+      
+      // Удаляем неиспользуемые обработанные изображения
+      const unusedProcessedImages = processedImages.filter((url: string) => !usedProcessedImages.includes(url));
+      
+      // Удаляем неиспользуемые оригинальные изображения
+      const unusedOriginalImages = originalImagesList.filter((url: string) => !usedOriginalImages.includes(url));
+      
+      const urlsToDelete = [...unusedProcessedImages, ...unusedOriginalImages];
+      
+      if (urlsToDelete.length > 0) {
+        console.log('Deleting unused images:', urlsToDelete);
+        await fetch('/api/upload/cleanup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            urlsToKeep: finalImageUrls,
+            urlsToDelete: urlsToDelete
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Error cleaning up images:', error);
+      // Не показываем ошибку пользователю, так как это не критично
     }
   };
 
@@ -166,13 +215,34 @@ export default function SimpleAddProductModal({
       colors: []
     });
     setUploadedImages([]);
+    setOriginalImages([]);
     setAttributes([]);
   };
 
   const handleClose = async () => {
-    // Удаляем загруженные изображения только при создании товара, не при редактировании
     if (!isEdit) {
-      for (const imageUrl of uploadedImages) {
+      // При создании товара удаляем все загруженные изображения
+      const allImages = [...new Set([...uploadedImages, ...originalImages, ...formData.imageUrl])];
+      
+      for (const imageUrl of allImages) {
+        try {
+          await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
+            method: 'DELETE',
+          });
+        } catch (error) {
+          console.error('Error deleting image:', error);
+        }
+      }
+    } else {
+      // При редактировании удаляем только новые изображения
+      const initialImages = originalImages || [];
+      const newImages = uploadedImages.filter(img => !initialImages.includes(img));
+      
+      console.log('Initial images:', initialImages);
+      console.log('Uploaded images:', uploadedImages);
+      console.log('New images to delete:', newImages);
+      
+      for (const imageUrl of newImages) {
         try {
           await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
             method: 'DELETE',
@@ -191,6 +261,15 @@ export default function SimpleAddProductModal({
   const handleImagesChange = (images: string[]) => {
     setFormData(prev => ({ ...prev, imageUrl: images }));
     setUploadedImages(images);
+    
+    // Обновляем оригинальные изображения только при добавлении новых
+    if (images.length > originalImages.length) {
+      const newOriginalImages = [...originalImages];
+      for (let i = originalImages.length; i < images.length; i++) {
+        newOriginalImages[i] = images[i];
+      }
+      setOriginalImages(newOriginalImages);
+    }
   };
 
   const addAttribute = () => {
@@ -374,6 +453,7 @@ export default function SimpleAddProductModal({
               images={formData.imageUrl}
               onImagesChange={handleImagesChange}
               maxImages={5}
+              originalImages={originalImages}
             />
           </div>
 

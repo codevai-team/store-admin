@@ -5,21 +5,17 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  StarIcon,
   TrashIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 interface ImageViewerProps {
   isOpen: boolean;
   onClose: () => void;
   images: Array<{
     url: string;
-    isMain?: boolean;
   }>;
   currentIndex: number;
-  onSetMain: (index: number) => void;
   onDelete: (index: number) => void;
 }
 
@@ -28,7 +24,6 @@ export default function ImageViewer({
   onClose,
   images,
   currentIndex,
-  onSetMain,
   onDelete,
 }: ImageViewerProps) {
   const [activeIndex, setActiveIndex] = useState(currentIndex);
@@ -64,12 +59,6 @@ export default function ImageViewer({
             <h3 className="text-white font-medium">
               Изображение {activeIndex + 1} из {images.length}
             </h3>
-            {currentImage.isMain && (
-              <div className="flex items-center space-x-1 bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full text-sm">
-                <StarIconSolid className="h-4 w-4" />
-                <span>Главное</span>
-              </div>
-            )}
           </div>
           <button
             onClick={onClose}
@@ -99,11 +88,12 @@ export default function ImageViewer({
       )}
 
       {/* Main Image */}
-      <div className="relative max-w-[90vw] max-h-[80vh] flex items-center justify-center">
+      <div className="relative max-w-[90vw] max-h-[80vh] flex items-center justify-center p-4">
         <img
           src={currentImage.url}
           alt={`Изображение ${activeIndex + 1}`}
           className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          style={{ maxHeight: 'calc(80vh - 2rem)' }}
         />
       </div>
 
@@ -126,13 +116,8 @@ export default function ImageViewer({
                   <img
                     src={image.url}
                     alt={`Миниатюра ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-gray-800"
                   />
-                  {image.isMain && (
-                    <div className="absolute top-1 right-1">
-                      <StarIconSolid className="h-3 w-3 text-yellow-400" />
-                    </div>
-                  )}
                 </button>
               ))}
             </div>
@@ -140,19 +125,6 @@ export default function ImageViewer({
 
           {/* Actions */}
           <div className="flex items-center space-x-3">
-            <button
-              onClick={() => onSetMain(activeIndex)}
-              disabled={currentImage.isMain}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                currentImage.isMain
-                  ? 'bg-yellow-500/20 text-yellow-300 cursor-not-allowed'
-                  : 'bg-yellow-600 hover:bg-yellow-700 text-white'
-              }`}
-            >
-              <StarIcon className="h-4 w-4" />
-              <span>{currentImage.isMain ? 'Главное' : 'Сделать главным'}</span>
-            </button>
-            
             <button
               onClick={() => {
                 onDelete(activeIndex);

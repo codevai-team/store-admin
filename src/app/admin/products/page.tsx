@@ -1324,7 +1324,7 @@ export default function ProductsPage() {
                             <img 
                               src={currentImage} 
                               alt={viewingProduct.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain bg-gray-800"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -1429,7 +1429,7 @@ export default function ProductsPage() {
                                   <img 
                                     src={image} 
                                     alt={`${viewingProduct.name} - изображение ${index + 1}`}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain bg-gray-800"
                                   />
                                 </button>
                               ))}

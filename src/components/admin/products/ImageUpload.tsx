@@ -7,24 +7,51 @@ import {
   CloudArrowUpIcon,
   ExclamationTriangleIcon 
 } from '@heroicons/react/24/outline';
+import BackgroundRemoveButton from './BackgroundRemoveButton';
 
 interface ImageUploadProps {
   images: string[];
   onImagesChange: (images: string[]) => void;
   maxImages?: number;
   onClearAll?: () => void;
+  originalImages?: string[]; // Для отслеживания оригинальных изображений
 }
 
 export default function ImageUpload({ 
   images, 
   onImagesChange, 
   maxImages = 5,
-  onClearAll
+  onClearAll,
+  originalImages = []
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [originalImagesState, setOriginalImagesState] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Инициализируем состояние оригинальных изображений только один раз
+  React.useEffect(() => {
+    if (originalImages.length > 0) {
+      setOriginalImagesState(originalImages);
+    }
+  }, [originalImages]);
+
+  // Обновляем оригинальные изображения только при добавлении новых
+  React.useEffect(() => {
+    if (images.length > 0) {
+      setOriginalImagesState(prev => {
+        const newState = [...prev];
+        // Добавляем только новые изображения, не перезаписывая существующие
+        for (let i = 0; i < images.length; i++) {
+          if (!newState[i]) {
+            newState[i] = images[i];
+          }
+        }
+        return newState;
+      });
+    }
+  }, [images.length]); // Только при изменении количества изображений
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -126,6 +153,58 @@ export default function ImageUpload({
   const openFileDialog = () => {
     fileInputRef.current?.click();
   };
+
+  // Обработка удаления фона
+  const handleBackgroundRemove = (index: number, newUrl: string) => {
+    const newImages = [...images];
+    newImages[index] = newUrl;
+    
+    // Сохраняем оригинальный URL перед заменой
+    const newOriginalImages = [...originalImagesState];
+    if (!newOriginalImages[index]) {
+      newOriginalImages[index] = images[index];
+    }
+    setOriginalImagesState(newOriginalImages);
+    
+    onImagesChange(newImages);
+  };
+
+  // Обработка возврата к оригиналу
+  const handleRevertToOriginal = async (originalUrl: string, processedUrl: string) => {
+    // Удаляем обработанное изображение из S3
+    try {
+      await fetch(`/api/upload?fileUrl=${encodeURIComponent(processedUrl)}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('Error deleting processed image:', error);
+    }
+    
+    // Обновляем изображение на оригинальное
+    const newImages = [...images];
+    const index = newImages.findIndex(img => img === processedUrl);
+    if (index !== -1) {
+      newImages[index] = originalUrl;
+      onImagesChange(newImages);
+    }
+  };
+
+  // Проверка, является ли изображение обработанным
+  const isImageProcessed = (index: number) => {
+    return !!(originalImagesState[index] && originalImagesState[index] !== images[index]);
+  };
+
+  // Обновляем оригинальные изображения при изменении текущих
+  React.useEffect(() => {
+    if (images.length > originalImagesState.length) {
+      // Добавились новые изображения
+      const newOriginalImages = [...originalImagesState];
+      for (let i = originalImagesState.length; i < images.length; i++) {
+        newOriginalImages[i] = images[i];
+      }
+      setOriginalImagesState(newOriginalImages);
+    }
+  }, [images, originalImagesState]);
 
   // Функция для очистки всех изображений (используется при отмене)
   const clearAllImages = async () => {
@@ -229,42 +308,29 @@ export default function ImageUpload({
                 />
               </div>
               
-              {/* Кнопка удаления */}
+              {/* Кнопка удаления фона/возврата в правом верхнем углу */}
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <BackgroundRemoveButton
+                  imageUrl={url}
+                  onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
+                  onRevert={handleRevertToOriginal}
+                  isProcessed={isImageProcessed(index)}
+                  originalUrl={originalImagesState[index]}
+                />
+              </div>
+
+              {/* Кнопка удаления в левом верхнем углу */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeImage(index);
                 }}
-                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                className="absolute top-1 left-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
 
-              {/* Кнопка сделать главным */}
-              {index !== 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newImages = [...images];
-                    const [movedImage] = newImages.splice(index, 1);
-                    newImages.unshift(movedImage);
-                    onImagesChange(newImages);
-                  }}
-                  className="absolute top-1 left-1 p-1 bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-700"
-                  title="Сделать главным"
-                >
-                  <PhotoIcon className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Индикатор главного изображения */}
-              {index === 0 && (
-                <div className="absolute bottom-1 left-1 px-2 py-1 bg-indigo-600 text-white text-xs rounded">
-                  Главное
-                </div>
-              )}
             </div>
           ))}
         </div>

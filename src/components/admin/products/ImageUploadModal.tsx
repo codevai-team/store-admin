@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   XMarkIcon,
   PhotoIcon,
@@ -10,12 +10,11 @@ import {
   TrashIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  StarIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { ToastContainer } from './Toast';
 import { useToast } from '@/hooks/useToast';
 import ImageViewer from './ImageViewer';
+import BackgroundRemoveButton from './BackgroundRemoveButton';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
@@ -36,10 +35,10 @@ interface UploadFile {
 
 interface ImageData {
   url: string;
-  isMain: boolean;
   uploading?: boolean;
   file?: File;
   tempId?: string;
+  originalUrl?: string; // Для отслеживания оригинального URL
 }
 
 export default function ImageUploadModal({
@@ -50,7 +49,10 @@ export default function ImageUploadModal({
 }: ImageUploadModalProps) {
   const { toasts, removeToast, showSuccess, showError } = useToast();
   const [images, setImages] = useState<ImageData[]>(
-    (currentImages || []).map((url, index) => ({ url, isMain: index === 0 }))
+    (currentImages || []).map((url) => ({ 
+      url, 
+      originalUrl: url // Изначально оригинальный URL = текущий URL
+    }))
   );
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [urlInput, setUrlInput] = useState('');
@@ -60,10 +62,15 @@ export default function ImageUploadModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Обновляем images когда currentImages изменяется
+  // Обновляем images только при первом открытии модального окна
   useEffect(() => {
-    setImages((currentImages || []).map((url, index) => ({ url, isMain: index === 0 })));
-  }, [currentImages]);
+    if (isOpen && currentImages) {
+      setImages((currentImages || []).map((url) => ({ 
+        url, 
+        originalUrl: url
+      })));
+    }
+  }, [isOpen, currentImages]);
 
   // Реальная загрузка файла в S3
   const uploadFile = async (file: File): Promise<string> => {
@@ -103,7 +110,6 @@ export default function ImageUploadModal({
     // Создаем временные превью для отображения во время загрузки
     const tempImages: ImageData[] = validFiles.map(file => ({
       url: URL.createObjectURL(file),
-      isMain: false,
       uploading: true,
       file: file,
       tempId: Date.now().toString() + Math.random().toString()
@@ -121,7 +127,7 @@ export default function ImageUploadModal({
         // Заменяем временное изображение на загруженное
         setImages(prev => prev.map(img => 
           img.tempId === tempId 
-            ? { url, isMain: false, uploading: false }
+            ? { url, uploading: false }
             : img
         ));
         
@@ -209,31 +215,63 @@ export default function ImageUploadModal({
     }
     
     // Удаляем из локального состояния
-    setImages(prev => {
-      const newImages = prev.filter((_, i) => i !== index);
-      // Если удаляем главное изображение, делаем главным первое
-      if (imageToRemove.isMain && newImages.length > 0) {
-        newImages[0].isMain = true;
-      }
-      return newImages;
-    });
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSetMainImage = (index: number) => {
-    setImages(prev => prev.map((img, i) => ({
-      ...img,
-      isMain: i === index
-    })));
-  };
 
   const handleViewImage = (index: number) => {
     setViewerIndex(index);
     setViewerOpen(true);
   };
 
+  // Обработка удаления фона
+  const handleBackgroundRemove = (index: number, newUrl: string) => {
+    setImages(prev => prev.map((img, i) => {
+      if (i === index) {
+        // Сохраняем оригинальный URL перед заменой
+        const originalUrl = img.originalUrl || img.url;
+        return { ...img, url: newUrl, originalUrl };
+      }
+      return img;
+    }));
+  };
+
+  // Обработка возврата к оригиналу
+  const handleRevertToOriginal = async (originalUrl: string, processedUrl: string) => {
+    // Удаляем обработанное изображение из S3
+    try {
+      await fetch(`/api/upload?fileUrl=${encodeURIComponent(processedUrl)}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('Error deleting processed image:', error);
+    }
+    
+    // Обновляем изображение на оригинальное
+    setImages(prev => prev.map((img, i) => 
+      img.url === processedUrl ? { ...img, url: originalUrl } : img
+    ));
+  };
+
+  // Проверка, является ли изображение обработанным
+  const isImageProcessed = (index: number) => {
+    return !!(images[index].originalUrl && images[index].originalUrl !== images[index].url);
+  };
+
+  // Обновляем оригинальные URL только для новых изображений
+  React.useEffect(() => {
+    setImages(prev => prev.map((img, index) => {
+      // Если у изображения нет originalUrl, устанавливаем его
+      if (!img.originalUrl) {
+        return { ...img, originalUrl: img.url };
+      }
+      return img;
+    }));
+  }, [images.length]); // Только при изменении количества изображений
 
 
-  const handleSave = () => {
+
+  const handleSave = async () => {
     // Фильтруем только загруженные изображения
     const uploadedImages = images.filter(img => !img.uploading);
     
@@ -244,28 +282,102 @@ export default function ImageUploadModal({
       return;
     }
     
-    // Сортируем изображения: главное первым
-    const sortedImages = [...uploadedImages].sort((a, b) => {
-      if (a.isMain) return -1;
-      if (b.isMain) return 1;
-      return 0;
-    });
+    // Очищаем неиспользуемые изображения
+    await cleanupUnusedImages(uploadedImages.map(img => img.url));
     
-    onImagesUpdate(sortedImages.map(img => img.url));
+    onImagesUpdate(uploadedImages.map(img => img.url));
     showSuccess('Изображения сохранены', `Добавлено ${uploadedImages.length} изображений`);
     onClose();
   };
 
-  const handleClose = () => {
+  // Функция для очистки неиспользуемых изображений
+  const cleanupUnusedImages = async (finalImageUrls: string[]) => {
+    try {
+      const currentImageUrls = currentImages || [];
+      
+      // Находим все изображения, которые были в модальном окне
+      const allModalImages = images.map(img => img.url);
+      
+      // Находим обработанные изображения (с _no_bg)
+      const processedImages = allModalImages.filter(url => url.includes('_no_bg'));
+      const originalImages = allModalImages.filter(url => !url.includes('_no_bg'));
+      
+      // Определяем, какие оригинальные изображения используются в финальном результате
+      const usedOriginalImages = finalImageUrls.filter(url => !url.includes('_no_bg'));
+      
+      // Определяем, какие обработанные изображения используются в финальном результате
+      const usedProcessedImages = finalImageUrls.filter(url => url.includes('_no_bg'));
+      
+      // Удаляем неиспользуемые обработанные изображения
+      const unusedProcessedImages = processedImages.filter(url => !usedProcessedImages.includes(url));
+      
+      // Удаляем неиспользуемые оригинальные изображения
+      const unusedOriginalImages = originalImages.filter(url => !usedOriginalImages.includes(url));
+      
+      const urlsToDelete = [...unusedProcessedImages, ...unusedOriginalImages];
+      
+      if (urlsToDelete.length > 0) {
+        console.log('Deleting unused images from ImageUploadModal:', urlsToDelete);
+        await fetch('/api/upload/cleanup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            urlsToKeep: finalImageUrls,
+            urlsToDelete: urlsToDelete
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Error cleaning up images in ImageUploadModal:', error);
+    }
+  };
+
+  const handleClose = async () => {
     // Очищаем временные blob URLs
     images.forEach(image => {
       if (image.tempId && image.url.startsWith('blob:')) {
         URL.revokeObjectURL(image.url);
       }
     });
+
+    // Удаляем только новые изображения при закрытии без сохранения
+    const currentImageUrls = currentImages || [];
+    
+    // Находим изображения, которые были добавлены во время редактирования
+    // Это изображения, которых не было в currentImages при открытии модального окна
+    const newImages = images
+      .filter(img => {
+        if (img.uploading) return false;
+        
+        // Проверяем, есть ли это изображение в исходном списке
+        const isInCurrentImages = currentImageUrls.includes(img.url);
+        
+        // Также проверяем, есть ли оригинальная версия этого изображения в currentImages
+        // (для случая, когда изображение было обработано)
+        const isOriginalInCurrentImages = img.originalUrl && currentImageUrls.includes(img.originalUrl);
+        
+        return !isInCurrentImages && !isOriginalInCurrentImages;
+      })
+      .map(img => img.url);
+
+    console.log('Current images:', currentImageUrls);
+    console.log('Modal images:', images.map(img => ({ url: img.url, originalUrl: img.originalUrl })));
+    console.log('New images to delete:', newImages);
+
+    for (const imageUrl of newImages) {
+      try {
+        await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('Error deleting image:', error);
+      }
+    }
     
     setUploadFiles([]);
-    setImages(currentImages.map((url, index) => ({ url, isMain: index === 0 }))); // Сбрасываем к исходному состоянию
+    setImages(currentImages.map((url) => ({ url }))); // Сбрасываем к исходному состоянию
     onClose();
   };
 
@@ -385,12 +497,11 @@ export default function ImageUploadModal({
                       <div className={`w-full h-24 rounded-lg overflow-hidden bg-gray-600 border-2 transition-colors ${
                         image.uploading ? 'cursor-wait' : 'cursor-pointer hover:border-indigo-400'
                       }`}
-                           style={{ borderColor: image.isMain ? '#fbbf24' : '' }}
                            onClick={() => !image.uploading && handleViewImage(index)}>
                         <img
                           src={image.url}
                           alt={`Изображение ${index + 1}`}
-                          className={`w-full h-full object-cover transition-opacity ${
+                          className={`w-full h-full object-contain bg-gray-800 transition-opacity ${
                             image.uploading ? 'opacity-60' : 'opacity-100'
                           }`}
                         />
@@ -408,12 +519,6 @@ export default function ImageUploadModal({
                       
                       {/* Badges */}
                       <div className="absolute top-1 left-1 flex space-x-1">
-                        {image.isMain && (
-                          <div className="bg-yellow-500 text-white text-xs px-1 py-0.5 rounded flex items-center space-x-1">
-                            <StarIconSolid className="h-2 w-2" />
-                            <span>Главное</span>
-                          </div>
-                        )}
                         <div className="bg-black/70 text-white text-xs px-1 py-0.5 rounded">
                           {index + 1}
                         </div>
@@ -422,29 +527,31 @@ export default function ImageUploadModal({
                       {/* Actions - скрываем во время загрузки */}
                       {!image.uploading && (
                         <div className="absolute -top-1 -right-1 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {!image.isMain && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetMainImage(index);
-                              }}
-                              className="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                              title="Сделать главным"
-                            >
-                              <StarIcon className="h-2 w-2" />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveImage(index);
-                            }}
-                            className="bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                            title="Удалить"
-                          >
-                            <XMarkIcon className="h-2 w-2" />
-                          </button>
+                          {/* Кнопка удаления фона/возврата */}
+                          <BackgroundRemoveButton
+                            imageUrl={image.url}
+                            onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
+                            onRevert={handleRevertToOriginal}
+                            isProcessed={isImageProcessed(index)}
+                            originalUrl={image.originalUrl}
+                            className="w-5 h-5"
+                          />
                         </div>
+                      )}
+
+
+                      {/* Кнопка удаления - в левом нижнем углу */}
+                      {!image.uploading && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(index);
+                          }}
+                          className="absolute -bottom-1 -left-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Удалить"
+                        >
+                          <XMarkIcon className="h-2 w-2" />
+                        </button>
                       )}
                     </div>
                   ))}
@@ -497,7 +604,6 @@ export default function ImageUploadModal({
           onClose={() => setViewerOpen(false)}
           images={images}
           currentIndex={viewerIndex}
-          onSetMain={handleSetMainImage}
           onDelete={handleRemoveImage}
         />
       </div>
