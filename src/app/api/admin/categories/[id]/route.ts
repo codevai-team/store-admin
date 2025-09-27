@@ -6,12 +6,12 @@ const prisma = new PrismaClient();
 // PUT - обновить категорию
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const { name, parentId } = body;
-    const { id } = params;
+    const { name, parentId, imageUrl, description } = body;
+    const { id } = await params;
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -57,13 +57,13 @@ export async function PUT(
       const checkCycle = async (categoryId: string, targetParentId: string): Promise<boolean> => {
         const category = await prisma.category.findUnique({
           where: { id: categoryId },
-          include: { parent: true }
+          include: { parentCategory: true }
         });
 
-        if (!category?.parent) return false;
-        if (category.parent.id === targetParentId) return true;
+        if (!category?.parentCategory) return false;
+        if (category.parentCategory.id === targetParentId) return true;
         
-        return await checkCycle(category.parent.id, targetParentId);
+        return await checkCycle(category.parentCategory.id, targetParentId);
       };
 
       const hasCycle = await checkCycle(parentId, id);
@@ -79,11 +79,13 @@ export async function PUT(
       where: { id },
       data: {
         name: name.trim(),
-        parentId: parentId || null
+        categoryId: parentId || null,
+        imageUrl: imageUrl || null,
+        description: description || null
       },
       include: {
-        parent: true,
-        children: true,
+        parentCategory: true,
+        subCategories: true,
         products: {
           select: {
             id: true
@@ -93,9 +95,19 @@ export async function PUT(
     });
 
     return NextResponse.json({
-      ...category,
+      id: category.id.trim(),
+      name: category.name,
+      description: category.description,
+      imageUrl: category.imageUrl,
+      parentId: category.categoryId?.trim() || null,
+      categoryId: category.categoryId?.trim() || null,
+      parent: category.parentCategory ? {
+        id: category.parentCategory.id.trim(),
+        name: category.parentCategory.name
+      } : null,
+      children: category.subCategories,
       productsCount: category.products.length,
-      childrenCount: category.children.length
+      childrenCount: category.subCategories.length
     });
   } catch (error) {
     console.error('Categories PUT error:', error);
@@ -111,16 +123,16 @@ export async function PUT(
 // DELETE - удалить категорию
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Проверяем, что категория существует
     const existingCategory = await prisma.category.findUnique({
       where: { id },
       include: {
-        children: true,
+        subCategories: true,
         products: true
       }
     });
@@ -141,7 +153,7 @@ export async function DELETE(
     }
 
     // Проверяем, есть ли дочерние категории
-    if (existingCategory.children.length > 0) {
+    if (existingCategory.subCategories.length > 0) {
       return NextResponse.json(
         { error: 'Нельзя удалить категорию с подкategories' },
         { status: 400 }

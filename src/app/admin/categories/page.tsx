@@ -25,12 +25,218 @@ import {
   BarsArrowDownIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  // Иконки для категорий
+  ShoppingBagIcon,
+  HomeIcon,
+  UserIcon,
+  HeartIcon,
+  StarIcon,
+  GiftIcon,
+  SparklesIcon,
+  AcademicCapIcon,
+  BeakerIcon,
+  BookOpenIcon,
+  BriefcaseIcon,
+  CameraIcon,
+  TruckIcon as CarIcon,
+  ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+  FaceSmileIcon,
+  CommandLineIcon,
+  GlobeAltIcon,
+  HandThumbUpIcon,
+  LightBulbIcon,
+  MusicalNoteIcon,
+  PaintBrushIcon,
+  PuzzlePieceIcon,
+  RocketLaunchIcon,
+  ScissorsIcon,
+  ShieldCheckIcon,
+  SunIcon,
+  TruckIcon,
+  WrenchScrewdriverIcon,
+  // Дополнительные иконки
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  ArrowDownLeftIcon,
+  ArrowDownRightIcon,
+  ArrowUpLeftIcon,
+  ArrowPathIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  ArrowUturnUpIcon,
+  ArrowUturnDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  ArrowTopRightOnSquareIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowLeftOnRectangleIcon,
+  ArrowPathRoundedSquareIcon,
+  ArrowSmallUpIcon,
+  ArrowSmallDownIcon,
+  ArrowSmallLeftIcon,
+  ArrowSmallRightIcon,
+  AtSymbolIcon,
+  BackspaceIcon,
+  BanknotesIcon,
+  Bars3Icon,
+  Bars3BottomLeftIcon,
+  Bars3BottomRightIcon,
+  Bars4Icon,
+  BellIcon,
+  BellSlashIcon,
+  BoltIcon,
+  BookmarkIcon,
+  BookmarkSlashIcon,
+  BuildingOfficeIcon,
+  BuildingOffice2Icon,
+  BuildingStorefrontIcon,
+  CakeIcon,
+  CalculatorIcon,
+  CalendarIcon,
+  ChartBarIcon,
+  ChartBarSquareIcon,
+  ChartPieIcon,
+  ChatBubbleLeftIcon,
+  ChatBubbleLeftEllipsisIcon,
+  ChatBubbleOvalLeftIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  CheckBadgeIcon,
+  CheckCircleIcon,
+  ClipboardIcon,
+  ClipboardDocumentIcon,
+  ClipboardDocumentCheckIcon,
+  ClipboardDocumentListIcon,
+  CloudIcon,
+  CloudArrowDownIcon,
+  CloudArrowUpIcon,
+  CodeBracketIcon,
+  CodeBracketSquareIcon,
+  CogIcon,
+  Cog6ToothIcon,
+  Cog8ToothIcon,
+  CpuChipIcon,
+  CreditCardIcon,
+  CubeTransparentIcon,
+  CurrencyDollarIcon,
+  CurrencyEuroIcon,
+  CurrencyPoundIcon,
+  CurrencyRupeeIcon,
+  CurrencyYenIcon,
+  CursorArrowRaysIcon,
+  CursorArrowRippleIcon,
+  DeviceTabletIcon,
+  DocumentIcon,
+  DocumentArrowDownIcon,
+  DocumentArrowUpIcon,
+  DocumentCheckIcon,
+  DocumentDuplicateIcon,
+  DocumentMagnifyingGlassIcon,
+  DocumentMinusIcon,
+  DocumentPlusIcon,
+  DocumentTextIcon,
+  EllipsisHorizontalIcon,
+  EllipsisVerticalIcon,
+  EnvelopeIcon,
+  EnvelopeOpenIcon,
+  ExclamationCircleIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  FaceFrownIcon,
+  FilmIcon,
+  FingerPrintIcon,
+  FlagIcon,
+  FolderIcon,
+  FolderArrowDownIcon,
+  FolderMinusIcon,
+  FolderOpenIcon,
+  FolderPlusIcon,
+  GifIcon,
+  GlobeAmericasIcon,
+  GlobeAsiaAustraliaIcon,
+  GlobeEuropeAfricaIcon,
+  HandRaisedIcon,
+  HandThumbDownIcon,
+  HashtagIcon,
+  IdentificationIcon,
+  InboxIcon,
+  InformationCircleIcon,
+  KeyIcon,
+  LanguageIcon,
+  LifebuoyIcon,
+  LinkIcon,
+  ListBulletIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  MapIcon,
+  MapPinIcon,
+  MegaphoneIcon,
+  MicrophoneIcon,
+  MinusIcon,
+  MoonIcon,
+  NewspaperIcon,
+  NoSymbolIcon,
+  PaperAirplaneIcon,
+  PaperClipIcon,
+  PauseIcon,
+  PencilSquareIcon,
+  PhoneIcon,
+  PhotoIcon,
+  PlayIcon,
+  PlayPauseIcon,
+  PlusCircleIcon,
+  PowerIcon,
+  PresentationChartBarIcon,
+  PresentationChartLineIcon,
+  PrinterIcon,
+  QrCodeIcon,
+  QuestionMarkCircleIcon,
+  RadioIcon,
+  ReceiptPercentIcon,
+  RectangleGroupIcon,
+  RectangleStackIcon,
+  RssIcon,
+  ScaleIcon,
+  ServerIcon,
+  ServerStackIcon,
+  ShareIcon,
+  ShieldExclamationIcon,
+  SignalIcon,
+  SignalSlashIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  Square2StackIcon,
+  Square3Stack3DIcon,
+  StopIcon,
+  StopCircleIcon,
+  SwatchIcon,
+  TicketIcon,
+  TrophyIcon,
+  TvIcon,
+  UserCircleIcon,
+  UserGroupIcon,
+  UserMinusIcon,
+  UserPlusIcon,
+  VideoCameraIcon,
+  VideoCameraSlashIcon,
+  ViewfinderCircleIcon,
+  WalletIcon,
+  WifiIcon,
+  WindowIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import IconUpload from '@/components/admin/categories/IconUpload';
 
 interface Category {
   id: string;
   name: string;
+  description?: string | null;
+  imageUrl?: string | null;
   parentId: string | null;
   parent?: {
     id: string;
@@ -39,16 +245,16 @@ interface Category {
   children: Category[];
   productsCount: number;
   childrenCount: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface CategoryFormData {
   name: string;
+  description?: string;
+  imageUrl?: string;
   parentId: string | null;
 }
 
-type SortOption = 'newest' | 'popular' | 'alphabetical' | 'products';
+type SortOption = 'popular' | 'alphabetical' | 'products';
 type SortOrder = 'asc' | 'desc';
 
 interface PaginationInfo {
@@ -57,6 +263,32 @@ interface PaginationInfo {
   totalItems: number;
   itemsPerPage: number;
 }
+
+// Функция для отображения иконки категории
+const renderCategoryIcon = (imageUrl: string | null) => {
+  if (!imageUrl) {
+    return <TagIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400 flex-shrink-0 mt-0.5 sm:mt-0" />;
+  }
+  
+  // Если это URL изображения, показываем изображение
+  if (imageUrl.startsWith('http') || imageUrl.startsWith('/')) {
+    return (
+      <img 
+        src={imageUrl} 
+        alt="Category icon" 
+        className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5 sm:mt-0 object-contain"
+        onError={(e) => {
+          // Если изображение не загружается, показываем дефолтную иконку
+          e.currentTarget.style.display = 'none';
+          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+        }}
+      />
+    );
+  }
+  
+  // Дефолтная иконка
+  return <TagIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400 flex-shrink-0 mt-0.5 sm:mt-0" />;
+};
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -67,7 +299,7 @@ export default function CategoriesPage() {
   
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const itemsPerPage = 50;
   
@@ -77,18 +309,31 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingCategory, setViewingCategory] = useState<Category | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<CategoryFormData>({
     name: '',
+    description: '',
+    imageUrl: '',
     parentId: null
   });
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Icon upload state
+  const [uploadedIcons, setUploadedIcons] = useState<Set<string>>(new Set());
+  const [iconsToDelete, setIconsToDelete] = useState<Set<string>>(new Set());
 
   // Загрузка категорий
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/admin/categories');
+      const params = new URLSearchParams({
+        sortBy: sortBy,
+        sortOrder: sortOrder
+      });
+      
+      const response = await fetch(`/api/admin/categories?${params}`);
       if (response.ok) {
         const data = await response.json();
         setCategories(data);
@@ -103,6 +348,11 @@ export default function CategoriesPage() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Перезагружаем категории при изменении сортировки
+  useEffect(() => {
+    fetchCategories();
+  }, [sortBy, sortOrder]);
 
   // Умный поиск - проверяет вхождение каждого слова
   const smartSearch = (text: string, searchQuery: string): boolean => {
@@ -123,30 +373,8 @@ export default function CategoriesPage() {
     return matchesSearch && matchesFilter;
   });
 
-  // Сортировка категорий
-  const sortedCategories = [...filteredCategories].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case 'newest':
-        comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        break;
-      case 'popular':
-        comparison = b.productsCount - a.productsCount;
-        break;
-      case 'alphabetical':
-        comparison = a.name.localeCompare(b.name, 'ru');
-        break;
-      case 'products':
-        comparison = b.productsCount - a.productsCount;
-        break;
-      default:
-        return 0;
-    }
-    
-    // Применяем порядок сортировки
-    return sortOrder === 'asc' ? -comparison : comparison;
-  });
+  // Сортировка уже происходит на сервере, используем отфильтрованные категории
+  const sortedCategories = filteredCategories;
 
   // Пагинация
   const totalItems = sortedCategories.length;
@@ -216,7 +444,10 @@ export default function CategoriesPage() {
 
   // Обработчики модальных окон
   const openCreateModal = () => {
-    setFormData({ name: '', parentId: null });
+    setFormData({ name: '', description: '', imageUrl: '', parentId: null });
+    // Очищаем состояние загруженных иконок при открытии модального окна
+    setUploadedIcons(new Set());
+    setIconsToDelete(new Set());
     setIsCreateModalOpen(true);
   };
 
@@ -224,8 +455,13 @@ export default function CategoriesPage() {
     setEditingCategory(category);
     setFormData({
       name: category.name,
+      description: category.description || '',
+      imageUrl: category.imageUrl || '',
       parentId: category.parentId
     });
+    // Очищаем состояние загруженных иконок при открытии модального окна
+    setUploadedIcons(new Set());
+    setIconsToDelete(new Set());
     setIsEditModalOpen(true);
   };
 
@@ -234,13 +470,56 @@ export default function CategoriesPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const closeModals = () => {
+  const openViewModal = (category: Category) => {
+    setViewingCategory(category);
+    setIsViewModalOpen(true);
+  };
+
+  // Обработчики для работы с иконками
+  const handleIconUpload = (iconUrl: string) => {
+    setUploadedIcons(prev => new Set([...prev, iconUrl]));
+  };
+
+  const handleIconRemove = async (iconUrl: string) => {
+    try {
+      // Добавляем в список для удаления
+      setIconsToDelete(prev => new Set([...prev, iconUrl]));
+      
+      // Удаляем из S3
+      const response = await fetch(`/api/upload/delete?url=${encodeURIComponent(iconUrl)}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to delete icon from S3');
+      }
+    } catch (error) {
+      console.error('Error deleting icon:', error);
+    }
+  };
+
+  const handleIconChange = (iconUrl: string | null) => {
+    setFormData({ ...formData, imageUrl: iconUrl || '' });
+  };
+
+  const closeModals = async () => {
+    // Удаляем все загруженные, но не сохраненные иконки
+    for (const iconUrl of uploadedIcons) {
+      await handleIconRemove(iconUrl);
+    }
+    
+    // Очищаем состояние
+    setUploadedIcons(new Set());
+    setIconsToDelete(new Set());
+    
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
+    setIsViewModalOpen(false);
     setEditingCategory(null);
     setDeletingCategory(null);
-    setFormData({ name: '', parentId: null });
+    setViewingCategory(null);
+    setFormData({ name: '', description: '', imageUrl: '', parentId: null });
   };
 
   // Создание категории
@@ -260,7 +539,11 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         await fetchCategories();
-        closeModals();
+        // Очищаем состояние после успешного сохранения
+        setUploadedIcons(new Set());
+        setIconsToDelete(new Set());
+        setIsCreateModalOpen(false);
+        setFormData({ name: '', description: '', imageUrl: '', parentId: null });
       } else {
         const error = await response.json();
         alert(error.error || 'Ошибка создания категории');
@@ -290,7 +573,12 @@ export default function CategoriesPage() {
 
       if (response.ok) {
         await fetchCategories();
-        closeModals();
+        // Очищаем состояние после успешного сохранения
+        setUploadedIcons(new Set());
+        setIconsToDelete(new Set());
+        setIsEditModalOpen(false);
+        setEditingCategory(null);
+        setFormData({ name: '', description: '', imageUrl: '', parentId: null });
       } else {
         const error = await response.json();
         alert(error.error || 'Ошибка обновления категории');
@@ -335,12 +623,18 @@ export default function CategoriesPage() {
 
          return (
        <div key={category.id}>
-         <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200">
+         <div 
+           className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+           onClick={() => openViewModal(category)}
+         >
            <div className="flex items-start sm:items-center justify-between gap-3">
              <div className="flex items-start sm:items-center space-x-2 sm:space-x-3 flex-1 min-w-0" style={{ paddingLeft: `${level * (level > 0 ? 16 : 0)}px` }}>
                {hasChildren && (
                  <button
-                   onClick={() => toggleExpanded(category.id)}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     toggleExpanded(category.id);
+                   }}
                    className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 mt-0.5 sm:mt-0"
                  >
                    {isExpanded ? (
@@ -352,7 +646,8 @@ export default function CategoriesPage() {
                )}
                {!hasChildren && <div className="w-6 flex-shrink-0" />}
                
-               <TagIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+               {/* Иконка категории */}
+               {renderCategoryIcon(category.imageUrl || null)}
                
                <div className="flex-1 min-w-0">
                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
@@ -375,17 +670,16 @@ export default function CategoriesPage() {
                        <span>{category.childrenCount} подкатегорий</span>
                      </div>
                    )}
-                   <div className="flex items-center space-x-1 text-xs text-gray-500">
-                     <CalendarDaysIcon className="h-3 w-3 flex-shrink-0" />
-                     <span>{new Date(category.createdAt).toLocaleDateString('ru-RU')}</span>
-                   </div>
                  </div>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
               <button
-                onClick={() => openEditModal(category)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditModal(category);
+                }}
                 className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
                 title="Редактировать"
               >
@@ -393,7 +687,10 @@ export default function CategoriesPage() {
               </button>
               
                               <button
-                 onClick={() => openDeleteModal(category)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteModal(category);
+                }}
                  className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                  title="Удалить"
                >
@@ -483,7 +780,6 @@ export default function CategoriesPage() {
                        onChange={(e) => setSortBy(e.target.value as SortOption)}
                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
                      >
-                       <option value="newest" className="bg-gray-800">По новизне</option>
                        <option value="popular" className="bg-gray-800">По популярности</option>
                        <option value="alphabetical" className="bg-gray-800">По алфавиту</option>
                        <option value="products" className="bg-gray-800">По товарам</option>
@@ -607,18 +903,6 @@ export default function CategoriesPage() {
                 
                 {/* Sort indicator in same row */}
                 <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm">
-                  {sortBy === 'newest' && (
-                    <div className="flex items-center space-x-1 sm:space-x-2">
-                      <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400 flex-shrink-0" />
-                      <span className="text-blue-400 font-medium hidden sm:inline">По новизне</span>
-                      <span className="text-blue-400 font-medium sm:hidden">Новизне</span>
-                      {sortOrder === 'desc' ? (
-                        <ArrowDownIcon className="h-2 w-2 sm:h-3 sm:w-3 text-blue-400 flex-shrink-0" />
-                      ) : (
-                        <ArrowUpIcon className="h-2 w-2 sm:h-3 sm:w-3 text-blue-400 flex-shrink-0" />
-                      )}
-                    </div>
-                  )}
                   {sortBy === 'popular' && (
                     <div className="flex items-center space-x-1 sm:space-x-2">
                       <FireIcon className="h-3 w-3 sm:h-4 sm:w-4 text-orange-400 flex-shrink-0" />
@@ -812,6 +1096,31 @@ export default function CategoriesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Описание
+                </label>
+                <textarea
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Введите описание..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Иконка категории
+                </label>
+                <IconUpload
+                  currentIconUrl={formData.imageUrl}
+                  onIconChange={handleIconChange}
+                  onIconUpload={handleIconUpload}
+                  onIconRemove={handleIconRemove}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Родительская категория
                 </label>
                 <select
@@ -880,6 +1189,31 @@ export default function CategoriesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Описание
+                </label>
+                <textarea
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Введите описание..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Иконка категории
+                </label>
+                <IconUpload
+                  currentIconUrl={formData.imageUrl}
+                  onIconChange={handleIconChange}
+                  onIconUpload={handleIconUpload}
+                  onIconRemove={handleIconRemove}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Родительская категория
                 </label>
                 <select
@@ -922,12 +1256,12 @@ export default function CategoriesPage() {
              {/* Delete Modal */}
        {isDeleteModalOpen && deletingCategory && (
          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-50">
-           <div className="bg-gray-800/95 backdrop-blur-md rounded-xl p-4 sm:p-6 w-full max-w-md border border-gray-700/50 shadow-2xl mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">Удалить категорию</h2>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl p-4 sm:p-6 w-full max-w-lg border border-gray-700/50 shadow-2xl mx-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">Удалить категорию</h2>
               <button
                 onClick={closeModals}
-                className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors p-1"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -935,73 +1269,96 @@ export default function CategoriesPage() {
 
                          <div className="mb-6">
                {(deletingCategory.productsCount > 0 || deletingCategory.childrenCount > 0) ? (
-                 <div>
-                   <div className="flex items-center space-x-3 mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <div className="space-y-4">
+                    {/* Заголовок с иконкой */}
+                    <div className="flex items-start space-x-4 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
                      <div className="flex-shrink-0">
-                       <XMarkIcon className="h-8 w-8 text-red-400" />
+                        <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                          <XMarkIcon className="h-6 w-6 text-red-400" />
                      </div>
-                     <div>
-                       <h3 className="text-lg font-semibold text-red-300 mb-1">
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-red-300 mb-2">
                          Нельзя удалить категорию
                        </h3>
-                       <p className="text-gray-300">
-                         Категория <strong className="text-white">"{deletingCategory.name}"</strong> содержит данные и не может быть удалена.
+                        <p className="text-gray-300 text-base leading-relaxed">
+                          Категория <span className="font-semibold text-white">"{deletingCategory.name}"</span> содержит данные и не может быть удалена.
                        </p>
                      </div>
                    </div>
                    
-                   <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
-                     <p className="text-red-300 font-semibold mb-2">
+                    {/* Детали блокировки */}
+                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-6">
+                      <h4 className="text-lg font-semibold text-red-300 mb-4">
                        Причины блокировки удаления:
-                     </p>
-                     <ul className="text-red-300 text-sm space-y-1">
+                      </h4>
+                      <div className="space-y-3">
                        {deletingCategory.productsCount > 0 && (
-                         <li className="flex items-center space-x-2">
-                           <CubeIcon className="h-4 w-4 flex-shrink-0" />
-                           <span>Содержит {deletingCategory.productsCount} товаров</span>
-                         </li>
+                          <div className="flex items-center space-x-3 p-3 bg-red-500/10 rounded-lg">
+                            <CubeIcon className="h-5 w-5 text-red-400 flex-shrink-0" />
+                            <span className="text-red-300 font-medium">
+                              Содержит {deletingCategory.productsCount} товаров
+                            </span>
+                          </div>
                        )}
                        {deletingCategory.childrenCount > 0 && (
-                         <li className="flex items-center space-x-2">
-                           <TagIcon className="h-4 w-4 flex-shrink-0" />
-                           <span>Содержит {deletingCategory.childrenCount} подкатегорий</span>
-                         </li>
-                       )}
-                     </ul>
-                     <p className="text-red-300 text-sm mt-3 italic">
+                          <div className="flex items-center space-x-3 p-3 bg-red-500/10 rounded-lg">
+                            <TagIcon className="h-5 w-5 text-red-400 flex-shrink-0" />
+                            <span className="text-red-300 font-medium">
+                              Содержит {deletingCategory.childrenCount} подкатегорий
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                        <p className="text-yellow-300 text-sm font-medium">
                        💡 Сначала переместите или удалите все товары и подкатегории из этой категории
                      </p>
+                      </div>
                    </div>
                  </div>
                ) : (
-                 <div>
-                   <div className="flex items-center space-x-3 mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <div className="space-y-4">
+                    {/* Заголовок с иконкой */}
+                    <div className="flex items-start space-x-4 p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
                      <div className="flex-shrink-0">
-                       <TrashIcon className="h-8 w-8 text-yellow-400" />
+                        <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                          <TrashIcon className="h-6 w-6 text-yellow-400" />
                      </div>
-                     <div>
-                       <h3 className="text-lg font-semibold text-yellow-300 mb-1">
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-yellow-300 mb-2">
                          Подтверждение удаления
                        </h3>
-                       <p className="text-gray-300">
-                         Вы уверены, что хотите удалить категорию <strong className="text-white">"{deletingCategory.name}"</strong>?
+                        <p className="text-gray-300 text-base leading-relaxed">
+                          Вы уверены, что хотите удалить категорию <span className="font-semibold text-white">"{deletingCategory.name}"</span>?
                        </p>
                      </div>
                    </div>
                    
-                   <div className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4">
-                     <p className="text-gray-300 text-sm">
-                       ⚠️ <strong>Внимание:</strong> Это действие необратимо. Категория будет удалена навсегда.
-                     </p>
+                    {/* Предупреждение */}
+                    <div className="bg-gray-700/30 border border-gray-600/50 rounded-xl p-6">
+                      <div className="flex items-start space-x-3">
+                        <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-gray-300 text-sm font-medium mb-1">
+                            Внимание
+                          </p>
+                          <p className="text-gray-400 text-sm">
+                            Это действие необратимо. Категория будет удалена навсегда.
+                          </p>
+                        </div>
+                      </div>
                    </div>
                  </div>
                )}
              </div>
 
+              {/* Кнопки */}
                          <div className="flex space-x-3">
                <button
                  onClick={closeModals}
-                 className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500 transition-all duration-200 font-medium"
                >
                  {(deletingCategory.productsCount > 0 || deletingCategory.childrenCount > 0) ? 'Понятно' : 'Отмена'}
                </button>
@@ -1009,7 +1366,7 @@ export default function CategoriesPage() {
                  <button
                    onClick={handleDelete}
                    disabled={formLoading}
-                   className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50"
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-3 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50 font-medium shadow-lg hover:shadow-red-500/25"
                  >
                    {formLoading ? 'Удаление...' : 'Удалить'}
                  </button>
@@ -1018,6 +1375,114 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
+
+        {/* View Modal */}
+        {isViewModalOpen && viewingCategory && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-4 z-50">
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl p-6 w-full max-w-2xl border border-gray-700/50 shadow-2xl mx-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">Информация о категории</h2>
+                <button
+                  onClick={closeModals}
+                  className="text-gray-400 hover:text-white transition-colors p-1"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Основная информация */}
+                <div className="bg-gray-700/30 rounded-xl p-6">
+                  <div className="flex items-start space-x-4 mb-6">
+                    <div className="flex-shrink-0">
+                      {renderCategoryIcon(viewingCategory.imageUrl || null)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-white mb-2">
+                        {viewingCategory.name}
+                      </h3>
+                      {viewingCategory.description && (
+                        <p className="text-gray-300 leading-relaxed">
+                          {viewingCategory.description}
+                        </p>
+                      )}
+                    </div>
+              </div>
+
+                  {/* Статистика */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-gray-600/30 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <CubeIcon className="h-5 w-5 text-blue-400" />
+                </div>
+                      <div className="text-2xl font-bold text-white">
+                        {viewingCategory.productsCount}
+              </div>
+                      <div className="text-sm text-gray-400">Товаров</div>
+            </div>
+
+                    <div className="bg-gray-600/30 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <TagIcon className="h-5 w-5 text-green-400" />
+          </div>
+                      <div className="text-2xl font-bold text-white">
+                        {viewingCategory.childrenCount}
+                      </div>
+                      <div className="text-sm text-gray-400">Подкатегорий</div>
+                    </div>
+
+                    <div className="bg-gray-600/30 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        {viewingCategory.parent ? (
+                          <CheckIcon className="h-5 w-5 text-yellow-400" />
+                        ) : (
+                          <XMarkIcon className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {viewingCategory.parent ? 'Подкатегория' : 'Родительская'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Родительская категория */}
+                {viewingCategory.parent && (
+                  <div className="bg-gray-700/30 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-3">
+                      Родительская категория
+                    </h4>
+                    <div className="flex items-center space-x-3 p-4 bg-gray-600/30 rounded-lg">
+                      <TagIcon className="h-5 w-5 text-gray-400" />
+                      <span className="text-gray-300 font-medium">
+                        {viewingCategory.parent.name}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Подкатегории */}
+                {viewingCategory.children && viewingCategory.children.length > 0 && (
+                  <div className="bg-gray-700/30 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-3">
+                      Подкатегории ({viewingCategory.children.length})
+                    </h4>
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                      {viewingCategory.children.map((child) => (
+                        <div key={child.id} className="flex items-center space-x-3 p-3 bg-gray-600/30 rounded-lg">
+                          <TagIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-gray-300">{child.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </AdminLayout>
   );
