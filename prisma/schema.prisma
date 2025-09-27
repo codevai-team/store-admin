@@ -15,12 +15,13 @@ datasource db {
 
 // Пользователи системы
 model User {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   fullname    String
-  phoneNumber String   @unique @map("phone_number")
-  password    String   // хеш пароля
-  role        UserRole @default(SELLER)
-  createdAt   DateTime @default(now()) @map("created_at")
+  phoneNumber String     @unique @map("phone_number")
+  password    String     // хеш пароля
+  role        UserRole   @default(SELLER)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now()) @map("created_at")
 
   // Связи
   products        Product[] @relation("SellerProducts")
@@ -186,6 +187,13 @@ enum UserRole {
   ADMIN
   COURIER
   SELLER
+}
+
+// Enum для статусов пользователей
+enum UserStatus {
+  ACTIVE    @map("active")
+  INACTIVE  @map("inactive")
+  DELETED   @map("deleted")
 }
 
 // Enum для статусов заказов

@@ -4,28 +4,23 @@ import { useState, useEffect } from 'react';
 import {
   XMarkIcon,
   UsersIcon,
-  ClockIcon,
+  ShoppingBagIcon,
+  TruckIcon,
   CalendarDaysIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline';
 
 interface User {
   id: string;
-  name: string;
-  phone: string;
+  fullname: string;
+  phoneNumber: string;
   role: string;
+  status: string;
   createdAt: string;
   _count: {
-    shifts: number;
+    products: number;
+    deliveredOrders: number;
   };
-  shifts: Array<{
-    id: string;
-    startedAt: string;
-    endedAt: string | null;
-    store: {
-      id: string;
-      name: string;
-    };
-  }>;
 }
 
 interface EditUserModalProps {
@@ -37,9 +32,11 @@ interface EditUserModalProps {
 }
 
 interface UserFormData {
-  name: string;
-  phone: string;
+  fullname: string;
+  phoneNumber: string;
   role: string;
+  status: string;
+  password: string;
 }
 
 export default function EditUserModal({
@@ -50,9 +47,11 @@ export default function EditUserModal({
   loading = false,
 }: EditUserModalProps) {
   const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    phone: '',
-    role: 'MANAGER',
+    fullname: '',
+    phoneNumber: '',
+    role: 'SELLER',
+    status: 'ACTIVE',
+    password: '',
   });
 
   const [errors, setErrors] = useState<Partial<UserFormData>>({});
@@ -61,9 +60,11 @@ export default function EditUserModal({
   useEffect(() => {
     if (user && isOpen) {
       setFormData({
-        name: user.name,
-        phone: user.phone,
+        fullname: user.fullname,
+        phoneNumber: user.phoneNumber,
         role: user.role,
+        status: user.status,
+        password: '',
       });
       setErrors({});
     }
@@ -75,14 +76,14 @@ export default function EditUserModal({
     // Валидация
     const newErrors: Partial<UserFormData> = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'ФИО обязательно';
+    if (!formData.fullname.trim()) {
+      newErrors.fullname = 'ФИО обязательно';
     }
     
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Телефон обязателен';
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
-      newErrors.phone = 'Неверный формат телефона';
+    if (!formData.phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Телефон обязателен';
+    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Неверный формат телефона';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -96,9 +97,11 @@ export default function EditUserModal({
 
   const handleClose = () => {
     setFormData({
-      name: '',
-      phone: '',
-      role: 'MANAGER',
+      fullname: '',
+      phoneNumber: '',
+      role: 'SELLER',
+      status: 'ACTIVE',
+      password: '',
     });
     setErrors({});
     onClose();
@@ -123,10 +126,23 @@ export default function EditUserModal({
 
   const formatRole = (role: string) => {
     switch (role) {
-      case 'MANAGER':
-        return 'Менеджер';
+      case 'SELLER':
+        return 'Продавец';
+      case 'COURIER':
+        return 'Курьер';
       default:
         return role;
+    }
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'SELLER':
+        return <ShoppingBagIcon className="h-5 w-5 text-green-400" />;
+      case 'COURIER':
+        return <TruckIcon className="h-5 w-5 text-blue-400" />;
+      default:
+        return <UsersIcon className="h-5 w-5 text-gray-400" />;
     }
   };
 
@@ -138,8 +154,8 @@ export default function EditUserModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <UsersIcon className="h-4 w-4 text-white" />
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              {getRoleIcon(user.role)}
             </div>
             <h2 className="text-lg font-semibold text-white">Редактировать сотрудника</h2>
           </div>
@@ -156,42 +172,57 @@ export default function EditUserModal({
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* ФИО */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="fullname" className="block text-sm font-medium text-gray-300 mb-2">
                 ФИО *
               </label>
               <input
                 type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                id="fullname"
+                value={formData.fullname}
+                onChange={(e) => handleInputChange('fullname', e.target.value)}
                 className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
-                  errors.name ? 'border-red-500' : 'border-gray-600/50'
+                  errors.fullname ? 'border-red-500' : 'border-gray-600/50'
                 }`}
                 placeholder="Иванов Иван Иванович"
               />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-400">{errors.name}</p>
+              {errors.fullname && (
+                <p className="mt-1 text-sm text-red-400">{errors.fullname}</p>
               )}
             </div>
 
             {/* Телефон */}
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-300 mb-2">
                 Телефон *
               </label>
               <input
                 type="tel"
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
+                id="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                 className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-600/50'
+                  errors.phoneNumber ? 'border-red-500' : 'border-gray-600/50'
                 }`}
-                placeholder="+7 (777) 123-45-67"
+                placeholder="+996700123456"
               />
-              {errors.phone && (
-                <p className="mt-1 text-sm text-red-400">{errors.phone}</p>
+              {errors.phoneNumber && (
+                <p className="mt-1 text-sm text-red-400">{errors.phoneNumber}</p>
               )}
+            </div>
+
+            {/* Пароль */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                Новый пароль (оставьте пустым, если не хотите менять)
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                placeholder="Введите новый пароль..."
+              />
             </div>
 
             {/* Роль */}
@@ -205,8 +236,93 @@ export default function EditUserModal({
                 onChange={(e) => handleInputChange('role', e.target.value)}
                 className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
               >
-                <option value="MANAGER">Менеджер</option>
+                <option value="SELLER">Продавец</option>
+                <option value="COURIER">Курьер</option>
               </select>
+            </div>
+
+            {/* Статус */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                Статус сотрудника
+              </label>
+              <div className="grid grid-cols-1 gap-3">
+                <label className={`relative flex items-center p-3 rounded-lg border transition-all duration-200 ${
+                  formData.status === 'ACTIVE' 
+                    ? 'border-green-500/50 bg-green-500/10' 
+                    : 'border-gray-600/50 bg-gray-700/30 hover:border-gray-500/50'
+                } ${formData.status === 'DELETED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                  <input
+                    type="radio"
+                    name="status"
+                    value="ACTIVE"
+                    checked={formData.status === 'ACTIVE'}
+                    onChange={(e) => handleInputChange('status', e.target.value)}
+                    disabled={formData.status === 'DELETED'}
+                    className="sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                    formData.status === 'ACTIVE' 
+                      ? 'border-green-500 bg-green-500' 
+                      : 'border-gray-400 bg-transparent'
+                  }`}>
+                    {formData.status === 'ACTIVE' && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className={`text-sm font-medium ${
+                      formData.status === 'ACTIVE' ? 'text-green-300' : 'text-gray-300'
+                    }`}>
+                      Активный
+                    </span>
+                  </div>
+                </label>
+                
+                <label className={`relative flex items-center p-3 rounded-lg border transition-all duration-200 ${
+                  formData.status === 'INACTIVE' 
+                    ? 'border-yellow-500/50 bg-yellow-500/10' 
+                    : 'border-gray-600/50 bg-gray-700/30 hover:border-gray-500/50'
+                } ${formData.status === 'DELETED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                  <input
+                    type="radio"
+                    name="status"
+                    value="INACTIVE"
+                    checked={formData.status === 'INACTIVE'}
+                    onChange={(e) => handleInputChange('status', e.target.value)}
+                    disabled={formData.status === 'DELETED'}
+                    className="sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                    formData.status === 'INACTIVE' 
+                      ? 'border-yellow-500 bg-yellow-500' 
+                      : 'border-gray-400 bg-transparent'
+                  }`}>
+                    {formData.status === 'INACTIVE' && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className={`text-sm font-medium ${
+                      formData.status === 'INACTIVE' ? 'text-yellow-300' : 'text-gray-300'
+                    }`}>
+                      Неактивный
+                    </span>
+                  </div>
+                </label>
+              </div>
+              
+              {formData.status === 'DELETED' && (
+                <div className="mt-3 p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
+                  <div className="flex items-center space-x-2 text-red-300">
+                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                    <span className="text-sm font-medium">Сотрудник удален</span>
+                  </div>
+                  <p className="text-xs text-red-400 mt-1">
+                    Удаленных сотрудников нельзя активировать через редактирование
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Статистика */}
@@ -214,48 +330,19 @@ export default function EditUserModal({
               <h3 className="text-sm font-medium text-gray-300 mb-3">Статистика сотрудника</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <div className="text-2xl font-bold text-white">{user._count.shifts}</div>
-                  <div className="text-xs text-gray-400">Всего смен</div>
+                  <div className="text-2xl font-bold text-white">{user._count.products}</div>
+                  <div className="text-xs text-gray-400">Товаров</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">
-                    {formatDate(user.createdAt)}
-                  </div>
-                  <div className="text-xs text-gray-400">Дата регистрации</div>
+                  <div className="text-2xl font-bold text-white">{user._count.deliveredOrders}</div>
+                  <div className="text-xs text-gray-400">Заказов доставлено</div>
                 </div>
               </div>
               
-              {/* Последние смены */}
-              {user.shifts.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-                    <ClockIcon className="h-4 w-4 mr-1" />
-                    Последние смены
-                  </h4>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {user.shifts.slice(0, 3).map((shift) => (
-                      <div key={shift.id} className="flex items-center justify-between p-2 bg-gray-700/30 rounded text-xs">
-                        <div>
-                          <div className="text-white font-medium">{shift.store.name}</div>
-                          <div className="text-gray-400 flex items-center">
-                            <CalendarDaysIcon className="h-3 w-3 mr-1" />
-                            {formatDate(shift.startedAt)}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`px-2 py-1 rounded text-xs font-medium ${
-                            shift.endedAt 
-                              ? 'bg-green-900/50 text-green-300' 
-                              : 'bg-yellow-900/50 text-yellow-300'
-                          }`}>
-                            {shift.endedAt ? 'Завершена' : 'Активна'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center space-x-2 text-sm text-gray-400">
+                <CalendarDaysIcon className="h-4 w-4" />
+                <span>Зарегистрирован: {formatDate(user.createdAt)}</span>
+              </div>
             </div>
 
             {/* Actions */}
@@ -271,7 +358,7 @@ export default function EditUserModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {loading && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

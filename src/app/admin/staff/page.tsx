@@ -7,62 +7,51 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  UsersIcon,
-  BuildingOfficeIcon,
-  PhoneIcon,
-  MapPinIcon,
-  CalendarDaysIcon,
-  ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronLeftIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
+  XMarkIcon,
+  ChevronUpDownIcon,
   BarsArrowUpIcon,
   BarsArrowDownIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  UsersIcon,
+  TruckIcon,
+  ShoppingBagIcon,
+  PhoneIcon,
+  CalendarDaysIcon,
+  CubeIcon,
   CheckIcon,
-  XMarkIcon,
-  ClockIcon,
+  ExclamationTriangleIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
-import AddStoreModal from '@/components/admin/staff/AddStoreModal';
-import EditStoreModal from '@/components/admin/staff/EditStoreModal';
-import AddUserModal from '@/components/admin/staff/AddUserModal';
-import EditUserModal from '@/components/admin/staff/EditUserModal';
-import DeleteConfirmModal from '@/components/admin/staff/DeleteConfirmModal';
-
-interface Store {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  location: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  _count: {
-    shifts: number;
-    orders: number;
-  };
-}
 
 interface User {
   id: string;
-  name: string;
-  phone: string;
-  role: string;
+  fullname: string;
+  phoneNumber: string;
+  role: 'SELLER' | 'COURIER';
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   createdAt: string;
   _count: {
-    shifts: number;
+    products: number;
+    deliveredOrders: number;
   };
-  shifts: Array<{
-    id: string;
-    startedAt: string;
-    endedAt: string | null;
-    store: {
-      id: string;
-      name: string;
-    };
-  }>;
 }
+
+interface UserFormData {
+  fullname: string;
+  phoneNumber: string;
+  role: 'SELLER' | 'COURIER';
+  status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
+  password: string;
+}
+
+type SortOption = 'fullname' | 'role' | 'createdAt' | 'productsCount' | 'deliveredOrdersCount';
+type SortOrder = 'asc' | 'desc';
 
 interface PaginationInfo {
   currentPage: number;
@@ -71,258 +60,272 @@ interface PaginationInfo {
   itemsPerPage: number;
 }
 
-type ActiveTab = 'stores' | 'users';
-type SortOrder = 'asc' | 'desc';
-
 export default function StaffPage() {
-  // Состояние вкладок
-  const [activeTab, setActiveTab] = useState<ActiveTab>('stores');
-
-  // Состояние филиалов
-  const [stores, setStores] = useState<Store[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesSearch, setStoresSearch] = useState('');
-  const [storesCurrentPage, setStoresCurrentPage] = useState(1);
-  const [storesSortBy, setStoresSortBy] = useState('createdAt');
-  const [storesSortOrder, setStoresSortOrder] = useState<SortOrder>('desc');
-  const [storesActiveFilter, setStoresActiveFilter] = useState<string>('');
-  const [storesPagination, setStoresPagination] = useState<PaginationInfo>({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10,
-  });
-
-  // Состояние сотрудников
   const [users, setUsers] = useState<User[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
-  const [usersSearch, setUsersSearch] = useState('');
-  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
-  const [usersSortBy, setUsersSortBy] = useState('createdAt');
-  const [usersSortOrder, setUsersSortOrder] = useState<SortOrder>('desc');
-  const [usersRoleFilter, setUsersRoleFilter] = useState<string>('');
-  const [usersPagination, setUsersPagination] = useState<PaginationInfo>({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10,
-  });
-
-  // Модальные окна
-  const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
-  const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
-  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  
+  // Pagination and sorting
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortOption>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const itemsPerPage = 50;
+  
+  // Modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'store' | 'user';
-    item: Store | User;
-  } | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
 
+  // Mobile filters state
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState<UserFormData>({
+    fullname: '',
+    phoneNumber: '',
+    role: 'SELLER',
+    password: ''
+  });
   const [formLoading, setFormLoading] = useState(false);
 
-  // Загрузка филиалов
-  const fetchStores = async () => {
-    try {
-      setStoresLoading(true);
-      const params = new URLSearchParams({
-        page: storesCurrentPage.toString(),
-        limit: storesPagination.itemsPerPage.toString(),
-        search: storesSearch,
-        sortBy: storesSortBy,
-        sortOrder: storesSortOrder,
-      });
-
-      if (storesActiveFilter) {
-        params.set('isActive', storesActiveFilter);
-      }
-
-      const response = await fetch(`/api/admin/stores?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setStores(data.stores);
-        setStoresPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error('Error fetching stores:', error);
-    } finally {
-      setStoresLoading(false);
-    }
-  };
-
-  // Загрузка сотрудников
+  // Загрузка пользователей
   const fetchUsers = async () => {
     try {
-      setUsersLoading(true);
       const params = new URLSearchParams({
-        page: usersCurrentPage.toString(),
-        limit: usersPagination.itemsPerPage.toString(),
-        search: usersSearch,
-        sortBy: usersSortBy,
-        sortOrder: usersSortOrder,
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        search: searchTerm,
+        sortBy: sortBy,
+        sortOrder: sortOrder
       });
-
-      if (usersRoleFilter) {
-        params.set('role', usersRoleFilter);
+      
+      if (roleFilter) {
+        params.set('role', roleFilter);
       }
-
+      
+      if (statusFilter) {
+        params.set('status', statusFilter);
+      }
+      
       const response = await fetch(`/api/admin/users?${params}`);
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
-        setUsersPagination(data.pagination);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
-      setUsersLoading(false);
+      setLoading(false);
     }
   };
-
-  // Эффекты для загрузки данных
-  useEffect(() => {
-    fetchStores();
-  }, [storesCurrentPage, storesSearch, storesSortBy, storesSortOrder, storesActiveFilter]);
 
   useEffect(() => {
     fetchUsers();
-  }, [usersCurrentPage, usersSearch, usersSortBy, usersSortOrder, usersRoleFilter]);
+  }, [currentPage, searchTerm, sortBy, sortOrder, roleFilter, statusFilter]);
 
-  // Обработчики для филиалов
-  const handleCreateStore = async (storeData: any) => {
-    try {
-      setFormLoading(true);
-      const response = await fetch('/api/admin/stores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(storeData),
-      });
-
-      if (response.ok) {
-        setIsAddStoreModalOpen(false);
-        fetchStores();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Ошибка при создании филиала');
+  // Auto-close mobile filters when screen size changes to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileFiltersOpen(false);
       }
-    } catch (error) {
-      console.error('Error creating store:', error);
-      alert('Ошибка при создании филиала');
-    } finally {
-      setFormLoading(false);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Block body scroll when modal is open
+  useEffect(() => {
+    const isModalOpen = isCreateModalOpen || isEditModalOpen || isDeleteModalOpen || isViewModalOpen;
+    
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
     }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isCreateModalOpen, isEditModalOpen, isDeleteModalOpen, isViewModalOpen]);
+
+  // Получение доступных опций сортировки в зависимости от фильтра
+  const getSortOptions = () => {
+    const baseOptions = [
+      { value: 'fullname', label: 'По имени' },
+      { value: 'role', label: 'По роли' },
+      { value: 'createdAt', label: 'По дате' }
+    ];
+
+    if (roleFilter === 'SELLER') {
+      return [...baseOptions, { value: 'productsCount', label: 'По товарам' }];
+    } else if (roleFilter === 'COURIER') {
+      return [...baseOptions, { value: 'deliveredOrdersCount', label: 'По заказам' }];
+    }
+
+    return baseOptions;
   };
 
-  const handleEditStore = async (storeData: any) => {
-    if (!editingStore) return;
-
-    try {
-      setFormLoading(true);
-      const response = await fetch(`/api/admin/stores/${editingStore.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(storeData),
-      });
-
-      if (response.ok) {
-        setIsEditStoreModalOpen(false);
-        setEditingStore(null);
-        fetchStores();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Ошибка при обновлении филиала');
-      }
-    } catch (error) {
-      console.error('Error updating store:', error);
-      alert('Ошибка при обновлении филиала');
-    } finally {
-      setFormLoading(false);
+  // Сброс сортировки на базовую при изменении фильтра роли
+  useEffect(() => {
+    const availableOptions = getSortOptions();
+    const currentSortExists = availableOptions.some(option => option.value === sortBy);
+    
+    if (!currentSortExists) {
+      setSortBy('createdAt');
     }
+  }, [roleFilter]);
+
+  // Сброс на первую страницу при изменении фильтров
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, sortBy, sortOrder]);
+
+  // Фильтрация пользователей
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = !searchTerm || 
+      user.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phoneNumber.includes(searchTerm);
+    const matchesRole = !roleFilter || user.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  // Пагинация
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Обработчики модальных окон
+  const openCreateModal = () => {
+    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+    setIsCreateModalOpen(true);
   };
 
-  // Обработчики для сотрудников
-  const handleCreateUser = async (userData: any) => {
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      fullname: user.fullname,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      status: user.status,
+      password: ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const openDeleteModal = (user: User) => {
+    setDeletingUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const openViewModal = (user: User) => {
+    setViewingUser(user);
+    setIsViewModalOpen(true);
+  };
+
+  const closeModals = () => {
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setIsViewModalOpen(false);
+    setEditingUser(null);
+    setDeletingUser(null);
+    setViewingUser(null);
+    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+  };
+
+  // Создание пользователя
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.fullname.trim() || !formData.phoneNumber.trim() || !formData.password.trim()) return;
+
+    setFormLoading(true);
     try {
-      setFormLoading(true);
       const response = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        setIsAddUserModalOpen(false);
-        fetchUsers();
+        await fetchUsers();
+        setIsCreateModalOpen(false);
+        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при создании сотрудника');
+        alert(error.error || 'Ошибка создания сотрудника');
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('Ошибка при создании сотрудника');
+      alert('Ошибка создания сотрудника');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleEditUser = async (userData: any) => {
-    if (!editingUser) return;
+  // Обновление пользователя
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !formData.fullname.trim() || !formData.phoneNumber.trim()) return;
 
+    setFormLoading(true);
     try {
-      setFormLoading(true);
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        setIsEditUserModalOpen(false);
+        await fetchUsers();
+        setIsEditModalOpen(false);
         setEditingUser(null);
-        fetchUsers();
+        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при обновлении сотрудника');
+        alert(error.error || 'Ошибка обновления сотрудника');
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      alert('Ошибка при обновлении сотрудника');
+      alert('Ошибка обновления сотрудника');
     } finally {
       setFormLoading(false);
     }
   };
 
-  // Обработчик удаления
+  // Удаление пользователя
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deletingUser) return;
 
+    setFormLoading(true);
     try {
-      setFormLoading(true);
-      const endpoint = deleteTarget.type === 'store' 
-        ? `/api/admin/stores/${deleteTarget.item.id}`
-        : `/api/admin/users/${deleteTarget.item.id}`;
-
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
+      const response = await fetch(`/api/admin/users/${deletingUser.id}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {
-        setIsDeleteModalOpen(false);
-        setDeleteTarget(null);
-        if (deleteTarget.type === 'store') {
-          fetchStores();
-        } else {
-          fetchUsers();
-        }
+        await fetchUsers();
+        closeModals();
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при удалении');
+        alert(error.error || 'Ошибка удаления сотрудника');
       }
     } catch (error) {
-      console.error('Error deleting:', error);
-      alert('Ошибка при удалении');
+      console.error('Error deleting user:', error);
+      alert('Ошибка удаления сотрудника');
     } finally {
       setFormLoading(false);
     }
@@ -341,568 +344,1056 @@ export default function StaffPage() {
 
   const formatRole = (role: string) => {
     switch (role) {
-      case 'MANAGER':
-        return 'Менеджер';
+      case 'SELLER':
+        return 'Продавец';
+      case 'COURIER':
+        return 'Курьер';
       default:
         return role;
     }
   };
 
-  // Компонент пагинации
-  const Pagination = ({ 
-    pagination, 
-    onPageChange 
-  }: { 
-    pagination: PaginationInfo; 
-    onPageChange: (page: number) => void; 
-  }) => (
-    <div className="flex items-center justify-between px-4 py-3 bg-gray-800/50 border-t border-gray-700/50">
-      <div className="flex items-center text-sm text-gray-300">
-        <span>
-          Показано {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} - {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} из {pagination.totalItems}
-        </span>
-      </div>
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => onPageChange(1)}
-          disabled={pagination.currentPage === 1}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          <ChevronDoubleLeftIcon className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(pagination.currentPage - 1)}
-          disabled={pagination.currentPage === 1}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          <ChevronLeftIcon className="h-4 w-4" />
-        </button>
-        <span className="px-3 py-1 text-sm text-white bg-gray-700/50 rounded-lg">
-          {pagination.currentPage} из {pagination.totalPages}
-        </span>
-        <button
-          onClick={() => onPageChange(pagination.currentPage + 1)}
-          disabled={pagination.currentPage === pagination.totalPages}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          <ChevronRightIcon className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(pagination.totalPages)}
-          disabled={pagination.currentPage === pagination.totalPages}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          <ChevronDoubleRightIcon className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-
-  // Компонент заголовка сортируемой колонки
-  const SortableHeader = ({ 
-    label, 
-    sortKey, 
-    currentSortBy, 
-    currentSortOrder, 
-    onSort 
-  }: {
-    label: string;
-    sortKey: string;
-    currentSortBy: string;
-    currentSortOrder: SortOrder;
-    onSort: (key: string) => void;
-  }) => (
-    <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white transition-colors duration-200"
-      onClick={() => onSort(sortKey)}
-    >
-      <div className="flex items-center space-x-1">
-        <span>{label}</span>
-        {currentSortBy === sortKey && (
-          currentSortOrder === 'asc' 
-            ? <BarsArrowUpIcon className="h-4 w-4" />
-            : <BarsArrowDownIcon className="h-4 w-4" />
-        )}
-      </div>
-    </th>
-  );
-
-  // Обработчик сортировки для филиалов
-  const handleStoreSort = (sortKey: string) => {
-    if (storesSortBy === sortKey) {
-      setStoresSortOrder(storesSortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setStoresSortBy(sortKey);
-      setStoresSortOrder('asc');
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'Активный';
+      case 'INACTIVE':
+        return 'Неактивный';
+      case 'DELETED':
+        return 'Удален';
+      default:
+        return status;
     }
   };
 
-  // Обработчик сортировки для сотрудников
-  const handleUserSort = (sortKey: string) => {
-    if (usersSortBy === sortKey) {
-      setUsersSortOrder(usersSortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setUsersSortBy(sortKey);
-      setUsersSortOrder('asc');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'text-green-300 bg-green-700/30 border-green-600/50';
+      case 'INACTIVE':
+        return 'text-yellow-300 bg-yellow-700/30 border-yellow-600/50';
+      case 'DELETED':
+        return 'text-red-300 bg-red-700/30 border-red-600/50';
+      default:
+        return 'text-gray-300 bg-gray-700/30 border-gray-600/50';
     }
   };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'SELLER':
+        return <ShoppingBagIcon className="h-5 w-5 text-green-400" />;
+      case 'COURIER':
+        return <TruckIcon className="h-5 w-5 text-blue-400" />;
+      default:
+        return <UsersIcon className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  // Рендер карточки пользователя
+  const renderUserCard = (user: User) => {
+    return (
+      <div key={user.id}>
+        {/* Mobile Layout */}
+        <div className="lg:hidden">
+          <div 
+            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            onClick={() => openViewModal(user)}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start space-x-3 flex-1 min-w-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {getRoleIcon(user.role)}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-medium text-white text-sm truncate">{user.fullname}</h3>
+                    <div className="flex flex-wrap gap-1">
+                      <span className={`text-xs px-2 py-1 rounded inline-block w-fit ${
+                        user.role === 'SELLER' 
+                          ? 'text-green-300 bg-green-700/30' 
+                          : 'text-blue-300 bg-blue-700/30'
+                      }`}>
+                        {formatRole(user.role)}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded inline-block w-fit border ${getStatusColor(user.status)}`}>
+                        {formatStatus(user.status)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1 mt-2">
+                    <div className="flex items-center space-x-1 text-xs text-gray-400">
+                      <PhoneIcon className="h-3 w-3 flex-shrink-0" />
+                      <span>{user.phoneNumber}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-xs text-gray-400">
+                      {user.role === 'SELLER' ? (
+                        <>
+                          <CubeIcon className="h-3 w-3 flex-shrink-0" />
+                          <span>{user._count.products} товаров</span>
+                        </>
+                      ) : (
+                        <>
+                          <TruckIcon className="h-3 w-3 flex-shrink-0" />
+                          <span>{user._count.deliveredOrders} заказов</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end space-y-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                {user.status !== 'DELETED' ? (
+                  <>
+                    <button
+                      onClick={() => openEditModal(user)}
+                      className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                      title="Редактировать"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => openDeleteModal(user)}
+                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                      title="Удалить"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="p-2 text-gray-500 cursor-not-allowed" title="Удаленные сотрудники нельзя редактировать">
+                      <PencilIcon className="h-4 w-4" />
+                    </div>
+                    <div className="p-2 text-gray-500 cursor-not-allowed" title="Удаленные сотрудники нельзя удалить повторно">
+                      <TrashIcon className="h-4 w-4" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden lg:block">
+          <div 
+            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            onClick={() => openViewModal(user)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-4 flex-1 min-w-0">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {getRoleIcon(user.role)}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-row items-center gap-3 mb-1">
+                    <h3 className="font-medium text-white text-base truncate">{user.fullname}</h3>
+                    <div className="flex gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        user.role === 'SELLER' 
+                          ? 'text-green-300 bg-green-700/30' 
+                          : 'text-blue-300 bg-blue-700/30'
+                      }`}>
+                        {formatRole(user.role)}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(user.status)}`}>
+                        {formatStatus(user.status)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      <PhoneIcon className="h-4 w-4 flex-shrink-0" />
+                      <span>{user.phoneNumber}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      {user.role === 'SELLER' ? (
+                        <>
+                          <CubeIcon className="h-4 w-4 flex-shrink-0" />
+                          <span>{user._count.products} товаров</span>
+                        </>
+                      ) : (
+                        <>
+                          <TruckIcon className="h-4 w-4 flex-shrink-0" />
+                          <span>{user._count.deliveredOrders} заказов</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      <CalendarDaysIcon className="h-4 w-4 flex-shrink-0" />
+                      <span>{formatDate(user.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                {user.status !== 'DELETED' ? (
+                  <>
+                    <button
+                      onClick={() => openEditModal(user)}
+                      className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                      title="Редактировать"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => openDeleteModal(user)}
+                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                      title="Удалить"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 text-gray-500 cursor-not-allowed" title="Удаленные сотрудники нельзя редактировать">
+                      <PencilIcon className="h-4 w-4" />
+                    </div>
+                    <div className="p-2 text-gray-500 cursor-not-allowed" title="Удаленные сотрудники нельзя удалить повторно">
+                      <TrashIcon className="h-4 w-4" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-gray-800/60 to-gray-700/60 backdrop-blur-sm rounded-xl p-6 border border-gray-600/50">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Сотрудники и филиалы
-          </h1>
-          <p className="text-gray-300">
-            Управление персоналом и филиалами магазина
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">Сотрудники</h1>
+              <p className="text-gray-300">Управление продавцами и курьерами</p>
+            </div>
+            
+            <button
+              onClick={openCreateModal}
+              className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 shadow-lg hover:shadow-indigo-500/25"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>Добавить</span>
+            </button>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50">
-          <div className="border-b border-gray-700/50">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('stores')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
-                  activeTab === 'stores'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <BuildingOfficeIcon className="h-5 w-5" />
-                  <span>Филиалы ({storesPagination.totalItems})</span>
+        {/* Filters and Search */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative">
+          <div className="space-y-4">
+            {/* Search and Sort Row */}
+            <div className="flex flex-row gap-3">
+              {/* Search - Left side */}
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Поиск сотрудников..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-12 h-10 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 text-sm sm:text-base"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                    </button>
+                  )}
                 </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
-                  activeTab === 'users'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <UsersIcon className="h-5 w-5" />
-                  <span>Сотрудники ({usersPagination.totalItems})</span>
+              </div>
+
+              {/* Right side controls */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {/* Mobile Filter Toggle Button - Only visible on mobile/tablet */}
+                <div className="lg:hidden">
+                  <button
+                    onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                    className="flex items-center justify-center px-3 py-2 h-10 rounded-lg border border-gray-600/50 bg-gray-700/30 text-gray-400 hover:border-gray-500/50 hover:text-gray-300 transition-all duration-200"
+                    title="Фильтры и сортировка"
+                  >
+                    <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
                 </div>
-              </button>
-            </nav>
+
+                {/* Desktop Sort Controls - Hidden on mobile/tablet */}
+                <div className="hidden lg:flex items-center space-x-2">
+                  <div className="min-w-[200px]">
+                    <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
+                      <BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                      >
+                        {getSortOptions().map(option => (
+                          <option key={option.value} value={option.value} className="bg-gray-800">
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className={`flex items-center justify-center px-3 py-2 h-10 rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                      sortOrder === 'desc'
+                        ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                        : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:border-gray-500/50 hover:text-gray-300'
+                    }`}
+                    title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
+                  >
+                    {sortOrder === 'desc' ? (
+                      <ArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    ) : (
+                      <ArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Filters Row - Hidden on mobile/tablet */}
+            <div className="hidden lg:flex flex-col lg:flex-row gap-3">
+              {/* Role Filter */}
+              <div className="min-w-[200px]">
+                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
+                  <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                  >
+                    <option value="" className="bg-gray-800">Все роли</option>
+                    <option value="SELLER" className="bg-gray-800">Продавцы</option>
+                    <option value="COURIER" className="bg-gray-800">Курьеры</option>
+                  </select>
+                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="min-w-[200px]">
+                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
+                  <div className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                  >
+                    <option value="" className="bg-gray-800">Активные</option>
+                    <option value="INACTIVE" className="bg-gray-800">Неактивные</option>
+                    <option value="DELETED" className="bg-gray-800">Удаленные</option>
+                    <option value="ALL" className="bg-gray-800">Все статусы</option>
+                  </select>
+                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Filters - Collapsible */}
+            <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-hidden ${
+              isMobileFiltersOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="space-y-4 pt-4 border-t border-gray-700/50">
+                {/* Mobile Sort Controls */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Сортировка</h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
+                        <BarsArrowUpIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as SortOption)}
+                          className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                        >
+                          {getSortOptions().map(option => (
+                            <option key={option.value} value={option.value} className="bg-gray-800">
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className={`flex items-center justify-center px-3 py-2 h-10 rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                        sortOrder === 'desc'
+                          ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                          : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:border-gray-500/50 hover:text-gray-300'
+                      }`}
+                      title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
+                    >
+                      {sortOrder === 'desc' ? (
+                        <ArrowDownIcon className="h-4 w-4" />
+                      ) : (
+                        <ArrowUpIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Filters */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Фильтры</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* Role Filter */}
+                    <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
+                      <FunnelIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                      >
+                        <option value="" className="bg-gray-800">Все роли</option>
+                        <option value="SELLER" className="bg-gray-800">Продавцы</option>
+                        <option value="COURIER" className="bg-gray-800">Курьеры</option>
+                      </select>
+                      <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Stores Tab */}
-          {activeTab === 'stores' && (
-            <div className="p-6">
-              {/* Stores Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 mb-6">
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Поиск филиалов..."
-                      value={storesSearch}
-                      onChange={(e) => setStoresSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 w-full sm:w-64"
-                    />
-                  </div>
-
-                  {/* Active Filter */}
-                  <select
-                    value={storesActiveFilter}
-                    onChange={(e) => setStoresActiveFilter(e.target.value)}
-                    className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="">Все филиалы</option>
-                    <option value="true">Активные</option>
-                    <option value="false">Неактивные</option>
-                  </select>
+          {/* Stats Bar */}
+          <div className="mt-4 sm:mt-6 pt-4 border-t border-gray-700/50">
+            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-xs sm:text-sm">
+                <div className="flex items-center space-x-2 text-gray-400">
+                  <ArchiveBoxIcon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">
+                    <span className="sm:hidden">
+                      {startIndex + 1}-{Math.min(endIndex, totalItems)} из {totalItems}
+                    </span>
+                    <span className="hidden sm:inline">
+                      Показано {startIndex + 1}-{Math.min(endIndex, totalItems)} из {totalItems}
+                    </span>
+                  </span>
                 </div>
-
-                <button
-                  onClick={() => setIsAddStoreModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Добавить филиал
-                </button>
-              </div>
-
-              {/* Stores Table */}
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-lg border border-gray-700/50 overflow-hidden">
-                {storesLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                
+                {searchTerm && (
+                  <div className="flex items-center space-x-2 text-indigo-400">
+                    <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      <span className="sm:hidden">"{searchTerm}"</span>
+                      <span className="hidden sm:inline">Поиск: "{searchTerm}"</span>
+                    </span>
                   </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-700/50">
-                        <thead className="bg-gray-800/50">
-                          <tr>
-                            <SortableHeader
-                              label="Название"
-                              sortKey="name"
-                              currentSortBy={storesSortBy}
-                              currentSortOrder={storesSortOrder}
-                              onSort={handleStoreSort}
-                            />
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Адрес
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Контакты
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Статус
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Смены
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Заказы
-                            </th>
-                            <SortableHeader
-                              label="Создан"
-                              sortKey="createdAt"
-                              currentSortBy={storesSortBy}
-                              currentSortOrder={storesSortOrder}
-                              onSort={handleStoreSort}
-                            />
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Действия
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-gray-800/20 divide-y divide-gray-700/50">
-                          {stores.map((store) => (
-                            <tr key={store.id} className="hover:bg-gray-700/30 transition-colors duration-200">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                                    <BuildingOfficeIcon className="h-5 w-5 text-white" />
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-white">{store.name}</div>
-                                    <div className="text-sm text-gray-400">{store.location}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-start">
-                                  <MapPinIcon className="h-4 w-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
-                                  <div className="text-sm text-gray-300 leading-5">{store.address}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <PhoneIcon className="h-4 w-4 text-gray-400 mr-2" />
-                                  <div className="text-sm text-gray-300">{store.phone}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  store.isActive
-                                    ? 'bg-green-900/50 text-green-300 border border-green-700/50'
-                                    : 'bg-red-900/50 text-red-300 border border-red-700/50'
-                                }`}>
-                                  {store.isActive ? 'Активен' : 'Неактивен'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {store._count.shifts}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {store._count.orders}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                {formatDate(store.createdAt)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingStore(store);
-                                      setIsEditStoreModalOpen(true);
-                                    }}
-                                    className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
-                                    title="Редактировать"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setDeleteTarget({ type: 'store', item: store });
-                                      setIsDeleteModalOpen(true);
-                                    }}
-                                    className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
-                                    title="Удалить"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                          {stores.length === 0 && (
-                            <tr>
-                              <td colSpan={8} className="px-6 py-12 text-center">
-                                <div className="flex flex-col items-center">
-                                  <BuildingOfficeIcon className="h-12 w-12 text-gray-500 mb-4" />
-                                  <p className="text-gray-400 text-lg font-medium">Филиалы не найдены</p>
-                                  <p className="text-gray-500 text-sm">Попробуйте изменить параметры поиска</p>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {stores.length > 0 && (
-                      <Pagination 
-                        pagination={storesPagination} 
-                        onPageChange={setStoresCurrentPage} 
-                      />
-                    )}
-                  </>
                 )}
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Users Tab */}
-          {activeTab === 'users' && (
-            <div className="p-6">
-              {/* Users Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 mb-6">
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Поиск по ФИО или номеру..."
-                      value={usersSearch}
-                      onChange={(e) => setUsersSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 w-full sm:w-64"
-                    />
-                  </div>
-
-                  {/* Role Filter */}
-                  <select
-                    value={usersRoleFilter}
-                    onChange={(e) => setUsersRoleFilter(e.target.value)}
-                    className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="">Все роли</option>
-                    <option value="MANAGER">Менеджер</option>
-                  </select>
-                </div>
-
+        {/* Users List */}
+        <div className="space-y-3">
+          {paginatedUsers.length === 0 ? (
+            <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
+              <UsersIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-300 mb-2">
+                {searchTerm ? 'Сотрудники не найдены' : 'Нет сотрудников'}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm ? 'Попробуйте изменить критерии поиска' : 'Добавьте первого сотрудника для начала работы'}
+              </p>
+              {!searchTerm && (
                 <button
-                  onClick={() => setIsAddUserModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200"
+                  onClick={openCreateModal}
+                  className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200"
                 >
-                  <PlusIcon className="h-5 w-5 mr-2" />
                   Добавить сотрудника
                 </button>
-              </div>
-
-              {/* Users Table */}
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-lg border border-gray-700/50 overflow-hidden">
-                {usersLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-700/50">
-                        <thead className="bg-gray-800/50">
-                          <tr>
-                            <SortableHeader
-                              label="ФИО"
-                              sortKey="name"
-                              currentSortBy={usersSortBy}
-                              currentSortOrder={usersSortOrder}
-                              onSort={handleUserSort}
-                            />
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Телефон
-                            </th>
-                            <SortableHeader
-                              label="Роль"
-                              sortKey="role"
-                              currentSortBy={usersSortBy}
-                              currentSortOrder={usersSortOrder}
-                              onSort={handleUserSort}
-                            />
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Смены
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Последняя смена
-                            </th>
-                            <SortableHeader
-                              label="Зарегистрирован"
-                              sortKey="createdAt"
-                              currentSortBy={usersSortBy}
-                              currentSortOrder={usersSortOrder}
-                              onSort={handleUserSort}
-                            />
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
-                              Действия
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-gray-800/20 divide-y divide-gray-700/50">
-                          {users.map((user) => (
-                            <tr key={user.id} className="hover:bg-gray-700/30 transition-colors duration-200">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-                                    <UsersIcon className="h-5 w-5 text-white" />
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-white">{user.name}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <PhoneIcon className="h-4 w-4 text-gray-400 mr-2" />
-                                  <div className="text-sm text-gray-300">{user.phone}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-900/50 text-blue-300 border border-blue-700/50">
-                                  {formatRole(user.role)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {user._count.shifts}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {user.shifts.length > 0 ? (
-                                  <div>
-                                    <div className="text-white">{user.shifts[0].store.name}</div>
-                                    <div className="text-xs text-gray-400 flex items-center">
-                                      <ClockIcon className="h-3 w-3 mr-1" />
-                                      {formatDate(user.shifts[0].startedAt)}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-500">Нет смен</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                {formatDate(user.createdAt)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingUser(user);
-                                      setIsEditUserModalOpen(true);
-                                    }}
-                                    className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
-                                    title="Редактировать"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setDeleteTarget({ type: 'user', item: user });
-                                      setIsDeleteModalOpen(true);
-                                    }}
-                                    className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg transition-all duration-200"
-                                    title="Удалить"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                          {users.length === 0 && (
-                            <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center">
-                                <div className="flex flex-col items-center">
-                                  <UsersIcon className="h-12 w-12 text-gray-500 mb-4" />
-                                  <p className="text-gray-400 text-lg font-medium">Сотрудники не найдены</p>
-                                  <p className="text-gray-500 text-sm">Попробуйте изменить параметры поиска</p>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {users.length > 0 && (
-                      <Pagination 
-                        pagination={usersPagination} 
-                        onPageChange={setUsersCurrentPage} 
-                      />
-                    )}
-                  </>
-                )}
-              </div>
+              )}
             </div>
+          ) : (
+            paginatedUsers.map(user => renderUserCard(user))
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="text-xs sm:text-sm text-gray-400">
+                  <span className="sm:hidden">
+                    {currentPage}/{totalPages}
+                  </span>
+                  <span className="hidden sm:inline">
+                    Страница {currentPage} из {totalPages}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                {/* First Page - Hide on mobile */}
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Первая страница"
+                >
+                  <ChevronDoubleLeftIcon className="h-5 w-5" />
+                </button>
+
+                {/* Previous Page */}
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Предыдущая"
+                >
+                  <ChevronLeftIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex items-center space-x-1">
+                  {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                    let pageNumber;
+                    
+                    if (totalPages <= 5) {
+                      pageNumber = index + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = index + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + index;
+                    } else {
+                      pageNumber = currentPage - 2 + index;
+                    }
+
+                    const isActive = pageNumber === currentPage;
+
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => setCurrentPage(pageNumber)}
+                        className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 min-w-[36px] ${
+                          isActive
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Next Page */}
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Следующая"
+                >
+                  <ChevronRightIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </button>
+
+                {/* Last Page - Hide on mobile */}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Последняя страница"
+                >
+                  <ChevronDoubleLeftIcon className="h-5 w-5 transform rotate-180" />
+                </button>
+              </div>
+
+              <div className="text-xs sm:text-sm text-gray-400">
+                <span className="sm:hidden">
+                  {totalItems} всего
+                </span>
+                <span className="hidden sm:inline">
+                  {totalItems} сотрудников всего
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Modal */}
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-md border border-gray-700/50 shadow-2xl mx-2 sm:mx-4 max-h-[95vh] overflow-hidden">
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Добавить сотрудника</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+                <form onSubmit={handleCreate} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      ФИО
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullname}
+                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Введите ФИО..."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Телефон
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="+996700123456"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Пароль
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Введите пароль..."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Роль
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'SELLER' | 'COURIER' })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="SELLER">Продавец</option>
+                      <option value="COURIER">Курьер</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={closeModals}
+                      className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={formLoading}
+                      className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50"
+                    >
+                      {formLoading ? 'Создание...' : 'Создать'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {isEditModalOpen && editingUser && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-md border border-gray-700/50 shadow-2xl mx-2 sm:mx-4 max-h-[95vh] overflow-hidden">
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Редактировать сотрудника</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+                <form onSubmit={handleUpdate} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      ФИО
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.fullname}
+                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Введите ФИО..."
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Телефон
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="+996700123456"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Новый пароль (оставьте пустым, если не хотите менять)
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Введите новый пароль..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Роль
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'SELLER' | 'COURIER' })}
+                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="SELLER">Продавец</option>
+                      <option value="COURIER">Курьер</option>
+                    </select>
+                  </div>
+
+                  {/* Статус */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-3">
+                      Статус сотрудника
+                    </label>
+                    <div className="grid grid-cols-1 gap-3">
+                      <label className={`relative flex items-center p-3 rounded-lg border transition-all duration-200 ${
+                        formData.status === 'ACTIVE' 
+                          ? 'border-green-500/50 bg-green-500/10' 
+                          : 'border-gray-600/50 bg-gray-700/30 hover:border-gray-500/50'
+                      } ${formData.status === 'DELETED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                        <input
+                          type="radio"
+                          name="status"
+                          value="ACTIVE"
+                          checked={formData.status === 'ACTIVE'}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as 'ACTIVE' | 'INACTIVE' | 'DELETED' })}
+                          disabled={formData.status === 'DELETED'}
+                          className="sr-only"
+                        />
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                          formData.status === 'ACTIVE' 
+                            ? 'border-green-500 bg-green-500' 
+                            : 'border-gray-400 bg-transparent'
+                        }`}>
+                          {formData.status === 'ACTIVE' && (
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className={`text-sm font-medium ${
+                            formData.status === 'ACTIVE' ? 'text-green-300' : 'text-gray-300'
+                          }`}>
+                            Активный
+                          </span>
+                        </div>
+                      </label>
+                      
+                      <label className={`relative flex items-center p-3 rounded-lg border transition-all duration-200 ${
+                        formData.status === 'INACTIVE' 
+                          ? 'border-yellow-500/50 bg-yellow-500/10' 
+                          : 'border-gray-600/50 bg-gray-700/30 hover:border-gray-500/50'
+                      } ${formData.status === 'DELETED' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                        <input
+                          type="radio"
+                          name="status"
+                          value="INACTIVE"
+                          checked={formData.status === 'INACTIVE'}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as 'ACTIVE' | 'INACTIVE' | 'DELETED' })}
+                          disabled={formData.status === 'DELETED'}
+                          className="sr-only"
+                        />
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                          formData.status === 'INACTIVE' 
+                            ? 'border-yellow-500 bg-yellow-500' 
+                            : 'border-gray-400 bg-transparent'
+                        }`}>
+                          {formData.status === 'INACTIVE' && (
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className={`text-sm font-medium ${
+                            formData.status === 'INACTIVE' ? 'text-yellow-300' : 'text-gray-300'
+                          }`}>
+                            Неактивный
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                    
+                    {formData.status === 'DELETED' && (
+                      <div className="mt-3 p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
+                        <div className="flex items-center space-x-2 text-red-300">
+                          <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                          <span className="text-sm font-medium">Сотрудник удален</span>
+                        </div>
+                        <p className="text-xs text-red-400 mt-1">
+                          Удаленных сотрудников нельзя активировать через редактирование
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={closeModals}
+                      className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={formLoading}
+                      className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50"
+                    >
+                      {formLoading ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Modal */}
+        {isDeleteModalOpen && deletingUser && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-lg border border-gray-700/50 shadow-2xl mx-2 sm:mx-4 max-h-[95vh] overflow-hidden">
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-2xl font-bold text-white">Удалить сотрудника</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+                <div className="mb-6">
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3 sm:space-x-4 p-4 sm:p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                          <TrashIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg sm:text-xl font-bold text-yellow-300 mb-2">
+                          Подтверждение удаления
+                        </h3>
+                        <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
+                          Вы уверены, что хотите удалить сотрудника <span className="font-semibold text-white">"{deletingUser.fullname}"</span>?
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-700/30 border border-gray-600/50 rounded-xl p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-gray-300 text-xs sm:text-sm font-medium mb-1">
+                            Внимание
+                          </p>
+                          <p className="text-gray-400 text-xs sm:text-sm">
+                            Это действие необратимо. Сотрудник будет удален навсегда.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                  <button
+                    onClick={closeModals}
+                    className="flex-1 px-4 sm:px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500 transition-all duration-200 font-medium text-sm sm:text-base"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={formLoading}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 sm:px-6 py-3 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50 font-medium shadow-lg hover:shadow-red-500/25 text-sm sm:text-base"
+                  >
+                    {formLoading ? 'Удаление...' : 'Удалить'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Modal */}
+        {isViewModalOpen && viewingUser && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div className="bg-gray-800/95 backdrop-blur-md rounded-xl w-full max-w-2xl border border-gray-700/50 shadow-2xl mx-2 sm:mx-4 max-h-[95vh] overflow-hidden">
+              <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-4 sm:p-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg sm:text-2xl font-bold text-white">Информация о сотруднике</h2>
+                  <button
+                    onClick={closeModals}
+                    className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-700/50"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-gray-700/30 rounded-xl p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-6">
+                      <div className="flex-shrink-0 mx-auto sm:mx-0">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                          {getRoleIcon(viewingUser.role)}
+                        </div>
+                      </div>
+                      <div className="flex-1 text-center sm:text-left">
+                        <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
+                          {viewingUser.fullname}
+                        </h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`text-sm px-3 py-1 rounded w-fit ${
+                              viewingUser.role === 'SELLER' 
+                                ? 'text-green-300 bg-green-700/30' 
+                                : 'text-blue-300 bg-blue-700/30'
+                            }`}>
+                              {formatRole(viewingUser.role)}
+                            </span>
+                            <span className={`text-sm px-3 py-1 rounded border w-fit ${getStatusColor(viewingUser.status)}`}>
+                              {formatStatus(viewingUser.status)}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-1 text-sm text-gray-400">
+                            <PhoneIcon className="h-4 w-4" />
+                            <span>{viewingUser.phoneNumber}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center sm:justify-start space-x-1 text-sm text-gray-400">
+                          <CalendarDaysIcon className="h-4 w-4" />
+                          <span>Создан {formatDate(viewingUser.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Предупреждение для удаленных пользователей */}
+                    {viewingUser.status === 'DELETED' && (
+                      <div className="mt-4 p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                            <TrashIcon className="h-4 w-4 text-red-400" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-red-300 mb-1">Сотрудник удален</h4>
+                            <p className="text-xs text-red-400">
+                              Данный сотрудник был удален из системы. Редактирование и повторное удаление недоступны.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Статистика */}
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                      <div className="bg-gray-600/30 rounded-lg p-3 sm:p-4 text-center">
+                        <div className="flex items-center justify-center mb-2">
+                          {viewingUser.role === 'SELLER' ? (
+                            <CubeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
+                          ) : (
+                            <TruckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
+                          )}
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold text-white">
+                          {viewingUser.role === 'SELLER' 
+                            ? viewingUser._count.products 
+                            : viewingUser._count.deliveredOrders
+                          }
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-400">
+                          {viewingUser.role === 'SELLER' ? 'Товаров' : 'Заказов доставлено'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
-
-      {/* Modals */}
-      <AddStoreModal
-        isOpen={isAddStoreModalOpen}
-        onClose={() => setIsAddStoreModalOpen(false)}
-        onSubmit={handleCreateStore}
-        loading={formLoading}
-      />
-
-      <EditStoreModal
-        isOpen={isEditStoreModalOpen}
-        onClose={() => {
-          setIsEditStoreModalOpen(false);
-          setEditingStore(null);
-        }}
-        onSubmit={handleEditStore}
-        store={editingStore}
-        loading={formLoading}
-      />
-
-      <AddUserModal
-        isOpen={isAddUserModalOpen}
-        onClose={() => setIsAddUserModalOpen(false)}
-        onSubmit={handleCreateUser}
-        loading={formLoading}
-      />
-
-      <EditUserModal
-        isOpen={isEditUserModalOpen}
-        onClose={() => {
-          setIsEditUserModalOpen(false);
-          setEditingUser(null);
-        }}
-        onSubmit={handleEditUser}
-        user={editingUser}
-        loading={formLoading}
-      />
-
-      <DeleteConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setDeleteTarget(null);
-        }}
-        onConfirm={handleDelete}
-        target={deleteTarget}
-        loading={formLoading}
-      />
     </AdminLayout>
   );
 }

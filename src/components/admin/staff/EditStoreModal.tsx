@@ -196,7 +196,7 @@ export default function EditStoreModal({
               className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
                 errors.phone ? 'border-red-500' : 'border-gray-600/50'
               }`}
-              placeholder="+7 (777) 123-45-67"
+              placeholder="+996700123456"
             />
             {errors.phone && (
               <p className="mt-1 text-sm text-red-400">{errors.phone}</p>

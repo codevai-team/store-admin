@@ -1,41 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { PrismaClient, UserRole, ProductStatus, UserStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 // GET - получить сотрудника по ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: params.id },
-      include: {
+    const { id } = await params;
+    const user = await prisma.user.findFirst({
+      where: { 
+        id,
+        role: {
+          in: [UserRole.SELLER, UserRole.COURIER]
+        },
+        status: {
+          not: UserStatus.DELETED
+        }
+      },
+      select: {
+        id: true,
+        fullname: true,
+        phoneNumber: true,
+        role: true,
+        status: true,
+        createdAt: true,
         _count: {
           select: {
-            shifts: true,
-          },
-        },
-        shifts: {
-          include: {
-            store: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-              },
+            products: {
+              where: {
+                status: ProductStatus.ACTIVE
+              }
             },
-            _count: {
-              select: {
-                orders: true,
-              },
-            },
+            deliveredOrders: true,
           },
-          orderBy: {
-            startedAt: 'desc',
-          },
-          take: 10,
         },
       },
     });
@@ -60,23 +61,40 @@ export async function GET(
 // PUT - обновить сотрудника
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    const { name, phone, role } = body;
+    const { fullname, phoneNumber, role, password, status } = body;
 
     // Валидация
-    if (!name || !phone) {
+    if (!fullname || !phoneNumber) {
       return NextResponse.json(
-        { error: 'Имя и телефон обязательны для заполнения' },
+        { error: 'ФИО и телефон обязательны для заполнения' },
+        { status: 400 }
+      );
+    }
+
+    // Валидация роли
+    if (role && ![UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+      return NextResponse.json(
+        { error: 'Недопустимая роль. Доступны: SELLER, COURIER' },
+        { status: 400 }
+      );
+    }
+
+    // Валидация статуса
+    if (status && !['ACTIVE', 'INACTIVE', 'DELETED'].includes(status)) {
+      return NextResponse.json(
+        { error: 'Недопустимый статус. Доступны: ACTIVE, INACTIVE, DELETED' },
         { status: 400 }
       );
     }
 
     // Валидация телефона
     const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
-    if (!phoneRegex.test(phone)) {
+    if (!phoneRegex.test(phoneNumber)) {
       return NextResponse.json(
         { error: 'Неверный формат номера телефона' },
         { status: 400 }
@@ -85,7 +103,12 @@ export async function PUT(
 
     // Проверка на существование сотрудника
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { 
+        id,
+        role: {
+          in: [UserRole.SELLER, UserRole.COURIER]
+        }
+      },
     });
 
     if (!existingUser) {
@@ -98,8 +121,8 @@ export async function PUT(
     // Проверка на уникальность телефона (исключая текущего сотрудника)
     const userWithSamePhone = await prisma.user.findFirst({
       where: { 
-        phone,
-        id: { not: params.id },
+        phoneNumber,
+        id: { not: id },
       },
     });
 
@@ -110,17 +133,41 @@ export async function PUT(
       );
     }
 
+    // Подготовка данных для обновления
+    const updateData: any = {
+      fullname,
+      phoneNumber,
+      role: role as UserRole,
+    };
+
+    // Добавляем статус если передан
+    if (status) {
+      updateData.status = UserStatus[status as keyof typeof UserStatus];
+    }
+
+    // Если передан новый пароль, хешируем его
+    if (password && password.trim()) {
+      updateData.password = await bcrypt.hash(password, 12);
+    }
+
     const user = await prisma.user.update({
-      where: { id: params.id },
-      data: {
-        name,
-        phone,
-        role,
-      },
-      include: {
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        fullname: true,
+        phoneNumber: true,
+        role: true,
+        status: true,
+        createdAt: true,
         _count: {
           select: {
-            shifts: true,
+            products: {
+              where: {
+                status: ProductStatus.ACTIVE
+              }
+            },
+            deliveredOrders: true,
           },
         },
       },
@@ -136,21 +183,23 @@ export async function PUT(
   }
 }
 
-// DELETE - удалить сотрудника
+// DELETE - мягкое удаление сотрудника (изменение статуса на DELETED)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Проверка на существование сотрудника
-    const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
-      include: {
-        _count: {
-          select: {
-            shifts: true,
-          },
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        id,
+        role: {
+          in: [UserRole.SELLER, UserRole.COURIER]
         },
+        status: {
+          not: UserStatus.DELETED
+        }
       },
     });
 
@@ -161,16 +210,10 @@ export async function DELETE(
       );
     }
 
-    // Проверка на связанные данные
-    if (existingUser._count.shifts > 0) {
-      return NextResponse.json(
-        { error: 'Невозможно удалить сотрудника с активными сменами' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.user.delete({
-      where: { id: params.id },
+    // Мягкое удаление - изменение статуса на DELETED
+    await prisma.user.update({
+      where: { id },
+      data: { status: UserStatus.DELETED }
     });
 
     return NextResponse.json({ message: 'Сотрудник успешно удален' });

@@ -41,7 +41,7 @@ export const navigation = [
     description: 'Структура каталога'
   },
   { 
-    name: 'Сотрудники и филиалы', 
+    name: 'Сотрудники', 
     href: '/admin/staff', 
     icon: UsersIcon,
     color: 'text-indigo-400',

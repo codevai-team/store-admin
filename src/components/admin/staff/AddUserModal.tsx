@@ -14,9 +14,10 @@ interface AddUserModalProps {
 }
 
 interface UserFormData {
-  name: string;
-  phone: string;
+  fullname: string;
+  phoneNumber: string;
   role: string;
+  password: string;
 }
 
 export default function AddUserModal({
@@ -26,9 +27,10 @@ export default function AddUserModal({
   loading = false,
 }: AddUserModalProps) {
   const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    phone: '',
-    role: 'MANAGER',
+    fullname: '',
+    phoneNumber: '',
+    role: 'SELLER',
+    password: '',
   });
 
   const [errors, setErrors] = useState<Partial<UserFormData>>({});
@@ -39,14 +41,18 @@ export default function AddUserModal({
     // Валидация
     const newErrors: Partial<UserFormData> = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'ФИО обязательно';
+    if (!formData.fullname.trim()) {
+      newErrors.fullname = 'ФИО обязательно';
     }
     
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Телефон обязателен';
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
-      newErrors.phone = 'Неверный формат телефона';
+    if (!formData.phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Телефон обязателен';
+    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Неверный формат телефона';
+    }
+
+    if (!formData.password.trim()) {
+      newErrors.password = 'Пароль обязателен';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -60,9 +66,10 @@ export default function AddUserModal({
 
   const handleClose = () => {
     setFormData({
-      name: '',
-      phone: '',
-      role: 'MANAGER',
+      fullname: '',
+      phoneNumber: '',
+      role: 'SELLER',
+      password: '',
     });
     setErrors({});
     onClose();
@@ -100,41 +107,61 @@ export default function AddUserModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* ФИО */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="fullname" className="block text-sm font-medium text-gray-300 mb-2">
               ФИО *
             </label>
             <input
               type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              id="fullname"
+              value={formData.fullname}
+              onChange={(e) => handleInputChange('fullname', e.target.value)}
               className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
-                errors.name ? 'border-red-500' : 'border-gray-600/50'
+                errors.fullname ? 'border-red-500' : 'border-gray-600/50'
               }`}
               placeholder="Иванов Иван Иванович"
             />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-400">{errors.name}</p>
+            {errors.fullname && (
+              <p className="mt-1 text-sm text-red-400">{errors.fullname}</p>
             )}
           </div>
 
           {/* Телефон */}
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-300 mb-2">
               Телефон *
             </label>
             <input
               type="tel"
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
+              id="phoneNumber"
+              value={formData.phoneNumber}
+              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
               className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
-                errors.phone ? 'border-red-500' : 'border-gray-600/50'
+                errors.phoneNumber ? 'border-red-500' : 'border-gray-600/50'
               }`}
-              placeholder="+7 (777) 123-45-67"
+              placeholder="+996700123456"
             />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-400">{errors.phone}</p>
+            {errors.phoneNumber && (
+              <p className="mt-1 text-sm text-red-400">{errors.phoneNumber}</p>
+            )}
+          </div>
+
+          {/* Пароль */}
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+              Пароль *
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
+                errors.password ? 'border-red-500' : 'border-gray-600/50'
+              }`}
+              placeholder="Введите пароль"
+            />
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-400">{errors.password}</p>
             )}
           </div>
 
@@ -149,7 +176,8 @@ export default function AddUserModal({
               onChange={(e) => handleInputChange('role', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
             >
-              <option value="MANAGER">Менеджер</option>
+              <option value="SELLER">Продавец</option>
+              <option value="COURIER">Курьер</option>
             </select>
           </div>
 

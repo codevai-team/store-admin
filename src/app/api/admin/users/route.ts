@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { PrismaClient, UserRole, ProductStatus, UserStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// GET - получить список сотрудников
+// GET - получить список сотрудников (продавцов и курьеров)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,18 +17,59 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Построение условий поиска
-    const where: any = {};
+    // Построение условий поиска - только продавцы и курьеры
+    const where: any = {
+      role: {
+        in: [UserRole.SELLER, UserRole.COURIER]
+      }
+    };
+
+    // Фильтрация по статусу
+    const statusFilter = searchParams.get('status');
+    if (statusFilter && statusFilter !== 'ALL') {
+      if (statusFilter === 'DELETED') {
+        where.status = UserStatus.DELETED;
+      } else if (statusFilter === 'ACTIVE') {
+        where.status = UserStatus.ACTIVE;
+      } else if (statusFilter === 'INACTIVE') {
+        where.status = UserStatus.INACTIVE;
+      }
+    } else if (!statusFilter || statusFilter === 'ALL') {
+      // По умолчанию исключаем удаленных, если не выбран "Все статусы"
+      if (!statusFilter) {
+        where.status = {
+          not: UserStatus.DELETED
+        };
+      }
+      // Если выбран "ALL", не добавляем фильтр по статусу
+    }
     
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
+        { fullname: { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    if (role) {
-      where.role = role;
+    if (role && [UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+      where.role = role as UserRole;
+    }
+
+    // Построение orderBy в зависимости от сортировки
+    let orderBy: any = { [sortBy]: sortOrder };
+    
+    if (sortBy === 'productsCount') {
+      orderBy = {
+        products: {
+          _count: sortOrder
+        }
+      };
+    } else if (sortBy === 'deliveredOrdersCount') {
+      orderBy = {
+        deliveredOrders: {
+          _count: sortOrder
+        }
+      };
     }
 
     // Получение сотрудников с пагинацией
@@ -36,26 +78,23 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        include: {
+        orderBy,
+        select: {
+          id: true,
+          fullname: true,
+          phoneNumber: true,
+          role: true,
+          status: true,
+          createdAt: true,
           _count: {
             select: {
-              shifts: true,
-            },
-          },
-          shifts: {
-            include: {
-              store: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+              products: {
+                where: {
+                  status: ProductStatus.ACTIVE
+                }
               },
+              deliveredOrders: true,
             },
-            orderBy: {
-              startedAt: 'desc',
-            },
-            take: 1,
           },
         },
       }),
@@ -76,7 +115,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      { error: 'Ошибка при получении сотрудников' },
+      { error: 'Ошибка при получении списка сотрудников' },
       { status: 500 }
     );
   }
@@ -86,19 +125,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phone, role = 'MANAGER' } = body;
+    const { fullname, phoneNumber, role = 'SELLER', password } = body;
 
     // Валидация
-    if (!name || !phone) {
+    if (!fullname || !phoneNumber || !password) {
       return NextResponse.json(
-        { error: 'Имя и телефон обязательны для заполнения' },
+        { error: 'ФИО, телефон и пароль обязательны для заполнения' },
+        { status: 400 }
+      );
+    }
+
+    // Валидация роли
+    if (![UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+      return NextResponse.json(
+        { error: 'Недопустимая роль. Доступны: SELLER, COURIER' },
         { status: 400 }
       );
     }
 
     // Валидация телефона
     const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
-    if (!phoneRegex.test(phone)) {
+    if (!phoneRegex.test(phoneNumber)) {
       return NextResponse.json(
         { error: 'Неверный формат номера телефона' },
         { status: 400 }
@@ -107,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     // Проверка на уникальность телефона
     const existingUser = await prisma.user.findUnique({
-      where: { phone },
+      where: { phoneNumber },
     });
 
     if (existingUser) {
@@ -117,16 +164,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Хеширование пароля
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const user = await prisma.user.create({
       data: {
-        name,
-        phone,
-        role,
+        fullname,
+        phoneNumber,
+        password: hashedPassword,
+        role: role as UserRole,
+        status: UserStatus.ACTIVE,
       },
-      include: {
+      select: {
+        id: true,
+        fullname: true,
+        phoneNumber: true,
+        role: true,
+        status: true,
+        createdAt: true,
         _count: {
           select: {
-            shifts: true,
+            products: {
+              where: {
+                status: ProductStatus.ACTIVE
+              }
+            },
+            deliveredOrders: true,
           },
         },
       },
