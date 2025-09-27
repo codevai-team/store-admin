@@ -172,7 +172,7 @@ export default function IconUpload({
               <img
                 src={currentIconUrl}
                 alt="Category icon"
-                className="h-16 w-16 object-cover rounded-lg border-2 border-gray-600"
+                className="h-24 w-24 object-contain rounded-lg border-2 border-gray-600 bg-gray-800/50"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -184,8 +184,8 @@ export default function IconUpload({
             <p className="text-sm text-gray-400 font-medium">Заменить иконку</p>
           </div>
         ) : (
-          <div className="flex flex-col items-center space-y-3">
-            <CloudArrowUpIcon className="h-8 w-8 text-gray-400" />
+          <div className="flex flex-col items-center space-y-4">
+            <CloudArrowUpIcon className="h-12 w-12 text-gray-400" />
             <div>
               <p className="text-sm font-medium text-gray-300">
                 Перетащите изображение сюда или нажмите для выбора
