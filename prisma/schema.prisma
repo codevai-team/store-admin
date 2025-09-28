@@ -78,6 +78,7 @@ model Size {
 
   // Связи
   productSizes ProductSize[]
+  orderItems   OrderItem[]
 
   @@map("sizes")
 }
@@ -90,6 +91,7 @@ model Color {
 
   // Связи
   productColors ProductColor[]
+  orderItems    OrderItem[]
 
   @@map("colors")
 }
@@ -149,10 +151,14 @@ model OrderItem {
   productId String  @map("product_id")
   amount    Int
   price     Decimal @db.Decimal(10, 2)
+  sizeId    String? @map("size_id")
+  colorId   String? @map("color_id")
 
   // Связи
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
+  size    Size?   @relation(fields: [sizeId], references: [id])
+  color   Color?  @relation(fields: [colorId], references: [id])
 
   @@map("order_items")
 }
