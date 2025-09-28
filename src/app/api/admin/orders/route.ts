@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -32,17 +32,27 @@ export async function GET(request: Request) {
       where.status = status;
     }
 
-    if (contactType && contactType !== 'all') {
-      where.contactType = contactType;
-    }
+    // contactType removed as it doesn't exist in new schema
 
     if (search && search.trim()) {
+      const searchTerm = search.trim();
+      
       where.OR = [
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-        { customerName: { contains: search, mode: 'insensitive' } },
-        { customerPhone: { contains: search, mode: 'insensitive' } },
-        { customerAddress: { contains: search, mode: 'insensitive' } }
+        { id: { contains: searchTerm, mode: 'insensitive' } },
+        { customerName: { contains: searchTerm, mode: 'insensitive' } },
+        { customerPhone: { contains: searchTerm, mode: 'insensitive' } },
+        { deliveryAddress: { contains: searchTerm, mode: 'insensitive' } }
       ];
+      
+      // Если поисковый запрос содержит только цифры, также ищем по номеру без символов
+      if (/^\d+$/.test(searchTerm)) {
+        where.OR.push({
+          customerPhone: {
+            contains: searchTerm,
+            mode: 'insensitive'
+          }
+        });
+      }
     }
 
     if (dateFrom || dateTo) {
@@ -64,52 +74,57 @@ export async function GET(request: Request) {
     }
 
     // Условия для фильтрации по статусу платежа
-    if (paymentStatus && paymentStatus !== 'all') {
-      where.payment = {
-        status: paymentStatus
-      };
-    }
+    // paymentStatus removed as payment model doesn't exist in new schema
 
     // Строим условия сортировки
     const orderBy: any = {};
-    if (sortBy === 'totalPrice') {
-      orderBy.totalPrice = sortOrder;
-    } else if (sortBy === 'customerName') {
-      orderBy.customerName = sortOrder;
-    } else if (sortBy === 'orderNumber') {
-      orderBy.orderNumber = sortOrder;
-    } else {
-      orderBy.createdAt = sortOrder;
-    }
+    orderBy.createdAt = sortOrder;
 
     // Получаем заказы с подсчетом общего количества и статистики
     const [orders, totalCount, stats] = await Promise.all([
       prisma.order.findMany({
         where,
         include: {
-          items: {
+          courier: {
+            select: {
+              id: true,
+              fullname: true,
+              phoneNumber: true
+            }
+          },
+          orderItems: {
             include: {
-              variant: {
+              product: {
                 include: {
-                  product: {
+                  category: {
                     select: {
-                      name: true,
-                      category: {
-                        select: {
-                          name: true
-                        }
-                      }
+                      id: true,
+                      name: true
                     }
                   },
-                  images: {
-                    where: { isMain: true },
-                    take: 1
+                  seller: {
+                    select: {
+                      id: true,
+                      fullname: true
+                    }
                   }
+                }
+              },
+              size: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              color: {
+                select: {
+                  id: true,
+                  name: true,
+                  colorCode: true
                 }
               }
             }
-          },
-          payment: true
+          }
         },
         orderBy,
         skip,
@@ -128,38 +143,49 @@ export async function GET(request: Request) {
 
     // Преобразуем данные для фронтенда
     const transformedOrders = orders.map(order => {
-      const itemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
-      const productsCount = order.items.length;
+      const itemsCount = order.orderItems.reduce((sum, item) => sum + item.amount, 0);
+      const productsCount = order.orderItems.length;
+      const totalPrice = order.orderItems.reduce((sum, item) => sum + (Number(item.price) * item.amount), 0);
       
       return {
         ...order,
-        totalPrice: Number(order.totalPrice),
+        totalPrice,
         itemsCount,
         productsCount,
-        items: order.items.map(item => ({
+        orderItems: order.orderItems.map(item => ({
           ...item,
           price: Number(item.price),
-          variant: {
-            ...item.variant,
-            price: Number(item.variant.price),
-            discountPrice: item.variant.discountPrice ? Number(item.variant.discountPrice) : null,
-            mainImage: item.variant.images?.[0]?.imageUrl || null
+          product: {
+            ...item.product,
+            price: Number(item.product.price),
+            imageUrl: item.product.imageUrl // This is already JSON array
           }
-        })),
-        payment: order.payment ? {
-          ...order.payment,
-          amount: Number(order.payment.amount)
-        } : null
+        }))
       };
     });
 
+    // Сортируем по вычисляемым полям если необходимо
+    if (sortBy === 'totalPrice' || sortBy === 'itemsCount') {
+      transformedOrders.sort((a, b) => {
+        const valueA = sortBy === 'totalPrice' ? a.totalPrice : a.itemsCount;
+        const valueB = sortBy === 'totalPrice' ? b.totalPrice : b.itemsCount;
+        
+        if (sortOrder === 'asc') {
+          return valueA - valueB;
+        } else {
+          return valueB - valueA;
+        }
+      });
+    }
+
     // Обрабатываем статистику по статусам
     const statusStats = {
-      PENDING: 0,
-      CONFIRMED: 0,
-      SHIPPED: 0,
-      COMPLETED: 0,
-      CANCELLED: 0
+      CREATED: 0,
+      COURIER_WAIT: 0,
+      COURIER_PICKED: 0,
+      ENROUTE: 0,
+      DELIVERED: 0,
+      CANCELED: 0
     };
 
     stats.forEach(stat => {

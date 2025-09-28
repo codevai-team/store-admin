@@ -35,79 +35,75 @@ import { ToastContainer } from '@/components/admin/products/Toast';
 
 interface OrderItem {
   id: string;
-  quantity: number;
+  amount: number;
   price: number;
-  variant: {
+  sizeId?: string;
+  colorId?: string;
+  product: {
     id: string;
-    size: string;
-    color: string;
-    sku: string;
+    name: string;
+    description?: string;
+    imageUrl?: any; // JSON array
     price: number;
-    discountPrice?: number;
-    mainImage?: string;
-    product: {
+    category: {
+      id: string;
       name: string;
-      category: {
-        name: string;
-      };
     };
+    seller: {
+      id: string;
+      fullname: string;
+    };
+  };
+  size?: {
+    id: string;
+    name: string;
+  };
+  color?: {
+    id: string;
+    name: string;
+    colorCode: string;
   };
 }
 
-interface Payment {
-  id: string;
-  paymentMethod: string;
-  amount: number;
-  status: string;
-  transactionId?: string;
-  createdAt: string;
-}
+// Note: Payment model doesn't exist in current schema
+// This interface is kept for compatibility but won't be used
 
 interface Order {
   id: string;
-  orderNumber: string;
-  totalPrice: number;
-  status: string;
   customerName: string;
   customerPhone: string;
-  contactType: string;
-  customerAddress: string;
+  deliveryAddress: string;
+  courierId?: string;
+  status: 'CREATED' | 'COURIER_WAIT' | 'COURIER_PICKED' | 'ENROUTE' | 'DELIVERED' | 'CANCELED';
+  customerComment?: string;
+  cancelComment?: string;
   createdAt: string;
   updatedAt: string;
+  courier?: {
+    id: string;
+    fullname: string;
+    phoneNumber: string;
+  };
+  orderItems: OrderItem[];
+  // Calculated fields
+  totalPrice: number;
   itemsCount: number;
   productsCount: number;
-  items: OrderItem[];
-  payment?: Payment;
 }
 
-type SortOption = 'newest' | 'orderNumber' | 'totalPrice' | 'customerName' | 'status';
+type SortOption = 'newest' | 'totalPrice' | 'itemsCount';
 type SortOrder = 'asc' | 'desc';
 
 const ORDER_STATUSES = {
-  PENDING: { label: 'В ожидании', color: 'bg-yellow-500/20 text-yellow-300', icon: ClockIcon },
-  PAID: { label: 'Оплачен', color: 'bg-blue-500/20 text-blue-300', icon: CreditCardIcon },
-  SHIPPED: { label: 'Отправлен', color: 'bg-purple-500/20 text-purple-300', icon: TruckIcon },
-  COMPLETED: { label: 'Завершен', color: 'bg-green-500/20 text-green-300', icon: CheckCircleIcon },
-  CANCELLED: { label: 'Отменен', color: 'bg-red-500/20 text-red-300', icon: XCircleIcon },
+  CREATED: { label: 'Создан', color: 'bg-blue-500/20 text-blue-300', icon: ClockIcon },
+  COURIER_WAIT: { label: 'Ожидает курьера', color: 'bg-yellow-500/20 text-yellow-300', icon: ClockIcon },
+  COURIER_PICKED: { label: 'Курьер принял', color: 'bg-orange-500/20 text-orange-300', icon: UserIcon },
+  ENROUTE: { label: 'В пути', color: 'bg-purple-500/20 text-purple-300', icon: TruckIcon },
+  DELIVERED: { label: 'Доставлен', color: 'bg-green-500/20 text-green-300', icon: CheckCircleIcon },
+  CANCELED: { label: 'Отменен', color: 'bg-red-500/20 text-red-300', icon: XCircleIcon },
 };
 
-const CONTACT_TYPES = {
-  WHATSAPP: { label: 'WhatsApp', color: 'bg-green-500/20 text-green-300' },
-  CALL: { label: 'Звонок', color: 'bg-blue-500/20 text-blue-300' },
-};
-
-const PAYMENT_STATUSES = {
-  PENDING: { label: 'Ожидает', color: 'bg-yellow-500/20 text-yellow-300' },
-  SUCCESS: { label: 'Успешно', color: 'bg-green-500/20 text-green-300' },
-  FAILED: { label: 'Ошибка', color: 'bg-red-500/20 text-red-300' },
-};
-
-const PAYMENT_METHODS = {
-  CARD: { label: 'Карта' },
-  WALLET: { label: 'Кошелек' },
-  MBANK: { label: 'M-Bank' },
-  ELCART: { label: 'Elcart' },
-};
+// Removed contact types and payment constants as they're not in the current schema
 
 export default function OrdersPage() {
   const { toasts, removeToast, showSuccess, showError, showWarning } = useToast();
@@ -115,16 +111,16 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statistics, setStatistics] = useState({
-    PENDING: 0,
-    CONFIRMED: 0,
-    SHIPPED: 0,
-    COMPLETED: 0,
-    CANCELLED: 0
+    CREATED: 0,
+    COURIER_WAIT: 0,
+    COURIER_PICKED: 0,
+    ENROUTE: 0,
+    DELIVERED: 0,
+    CANCELED: 0
   });
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [contactTypeFilter, setContactTypeFilter] = useState<string>('all');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [timeFromFilter, setTimeFromFilter] = useState<string>('00:00');
@@ -154,10 +150,10 @@ export default function OrdersPage() {
     status: '',
     customerName: '',
     customerPhone: '',
-    contactType: '',
-    customerAddress: '',
-    paymentStatus: '',
-    comment: ''
+    deliveryAddress: '',
+    courierId: '',
+    customerComment: '',
+    cancelComment: ''
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -185,9 +181,7 @@ export default function OrdersPage() {
         sortBy: sortBy === 'newest' ? 'createdAt' : sortBy,
         sortOrder,
         ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(contactTypeFilter !== 'all' && { contactType: contactTypeFilter }),
-        ...(paymentStatusFilter !== 'all' && { paymentStatus: paymentStatusFilter }),
-        ...(searchTerm.trim() && { search: searchTerm.trim() }),
+        ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
         ...(dateFromString && { dateFrom: dateFromString }),
         ...(dateToString && { dateTo: dateToString }),
       });
@@ -214,16 +208,25 @@ export default function OrdersPage() {
     }
   };
 
+  // Дебаунс для поиска
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // Задержка 500мс
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchOrders();
-  }, [currentPage, sortBy, sortOrder, statusFilter, contactTypeFilter, paymentStatusFilter, searchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter]);
+  }, [currentPage, sortBy, sortOrder, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter]);
 
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, statusFilter, contactTypeFilter, paymentStatusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder]);
+  }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder]);
 
   // Клавиатурные сокращения и обработка кликов вне элементов
   useEffect(() => {
@@ -263,10 +266,10 @@ export default function OrdersPage() {
       status: order.status,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
-      contactType: order.contactType,
-      customerAddress: order.customerAddress,
-      paymentStatus: order.payment?.status || '',
-      comment: ''
+      deliveryAddress: order.deliveryAddress,
+      courierId: order.courierId || '',
+      customerComment: order.customerComment || '',
+      cancelComment: order.cancelComment || ''
     });
     setIsEditModalOpen(true);
   };
@@ -281,10 +284,10 @@ export default function OrdersPage() {
       status: '',
       customerName: '',
       customerPhone: '',
-      contactType: '',
-      customerAddress: '',
-      paymentStatus: '',
-      comment: ''
+      deliveryAddress: '',
+      courierId: '',
+      customerComment: '',
+      cancelComment: ''
     });
   };
 
@@ -344,9 +347,8 @@ export default function OrdersPage() {
   // Очистка фильтров
   const clearFilters = () => {
     setSearchTerm('');
+    setDebouncedSearchTerm('');
     setStatusFilter('all');
-    setContactTypeFilter('all');
-    setPaymentStatusFilter('all');
     setDateFromFilter('');
     setDateToFilter('');
     setTimeFromFilter('00:00');
@@ -421,7 +423,7 @@ export default function OrdersPage() {
   // Проверка возможности редактирования заказа
   const canEditOrder = (order: Order) => {
     // Нельзя редактировать отмененные заказы
-    if (order.status === 'CANCELLED') {
+    if (order.status === 'CANCELED') {
       return false;
     }
     return true;
@@ -432,37 +434,28 @@ export default function OrdersPage() {
   // Получение доступных статусов для изменения
   const getAvailableStatuses = (currentStatus: string) => {
     const allStatuses = [
-      { value: 'PENDING', label: 'В ожидании' },
-      { value: 'PAID', label: 'Оплачен' },
-      { value: 'SHIPPED', label: 'Отправлен' },
-      { value: 'COMPLETED', label: 'Завершен' },
-      { value: 'CANCELLED', label: 'Отменен' }
+      { value: 'CREATED', label: 'Создан' },
+      { value: 'COURIER_WAIT', label: 'Ожидает курьера' },
+      { value: 'COURIER_PICKED', label: 'Курьер принял' },
+      { value: 'ENROUTE', label: 'В пути' },
+      { value: 'DELIVERED', label: 'Доставлен' },
+      { value: 'CANCELED', label: 'Отменен' }
     ];
 
-    // Для завершенных заказов можно только отменить
-    if (currentStatus === 'COMPLETED') {
+    // Для доставленных заказов можно только отменить
+    if (currentStatus === 'DELIVERED') {
       return [
-        { value: 'COMPLETED', label: 'Завершен' },
-        { value: 'CANCELLED', label: 'Отменен' }
+        { value: 'DELIVERED', label: 'Доставлен' },
+        { value: 'CANCELED', label: 'Отменен' }
       ];
     }
 
-    // Для отправленных заказов нельзя вернуть на более ранние статусы (кроме отмены)
-    if (currentStatus === 'SHIPPED') {
+    // Для заказов в пути нельзя вернуть на более ранние статусы (кроме отмены)
+    if (currentStatus === 'ENROUTE') {
       return [
-        { value: 'SHIPPED', label: 'Отправлен' },
-        { value: 'COMPLETED', label: 'Завершен' },
-        { value: 'CANCELLED', label: 'Отменен' }
-      ];
-    }
-
-    // Для оплаченных заказов нельзя вернуться к "В ожидании"
-    if (currentStatus === 'PAID') {
-      return [
-        { value: 'PAID', label: 'Оплачен' },
-        { value: 'SHIPPED', label: 'Отправлен' },
-        { value: 'COMPLETED', label: 'Завершен' },
-        { value: 'CANCELLED', label: 'Отменен' }
+        { value: 'ENROUTE', label: 'В пути' },
+        { value: 'DELIVERED', label: 'Доставлен' },
+        { value: 'CANCELED', label: 'Отменен' }
       ];
     }
 
@@ -472,8 +465,8 @@ export default function OrdersPage() {
 
   // Проверка возможности редактирования полей
   const canEditField = (order: Order, field: string) => {
-    // Для завершенных заказов можно изменить только статус на CANCELLED
-    if (order.status === 'COMPLETED' && field !== 'status') {
+    // Для доставленных заказов можно изменить только статус на CANCELED
+    if (order.status === 'DELIVERED' && field !== 'status') {
       return false;
     }
     return true;
@@ -508,8 +501,8 @@ export default function OrdersPage() {
                   <div className="p-1 bg-blue-500/20 rounded-md mb-1">
                     <ClockIcon className="h-3 w-3 text-blue-400" />
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.PENDING}</div>
-                  <div className="text-xs text-blue-300">В ожидании</div>
+                  <div className="text-sm font-bold text-white">{statistics.CREATED}</div>
+                  <div className="text-xs text-blue-300">Создан</div>
                 </div>
               </div>
 
@@ -519,8 +512,8 @@ export default function OrdersPage() {
                   <div className="p-1 bg-yellow-500/20 rounded-md mb-1">
                     <CheckCircleIcon className="h-3 w-3 text-yellow-400" />
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.CONFIRMED}</div>
-                  <div className="text-xs text-yellow-300">Подтверждён</div>
+                  <div className="text-sm font-bold text-white">{statistics.COURIER_WAIT}</div>
+                  <div className="text-xs text-yellow-300">Ожидает курьера</div>
                 </div>
               </div>
 
@@ -530,8 +523,8 @@ export default function OrdersPage() {
                   <div className="p-1 bg-purple-500/20 rounded-md mb-1">
                     <TruckIcon className="h-3 w-3 text-purple-400" />
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.SHIPPED}</div>
-                  <div className="text-xs text-purple-300">Отправлен</div>
+                  <div className="text-sm font-bold text-white">{statistics.ENROUTE}</div>
+                  <div className="text-xs text-purple-300">В пути</div>
                 </div>
               </div>
 
@@ -541,8 +534,8 @@ export default function OrdersPage() {
                   <div className="p-1 bg-green-500/20 rounded-md mb-1">
                     <CheckBadgeIcon className="h-3 w-3 text-green-400" />
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.COMPLETED}</div>
-                  <div className="text-xs text-green-300">Завершён</div>
+                  <div className="text-sm font-bold text-white">{statistics.DELIVERED}</div>
+                  <div className="text-xs text-green-300">Доставлен</div>
                 </div>
               </div>
 
@@ -552,8 +545,8 @@ export default function OrdersPage() {
                   <div className="p-1 bg-red-500/20 rounded-md mb-1">
                     <XMarkIcon className="h-3 w-3 text-red-400" />
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.CANCELLED}</div>
-                  <div className="text-xs text-red-300">Отменён</div>
+                  <div className="text-sm font-bold text-white">{statistics.CANCELED}</div>
+                  <div className="text-xs text-red-300">Отменен</div>
                 </div>
               </div>
 
@@ -612,10 +605,8 @@ export default function OrdersPage() {
                       className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
                     >
                       <option value="newest" className="bg-gray-800">По дате</option>
-                      <option value="orderNumber" className="bg-gray-800">По номеру</option>
                       <option value="totalPrice" className="bg-gray-800">По сумме</option>
-                      <option value="customerName" className="bg-gray-800">По клиенту</option>
-                      <option value="status" className="bg-gray-800">По статусу</option>
+                      <option value="itemsCount" className="bg-gray-800">По количеству товаров</option>
                     </select>
                     <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                   </div>
@@ -648,32 +639,19 @@ export default function OrdersPage() {
                     className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
                   >
                     <option value="all" className="bg-gray-800">Все статусы</option>
-                    <option value="PENDING" className="bg-gray-800">В ожидании</option>
-                    <option value="PAID" className="bg-gray-800">Оплачен</option>
-                    <option value="SHIPPED" className="bg-gray-800">Отправлен</option>
-                    <option value="COMPLETED" className="bg-gray-800">Завершен</option>
-                    <option value="CANCELLED" className="bg-gray-800">Отменен</option>
+                    <option value="CREATED" className="bg-gray-800">Создан</option>
+                    <option value="COURIER_WAIT" className="bg-gray-800">Ожидает курьера</option>
+                    <option value="COURIER_PICKED" className="bg-gray-800">Курьер принял</option>
+                    <option value="ENROUTE" className="bg-gray-800">В пути</option>
+                    <option value="DELIVERED" className="bg-gray-800">Доставлен</option>
+                    <option value="CANCELED" className="bg-gray-800">Отменен</option>
                   </select>
                   <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                 </div>
               </div>
 
               {/* Contact Type Filter */}
-              <div className="flex-1 sm:flex-none">
-                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                  <PhoneIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={contactTypeFilter}
-                    onChange={(e) => setContactTypeFilter(e.target.value)}
-                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                  >
-                    <option value="all" className="bg-gray-800">Все контакты</option>
-                    <option value="WHATSAPP" className="bg-gray-800">WhatsApp</option>
-                    <option value="CALL" className="bg-gray-800">Звонок</option>
-                  </select>
-                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                </div>
-              </div>
+              {/* Contact type filter removed - not in new schema */}
             </div>
 
             {/* Date Range Filters */}
@@ -929,7 +907,7 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Clear All Filters Button */}
-                {(searchTerm || statusFilter !== 'all' || contactTypeFilter !== 'all' || paymentStatusFilter !== 'all' || dateFromFilter || dateToFilter) && (
+                {(searchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter) && (
                   <button
                     onClick={clearFilters}
                     className="px-4 py-3 bg-gray-600/30 border border-gray-600/50 rounded-lg text-gray-300 hover:bg-gray-600/50 transition-colors text-sm whitespace-nowrap"
@@ -952,10 +930,10 @@ export default function OrdersPage() {
                   </span>
                 </div>
                 
-                {searchTerm && (
+                {debouncedSearchTerm && (
                   <div className="flex items-center space-x-2 text-indigo-400">
                     <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Поиск: "{searchTerm}"</span>
+                    <span className="truncate">Поиск: "{debouncedSearchTerm}"</span>
                   </div>
                 )}
               </div>
@@ -973,10 +951,10 @@ export default function OrdersPage() {
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <ShoppingBagIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
-                {searchTerm || statusFilter !== 'all' || contactTypeFilter !== 'all' || dateFromFilter || dateToFilter ? 'Заказы не найдены' : 'Нет заказов'}
+                {debouncedSearchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter ? 'Заказы не найдены' : 'Нет заказов'}
               </h3>
               <p className="text-gray-500">
-                {searchTerm || statusFilter !== 'all' || contactTypeFilter !== 'all' || dateFromFilter || dateToFilter 
+                {debouncedSearchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter 
                   ? 'Попробуйте изменить критерии поиска' 
                   : 'Заказы будут отображаться здесь'
                 }
@@ -985,7 +963,6 @@ export default function OrdersPage() {
           ) : (
             orders.map(order => {
               const statusInfo = ORDER_STATUSES[order.status as keyof typeof ORDER_STATUSES];
-              const contactInfo = CONTACT_TYPES[order.contactType as keyof typeof CONTACT_TYPES];
               const StatusIcon = statusInfo.icon;
               
               return (
@@ -1000,7 +977,7 @@ export default function OrdersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
                           <h3 className="font-medium text-white text-sm sm:text-base truncate">
-                            {order.orderNumber}
+                            Заказ #{order.id.slice(-8)}
                           </h3>
                           
                           <div className="flex items-center space-x-2">
@@ -1009,19 +986,9 @@ export default function OrdersPage() {
                               <span>{statusInfo.label}</span>
                             </div>
                             
-                            <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${contactInfo.color}`}>
-                              <PhoneIcon className="h-3 w-3" />
-                              <span>{contactInfo.label}</span>
-                            </div>
+                            {/* Contact type removed - not in schema */}
 
-                            {order.payment && (
-                              <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${
-                                PAYMENT_STATUSES[order.payment.status as keyof typeof PAYMENT_STATUSES].color
-                              }`}>
-                                <CreditCardIcon className="h-3 w-3" />
-                                <span>{PAYMENT_STATUSES[order.payment.status as keyof typeof PAYMENT_STATUSES].label}</span>
-                              </div>
-                            )}
+                            {/* Payment status removed - not in schema */}
                           </div>
                         </div>
                         
@@ -1254,55 +1221,16 @@ export default function OrdersPage() {
                             <span className="text-gray-400 text-sm">Телефон</span>
                             <span className="text-white text-sm">{selectedOrder.customerPhone}</span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 text-sm">Способ связи</span>
-                            <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded-lg ${
-                              CONTACT_TYPES[selectedOrder.contactType as keyof typeof CONTACT_TYPES].color
-                            }`}>
-                              <span>{CONTACT_TYPES[selectedOrder.contactType as keyof typeof CONTACT_TYPES].label}</span>
-                            </div>
-                          </div>
+                          {/* Contact type removed - not in schema */}
                           <div className="flex flex-col space-y-1">
                             <span className="text-gray-400 text-sm">Адрес</span>
-                            <span className="text-white text-sm leading-relaxed">{selectedOrder.customerAddress}</span>
+                            <span className="text-white text-sm leading-relaxed">{selectedOrder.deliveryAddress}</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Payment Info */}
-                    {selectedOrder.payment && (
-                      <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-4">
-                        <div className="flex items-center space-x-2 mb-3">
-                          <CreditCardIcon className="h-5 w-5 text-indigo-400" />
-                          <h3 className="font-semibold text-white">Информация о платеже</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 text-sm">Способ оплаты</span>
-                            <span className="text-white text-sm">{PAYMENT_METHODS[selectedOrder.payment.paymentMethod as keyof typeof PAYMENT_METHODS]?.label || selectedOrder.payment.paymentMethod}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 text-sm">Статус платежа</span>
-                            <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded-lg ${
-                              PAYMENT_STATUSES[selectedOrder.payment.status as keyof typeof PAYMENT_STATUSES].color
-                            }`}>
-                              <span>{PAYMENT_STATUSES[selectedOrder.payment.status as keyof typeof PAYMENT_STATUSES].label}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 text-sm">Сумма платежа</span>
-                            <span className="text-white font-semibold text-sm">{formatPrice(selectedOrder.payment.amount)}</span>
-                          </div>
-                          {selectedOrder.payment.transactionId && (
-                            <div className="flex items-center justify-between md:col-span-3">
-                              <span className="text-gray-400 text-sm">ID транзакции</span>
-                              <span className="text-white font-mono text-sm">{selectedOrder.payment.transactionId}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    {/* Payment info removed - not in current schema */}
 
                     {/* Order Items */}
                     <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-4">
@@ -1314,15 +1242,15 @@ export default function OrdersPage() {
                         </span>
                       </div>
                       <div className="space-y-3">
-                        {selectedOrder.items.map((item, index) => (
+                        {selectedOrder.orderItems.map((item, index) => (
                           <div key={item.id} className={`flex items-center space-x-4 p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 ${
-                            index !== selectedOrder.items.length - 1 ? 'border-b border-gray-700/30' : ''
+                            index !== selectedOrder.orderItems.length - 1 ? 'border-b border-gray-700/30' : ''
                           }`}>
                             <div className="flex-shrink-0 w-14 h-14 bg-gray-700/50 rounded-xl overflow-hidden">
-                              {item.variant.mainImage ? (
+                              {item.product.imageUrl && Array.isArray(item.product.imageUrl) && item.product.imageUrl.length > 0 ? (
                                 <img 
-                                  src={item.variant.mainImage} 
-                                  alt={item.variant.product.name}
+                                  src={item.product.imageUrl[0]} 
+                                  alt={item.product.name}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -1333,29 +1261,32 @@ export default function OrdersPage() {
                             </div>
                             
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-white text-sm truncate">{item.variant.product.name}</h4>
-                              <p className="text-xs text-gray-400 mb-1">{item.variant.product.category.name}</p>
+                              <h4 className="font-medium text-white text-sm truncate">{item.product.name}</h4>
+                              <p className="text-xs text-gray-400 mb-1">{item.product.category.name}</p>
                               <div className="flex items-center space-x-3 text-xs">
-                                <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
-                                  {item.variant.size}
-                                </span>
-                                <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
-                                  {item.variant.color}
-                                </span>
-                                {item.variant.sku && (
-                                  <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded font-mono">
-                                    {item.variant.sku}
+                                {item.size && (
+                                  <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
+                                    {item.size.name}
                                   </span>
                                 )}
+                                {item.color && (
+                                  <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded flex items-center space-x-1">
+                                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color.colorCode}}></div>
+                                    <span>{item.color.name}</span>
+                                  </span>
+                                )}
+                                <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
+                                  Продавец: {item.product.seller.fullname}
+                                </span>
                               </div>
                             </div>
                             
                             <div className="text-right flex-shrink-0">
                               <div className="text-white font-medium text-sm">
-                                {formatPrice(item.price)} × {item.quantity}
+                                {formatPrice(item.price)} × {item.amount}
                               </div>
                               <div className="text-xs text-gray-400">
-                                = {formatPrice(item.price * item.quantity)}
+                                = {formatPrice(item.price * item.amount)}
                               </div>
                             </div>
                           </div>
@@ -1452,24 +1383,7 @@ export default function OrdersPage() {
                         </select>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
-                          <PhoneIcon className="h-4 w-4 text-indigo-400" />
-                          <span>Способ связи</span>
-                        </label>
-                        <select
-                          value={editFormData.contactType}
-                          onChange={(e) => setEditFormData(prev => ({ ...prev, contactType: e.target.value }))}
-                          disabled={!canEditField(selectedOrder, 'contactType')}
-                          className={`w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 ${
-                            !canEditField(selectedOrder, 'contactType') ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                          required
-                        >
-                          <option value="WHATSAPP" className="bg-gray-800">WhatsApp</option>
-                          <option value="CALL" className="bg-gray-800">Звонок</option>
-                        </select>
-                      </div>
+                      {/* Contact type field removed - not in schema */}
                     </div>
 
                     {/* Данные клиента */}
@@ -1516,44 +1430,18 @@ export default function OrdersPage() {
                         <span>Адрес клиента</span>
                       </label>
                       <textarea
-                        value={editFormData.customerAddress}
-                        onChange={(e) => setEditFormData(prev => ({ ...prev, customerAddress: e.target.value }))}
-                        disabled={!canEditField(selectedOrder, 'customerAddress')}
+                        value={editFormData.deliveryAddress}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                        disabled={!canEditField(selectedOrder, 'deliveryAddress')}
                         className={`w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none ${
-                          !canEditField(selectedOrder, 'customerAddress') ? 'opacity-50 cursor-not-allowed' : ''
+                          !canEditField(selectedOrder, 'deliveryAddress') ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                         rows={3}
                         required
                       />
                     </div>
 
-                    {/* Статус платежа */}
-                    {selectedOrder.payment && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
-                          <CreditCardIcon className="h-4 w-4 text-indigo-400" />
-                          <span>Статус платежа</span>
-                        </label>
-                        <select
-                          value={editFormData.paymentStatus}
-                          onChange={(e) => setEditFormData(prev => ({ ...prev, paymentStatus: e.target.value }))}
-                          disabled={selectedOrder.payment.status === 'SUCCESS'}
-                          className={`w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 ${
-                            selectedOrder.payment.status === 'SUCCESS' ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          <option value="PENDING" className="bg-gray-800">Ожидает</option>
-                          <option value="SUCCESS" className="bg-gray-800">Успешно</option>
-                          <option value="FAILED" className="bg-gray-800">Ошибка</option>
-                        </select>
-                        {selectedOrder.payment.status === 'SUCCESS' && (
-                          <p className="text-xs text-yellow-400 flex items-center space-x-1">
-                            <ExclamationTriangleIcon className="h-3 w-3" />
-                            <span>Нельзя изменить статус успешного платежа</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    {/* Payment status field removed - not in schema */}
 
                     {/* Комментарий */}
                     <div className="space-y-2">
@@ -1563,8 +1451,8 @@ export default function OrdersPage() {
                         <span className="text-xs text-gray-500">(необязательно)</span>
                       </label>
                       <textarea
-                        value={editFormData.comment}
-                        onChange={(e) => setEditFormData(prev => ({ ...prev, comment: e.target.value }))}
+                        value={editFormData.customerComment}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, customerComment: e.target.value }))}
                         className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none"
                         rows={2}
                         placeholder="Укажите причину изменения..."
