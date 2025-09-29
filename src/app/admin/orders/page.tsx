@@ -77,6 +77,7 @@ interface Order {
   status: 'CREATED' | 'COURIER_WAIT' | 'COURIER_PICKED' | 'ENROUTE' | 'DELIVERED' | 'CANCELED';
   customerComment?: string;
   cancelComment?: string;
+  adminComment?: string;
   createdAt: string;
   updatedAt: string;
   courier?: {
@@ -146,6 +147,9 @@ export default function OrdersPage() {
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
+  const [isCancelWarningModalOpen, setIsCancelWarningModalOpen] = useState(false);
+  const [isCancelCommentModalOpen, setIsCancelCommentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editFormData, setEditFormData] = useState({
     status: '',
@@ -157,6 +161,18 @@ export default function OrdersPage() {
     cancelComment: ''
   });
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Новые состояния для модальных окон
+  const [courierComment, setCourierComment] = useState('');
+  const [cancelComment, setCancelComment] = useState('');
+  const [isCourierEditModalOpen, setIsCourierEditModalOpen] = useState(false);
+  const [availableCouriers, setAvailableCouriers] = useState<Array<{id: string, fullname: string, phoneNumber: string}>>([]);
+  const [selectedCourierId, setSelectedCourierId] = useState('');
+  const [isAdminCommentEditModalOpen, setIsAdminCommentEditModalOpen] = useState(false);
+  const [adminComment, setAdminComment] = useState('');
+  const [isCustomerCommentModalOpen, setIsCustomerCommentModalOpen] = useState(false);
+  const [isCancelReasonModalOpen, setIsCancelReasonModalOpen] = useState(false);
+  const [isAdminCommentViewModalOpen, setIsAdminCommentViewModalOpen] = useState(false);
 
   // Загрузка заказов
   const fetchOrders = async (isInitialLoad = false) => {
@@ -287,11 +303,135 @@ export default function OrdersPage() {
     setIsEditModalOpen(true);
   };
 
+  // Новые обработчики
+  const openCourierModal = (order: Order) => {
+    setSelectedOrder(order);
+    setCourierComment('');
+    setIsCourierModalOpen(true);
+  };
+
+  const openCancelWarningModal = (order: Order) => {
+    setSelectedOrder(order);
+    setIsCancelWarningModalOpen(true);
+  };
+
+  const openCancelCommentModal = () => {
+    setIsCancelWarningModalOpen(false);
+    setCancelComment('');
+    setIsCancelCommentModalOpen(true);
+  };
+
+  // Обработчики для курьеров
+  const openCourierEditModal = async (order: Order) => {
+    setSelectedOrder(order);
+    setSelectedCourierId(order.courierId || '');
+    
+    // Загружаем список доступных курьеров
+    try {
+      const response = await fetch('/api/admin/couriers');
+      if (response.ok) {
+        const couriers = await response.json();
+        setAvailableCouriers(couriers);
+      }
+    } catch (error) {
+      console.error('Error fetching couriers:', error);
+      showError('Ошибка загрузки', 'Не удалось загрузить список курьеров');
+    }
+    
+    setIsCourierEditModalOpen(true);
+  };
+
+  const handleUpdateCourier = async () => {
+    if (!selectedOrder) return;
+
+    setFormLoading(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}/courier`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          courierId: selectedCourierId || null
+        })
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+        closeCourierEditModal();
+        showSuccess('Курьер обновлен', 'Курьер заказа успешно изменен');
+      } else {
+        const error = await response.json();
+        showError('Ошибка обновления', error.error || 'Ошибка обновления курьера');
+      }
+    } catch (error) {
+      console.error('Error updating courier:', error);
+      showError('Ошибка обновления', 'Ошибка обновления курьера');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Обработчики для редактирования комментария админа
+  const openAdminCommentEditModal = (order: Order) => {
+    setSelectedOrder(order);
+    setAdminComment(order.adminComment || '');
+    setIsAdminCommentEditModalOpen(true);
+  };
+
+  const openCustomerCommentModal = (order: Order) => {
+    setIsCustomerCommentModalOpen(true);
+  };
+
+  const openCancelReasonModal = (order: Order) => {
+    setIsCancelReasonModalOpen(true);
+  };
+
+  const openAdminCommentViewModal = (order: Order) => {
+    setIsAdminCommentViewModalOpen(true);
+  };
+
+  const handleUpdateAdminComment = async () => {
+    if (!selectedOrder) return;
+
+    setFormLoading(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}/admin-comment`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          adminComment: adminComment.trim() || null
+        })
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+        closeAdminCommentEditModal();
+        showSuccess('Комментарий обновлен', 'Комментарий админа успешно сохранен');
+      } else {
+        const error = await response.json();
+        showError('Ошибка обновления', error.error || 'Ошибка обновления комментария');
+      }
+    } catch (error) {
+      console.error('Error updating admin comment:', error);
+      showError('Ошибка обновления', 'Ошибка обновления комментария');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
 
 
   const closeModals = () => {
     setIsEditModalOpen(false);
     setIsViewModalOpen(false);
+    setIsCourierModalOpen(false);
+    setIsCancelWarningModalOpen(false);
+    setIsCancelCommentModalOpen(false);
+    setIsCourierEditModalOpen(false);
+    setIsAdminCommentEditModalOpen(false);
     setSelectedOrder(null);
     setEditFormData({
       status: '',
@@ -302,6 +442,55 @@ export default function OrdersPage() {
       customerComment: '',
       cancelComment: ''
     });
+    setCourierComment('');
+    setCancelComment('');
+    setSelectedCourierId('');
+    setAvailableCouriers([]);
+    setAdminComment('');
+  };
+
+  // Функции для закрытия отдельных модальных окон
+  const closeCourierModal = () => {
+    setIsCourierModalOpen(false);
+    setCourierComment('');
+  };
+
+  const closeCancelWarningModal = () => {
+    setIsCancelWarningModalOpen(false);
+  };
+
+  const closeCancelCommentModal = () => {
+    setIsCancelCommentModalOpen(false);
+    setCancelComment('');
+  };
+
+  const closeCourierEditModal = () => {
+    setIsCourierEditModalOpen(false);
+    setSelectedCourierId('');
+    setAvailableCouriers([]);
+  };
+
+  const closeAdminCommentEditModal = () => {
+    setIsAdminCommentEditModalOpen(false);
+    setAdminComment('');
+  };
+
+  const closeCustomerCommentModal = () => {
+    setIsCustomerCommentModalOpen(false);
+  };
+
+  const closeCancelReasonModal = () => {
+    setIsCancelReasonModalOpen(false);
+  };
+
+  const closeAdminCommentViewModal = () => {
+    setIsAdminCommentViewModalOpen(false);
+  };
+
+  // Функция для обрезки текста
+  const truncateText = (text: string, maxLength: number = 50) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   // Обновление заказа
@@ -330,6 +519,70 @@ export default function OrdersPage() {
     } catch (error) {
       console.error('Error updating order:', error);
       showError('Ошибка обновления', 'Ошибка обновления заказа');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Передача курьерам
+  const handleTransferToCourier = async () => {
+    if (!selectedOrder) return;
+
+    setFormLoading(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}/transfer-to-courier`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          adminComment: courierComment.trim() || null
+        })
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+        closeCourierModal();
+        showSuccess('Заказ передан курьерам', 'Статус заказа изменен на "Ожидает курьера"');
+      } else {
+        const error = await response.json();
+        showError('Ошибка передачи', error.error || 'Ошибка передачи заказа курьерам');
+      }
+    } catch (error) {
+      console.error('Error transferring to courier:', error);
+      showError('Ошибка передачи', 'Ошибка передачи заказа курьерам');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Отмена заказа
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return;
+
+    setFormLoading(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          cancelComment: cancelComment.trim()
+        })
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+        closeCancelCommentModal();
+        showSuccess('Заказ отменен', 'Статус заказа изменен на "Отменен"');
+      } else {
+        const error = await response.json();
+        showError('Ошибка отмены', error.error || 'Ошибка отмены заказа');
+      }
+    } catch (error) {
+      console.error('Error canceling order:', error);
+      showError('Ошибка отмены', 'Ошибка отмены заказа');
     } finally {
       setFormLoading(false);
     }
@@ -988,7 +1241,11 @@ export default function OrdersPage() {
               const StatusIcon = statusInfo.icon;
               
               return (
-                <div key={order.id} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200">
+                <div 
+                  key={order.id} 
+                  onClick={() => openViewModal(order)}
+                  className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+                >
                   <div className="flex items-start sm:items-center justify-between gap-3">
                     <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
                       {/* Order Icon */}
@@ -1043,28 +1300,7 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
-                      <button
-                        onClick={() => openViewModal(order)}
-                        className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
-                        title="Просмотреть"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => openEditModal(order)}
-                        disabled={!canEditOrder(order)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          canEditOrder(order)
-                            ? 'text-green-400 hover:bg-green-500/20'
-                            : 'text-gray-600 cursor-not-allowed'
-                        }`}
-                        title={canEditOrder(order) ? "Редактировать" : "Нельзя редактировать отмененный заказ"}
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {/* Кнопки действий убраны - теперь клик на весь заказ открывает детали */}
                   </div>
                 </div>
               );
@@ -1169,9 +1405,9 @@ export default function OrdersPage() {
         {/* View Order Modal */}
         {isViewModalOpen && selectedOrder && (
           <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
-            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50 flex-shrink-0">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                     <EyeIcon className="h-4 w-4 text-white" />
@@ -1189,8 +1425,8 @@ export default function OrdersPage() {
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="overflow-y-auto max-h-[calc(92vh-80px)]">
+              {/* Content - подстраивается под размер, но с ограничением по высоте */}
+              <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="p-5">
 
                   <div className="space-y-5">
@@ -1246,13 +1482,119 @@ export default function OrdersPage() {
                             <span className="text-white text-sm">{selectedOrder.customerPhone}</span>
                           </div>
                           {/* Contact type removed - not in schema */}
-                          <div className="flex flex-col space-y-1">
+                          <div className="flex items-center justify-between">
                             <span className="text-gray-400 text-sm">Адрес</span>
-                            <span className="text-white text-sm leading-relaxed">{selectedOrder.deliveryAddress}</span>
+                            <span className="text-white text-sm">{selectedOrder.deliveryAddress}</span>
                           </div>
+                          {selectedOrder.customerComment && (
+                            <div className="flex items-start justify-between">
+                              <span className="text-gray-400 text-sm">Комментарий</span>
+                              <div className="flex items-center space-x-2 max-w-[60%]">
+                                <span className="text-white text-sm">
+                                  {truncateText(selectedOrder.customerComment)}
+                                </span>
+                                {selectedOrder.customerComment.length > 50 && (
+                                  <button
+                                    onClick={() => openCustomerCommentModal(selectedOrder)}
+                                    className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-indigo-500/50"
+                                    title="Показать полный комментарий"
+                                  >
+                                    <EyeIcon className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {selectedOrder.status === 'CANCELED' && selectedOrder.cancelComment && (
+                            <div className="flex items-start justify-between">
+                              <span className="text-gray-400 text-sm">Причина отмены</span>
+                              <div className="flex items-center space-x-2 max-w-[60%]">
+                                <span className="text-red-300 text-sm">
+                                  {truncateText(selectedOrder.cancelComment)}
+                                </span>
+                                {selectedOrder.cancelComment.length > 50 && (
+                                  <button
+                                    onClick={() => openCancelReasonModal(selectedOrder)}
+                                    className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-red-500/50"
+                                    title="Показать полную причину отмены"
+                                  >
+                                    <EyeIcon className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
+
+                    {/* Courier Info - показываем только для определенных статусов */}
+                    {(selectedOrder.status === 'COURIER_WAIT' || selectedOrder.status === 'COURIER_PICKED' || selectedOrder.status === 'ENROUTE' || selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'CANCELED') && (
+                      <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <TruckIcon className="h-5 w-5 text-indigo-400" />
+                            <h3 className="font-semibold text-white">Информация о курьере</h3>
+                          </div>
+                          {/* Кнопка изменения курьера - только для статуса COURIER_PICKED */}
+                          {selectedOrder.status === 'COURIER_PICKED' && (
+                            <button
+                              onClick={() => openCourierEditModal(selectedOrder)}
+                              className="px-3 py-1 text-xs bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-lg hover:bg-indigo-500/30 transition-all duration-200"
+                            >
+                              Изменить
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-2.5">
+                          {selectedOrder.courier ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-400 text-sm">Имя</span>
+                                <span className="text-white text-sm">{selectedOrder.courier.fullname}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-400 text-sm">Телефон</span>
+                                <span className="text-white text-sm">{selectedOrder.courier.phoneNumber}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-center py-4">
+                              <span className="text-gray-500 text-sm">Курьер не назначен</span>
+                            </div>
+                          )}
+                          
+                          {/* Комментарий админа */}
+                          <div className="flex items-start justify-between">
+                            <span className="text-gray-400 text-sm">Комментарий админа</span>
+                            <div className="flex items-center space-x-2 max-w-[60%]">
+                              <span className="text-white text-sm">
+                                {selectedOrder.adminComment ? truncateText(selectedOrder.adminComment) : 'Нет комментария'}
+                              </span>
+                              {selectedOrder.adminComment && selectedOrder.adminComment.length > 50 && (
+                                <button
+                                  onClick={() => openAdminCommentViewModal(selectedOrder)}
+                                  className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-indigo-500/50"
+                                  title="Показать полный комментарий"
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </button>
+                              )}
+                              {/* Кнопка редактирования - только для статуса COURIER_WAIT */}
+                              {selectedOrder.status === 'COURIER_WAIT' && (
+                                <button
+                                  onClick={() => openAdminCommentEditModal(selectedOrder)}
+                                  className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-indigo-500/50"
+                                  title="Редактировать комментарий"
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Payment info removed - not in current schema */}
 
@@ -1325,6 +1667,47 @@ export default function OrdersPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer with action buttons - теперь зафиксирован внизу */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-gray-400">
+                      Статус: <span className="text-white font-medium">{ORDER_STATUSES[selectedOrder.status as keyof typeof ORDER_STATUSES].label}</span>
+                      <span className="text-gray-500 ml-2">({formatDate(selectedOrder.updatedAt)})</span>
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    {/* Кнопка "Передать курьерам" - только для статуса CREATED */}
+                    {selectedOrder.status === 'CREATED' && (
+                      <button
+                        onClick={() => openCourierModal(selectedOrder)}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all duration-200 font-medium text-sm"
+                      >
+                        Передать курьерам
+                      </button>
+                    )}
+                    
+                    {/* Кнопка "Отменить заказ" - для статусов CREATED и COURIER_WAIT */}
+                    {(selectedOrder.status === 'CREATED' || selectedOrder.status === 'COURIER_WAIT') && (
+                      <button
+                        onClick={() => openCancelWarningModal(selectedOrder)}
+                        className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 font-medium text-sm"
+                      >
+                        Отменить заказ
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={closeModals}
+                      className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium text-sm"
+                    >
+                      Закрыть
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1517,6 +1900,586 @@ export default function OrdersPage() {
           </div>
         )}
 
+        {/* Transfer to Courier Modal */}
+        {isCourierModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <TruckIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Передать курьерам</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCourierModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
+                    <div className="flex items-center space-x-3">
+                      <TruckIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                      <div className="text-sm text-blue-300">
+                        Статус заказа будет изменен на "Ожидает курьера"
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <PencilIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Комментарий (необязательно)</span>
+                    </label>
+                    <textarea
+                      value={courierComment}
+                      onChange={(e) => setCourierComment(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none"
+                      rows={3}
+                      placeholder="Добавьте комментарий для курьеров..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={closeCourierModal}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  
+                  <button
+                    onClick={handleTransferToCourier}
+                    disabled={formLoading}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-blue-500/25"
+                  >
+                    {formLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Передача...</span>
+                      </div>
+                    ) : (
+                      'Передать курьерам'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Warning Modal */}
+        {isCancelWarningModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <ExclamationTriangleIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Отмена заказа</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCancelWarningModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                    <div className="flex items-center space-x-3">
+                      <ExclamationTriangleIcon className="h-4 w-4 text-red-400 flex-shrink-0" />
+                      <div className="text-sm text-red-300">
+                        <strong>Внимание!</strong> Отмена заказа необратима. После отмены заказ нельзя будет вернуть обратно.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-300">
+                    Вы уверены, что хотите отменить этот заказ? Это действие нельзя будет отменить.
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={closeCancelWarningModal}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  
+                  <button
+                    onClick={openCancelCommentModal}
+                    className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl hover:from-red-700 hover:to-red-600 transition-all duration-200 font-medium shadow-lg hover:shadow-red-500/25"
+                  >
+                    Продолжить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Comment Modal */}
+        {isCancelCommentModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <XCircleIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Отменить заказ</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCancelCommentModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <PencilIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Причина отмены</span>
+                      <span className="text-red-400">*</span>
+                    </label>
+                    <textarea
+                      value={cancelComment}
+                      onChange={(e) => setCancelComment(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none"
+                      rows={3}
+                      placeholder="Укажите причину отмены заказа..."
+                      required
+                    />
+                    <div className="text-xs text-gray-500">
+                      Обязательно укажите причину отмены заказа
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={closeCancelCommentModal}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelOrder}
+                    disabled={formLoading || !cancelComment.trim()}
+                    className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl hover:from-red-700 hover:to-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-red-500/25"
+                  >
+                    {formLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Отмена...</span>
+                      </div>
+                    ) : (
+                      'Отменить заказ'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Courier Modal */}
+        {isCourierEditModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <TruckIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Изменить курьера</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCourierEditModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <UserIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Выберите курьера</span>
+                    </label>
+                    <select
+                      value={selectedCourierId}
+                      onChange={(e) => setSelectedCourierId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
+                    >
+                      <option value="" className="bg-gray-800">Без курьера</option>
+                      {availableCouriers.map(courier => (
+                        <option key={courier.id} value={courier.id} className="bg-gray-800">
+                          {courier.fullname} ({courier.phoneNumber})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedCourierId && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
+                      <div className="flex items-center space-x-3">
+                        <TruckIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                        <div className="text-sm text-blue-300">
+                          Курьер будет назначен на этот заказ
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={closeCourierEditModal}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  
+                  <button
+                    onClick={handleUpdateCourier}
+                    disabled={formLoading}
+                    className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-indigo-500/25"
+                  >
+                    {formLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Сохранение...</span>
+                      </div>
+                    ) : (
+                      'Сохранить'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Admin Comment Modal */}
+        {isAdminCommentEditModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <PencilIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Редактировать комментарий</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeAdminCommentEditModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <PencilIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Комментарий админа</span>
+                    </label>
+                    <textarea
+                      value={adminComment}
+                      onChange={(e) => setAdminComment(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none"
+                      rows={4}
+                      placeholder="Добавьте комментарий для курьеров..."
+                    />
+                    <div className="text-xs text-gray-500">
+                      Комментарий будет виден курьерам при работе с заказом
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={closeAdminCommentEditModal}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium"
+                  >
+                    Отмена
+                  </button>
+                  
+                  <button
+                    onClick={handleUpdateAdminComment}
+                    disabled={formLoading}
+                    className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-indigo-500/25"
+                  >
+                    {formLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Сохранение...</span>
+                      </div>
+                    ) : (
+                      'Сохранить'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Comment Modal */}
+        {isCustomerCommentModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <UserIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Комментарий клиента</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCustomerCommentModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                    <div className="flex items-start space-x-3">
+                      <UserIcon className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-300">
+                        <strong>Клиент:</strong> {selectedOrder.customerName}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <PencilIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Комментарий клиента</span>
+                    </label>
+                    <div className="bg-gray-800/50 border border-gray-600/50 rounded-xl p-4">
+                      <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedOrder.customerComment}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-end">
+                  <button
+                    onClick={closeCustomerCommentModal}
+                    className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-500 text-white rounded-xl hover:from-gray-700 hover:to-gray-600 transition-all duration-200 font-medium shadow-lg hover:shadow-gray-500/25"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Reason Modal */}
+        {isCancelReasonModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <XCircleIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Причина отмены</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeCancelReasonModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                    <div className="flex items-start space-x-3">
+                      <XCircleIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-red-300">
+                        <strong>Статус:</strong> Заказ отменен
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <ExclamationTriangleIcon className="h-4 w-4 text-red-400" />
+                      <span>Причина отмены заказа</span>
+                    </label>
+                    <div className="bg-gray-800/50 border border-gray-600/50 rounded-xl p-4">
+                      <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedOrder.cancelComment}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-end">
+                  <button
+                    onClick={closeCancelReasonModal}
+                    className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-500 text-white rounded-xl hover:from-gray-700 hover:to-gray-600 transition-all duration-200 font-medium shadow-lg hover:shadow-gray-500/25"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Comment View Modal */}
+        {isAdminCommentViewModalOpen && selectedOrder && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+            <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <PencilIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Комментарий админа</h2>
+                    <p className="text-xs text-gray-400">Заказ #{selectedOrder.id.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeAdminCommentViewModal}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4">
+                    <div className="flex items-start space-x-3">
+                      <PencilIcon className="h-5 w-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-indigo-300">
+                        <strong>Статус:</strong> {ORDER_STATUSES[selectedOrder.status as keyof typeof ORDER_STATUSES].label}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-300 flex items-center space-x-2">
+                      <PencilIcon className="h-4 w-4 text-indigo-400" />
+                      <span>Комментарий админа</span>
+                    </label>
+                    <div className="bg-gray-800/50 border border-gray-600/50 rounded-xl p-4">
+                      <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedOrder.adminComment}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30">
+                <div className="flex items-center justify-end">
+                  <button
+                    onClick={closeAdminCommentViewModal}
+                    className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-500 text-white rounded-xl hover:from-gray-700 hover:to-gray-600 transition-all duration-200 font-medium shadow-lg hover:shadow-gray-500/25"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
       
