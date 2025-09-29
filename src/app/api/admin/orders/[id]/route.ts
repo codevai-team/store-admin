@@ -5,8 +5,8 @@ import { headers } from 'next/headers';
 const prisma = new PrismaClient();
 
 // Функция для получения информации о клиенте
-function getClientInfo(request: Request) {
-  const headersList = headers();
+async function getClientInfo(request: Request) {
+  const headersList = await headers();
   const forwarded = headersList.get('x-forwarded-for');
   const realIp = headersList.get('x-real-ip');
   const userAgent = headersList.get('user-agent');
@@ -19,67 +19,54 @@ function getClientInfo(request: Request) {
   };
 }
 
-// Функция для создания записи аудита
-async function createAuditLog(
-  tx: any,
-  orderId: string,
-  action: string,
-  fieldName: string | null,
-  oldValue: string | null,
-  newValue: string | null,
-  comment: string | null,
-  clientInfo: { ipAddress: string; userAgent: string }
-) {
-  await tx.orderAudit.create({
-    data: {
-      orderId,
-      action,
-      fieldName,
-      oldValue,
-      newValue,
-      adminName: 'Admin', // TODO: получать из сессии когда будет авторизация
-      comment,
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
-    }
-  });
-}
 
 // GET - получить заказ по ID
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
-        items: {
-          include: {
-            variant: {
-              include: {
-                product: {
-                  select: {
-                    name: true,
-                    category: {
-                      select: {
-                        name: true
-                      }
-                    }
-                  }
-                },
-                images: true,
-                attributes: true
-              }
-            }
+        courier: {
+          select: {
+            id: true,
+            fullname: true,
+            phoneNumber: true
           }
         },
-        payment: true,
-        audits: {
-          orderBy: {
-            createdAt: 'desc'
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            },
+            size: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            color: {
+              select: {
+                id: true,
+                name: true,
+                colorCode: true
+              }
+            }
           }
         }
       }
@@ -93,26 +80,23 @@ export async function GET(
     }
 
     // Преобразуем данные для фронтенда
+    const totalPrice = order.orderItems.reduce((sum, item) => sum + (Number(item.price) * item.amount), 0);
+    const itemsCount = order.orderItems.reduce((sum, item) => sum + item.amount, 0);
+    
     const transformedOrder = {
       ...order,
-      totalPrice: Number(order.totalPrice),
-      itemsCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
-      productsCount: order.items.length,
-      items: order.items.map(item => ({
+      totalPrice,
+      itemsCount,
+      productsCount: order.orderItems.length,
+      orderItems: order.orderItems.map(item => ({
         ...item,
         price: Number(item.price),
-        variant: {
-          ...item.variant,
-          price: Number(item.variant.price),
-          discountPrice: item.variant.discountPrice ? Number(item.variant.discountPrice) : null,
-          mainImage: item.variant.images?.find(img => img.isMain)?.imageUrl || 
-                     item.variant.images?.[0]?.imageUrl || null
+        product: {
+          ...item.product,
+          price: Number(item.product.price),
+          imageUrl: item.product.imageUrl // This is already JSON array
         }
-      })),
-      payment: order.payment ? {
-        ...order.payment,
-        amount: Number(order.payment.amount)
-      } : null
+      }))
     };
 
     return NextResponse.json(transformedOrder);
@@ -130,28 +114,44 @@ export async function GET(
 // PUT - обновить заказ
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { 
       status, 
       customerName, 
       customerPhone, 
-      contactType, 
       customerAddress,
-      paymentStatus,
+      adminComment,
       comment 
     } = body;
 
-    const clientInfo = getClientInfo(request);
+    const clientInfo = await getClientInfo(request);
 
     // Проверяем существование заказа
     const existingOrder = await prisma.order.findUnique({
       where: { id },
       include: {
-        payment: true
+        courier: {
+          select: {
+            id: true,
+            fullname: true,
+            phoneNumber: true
+          }
+        },
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -173,7 +173,7 @@ export async function PUT(
         );
       }
       // Для завершенных заказов можно изменить только статус на CANCELLED
-      if (customerName || customerPhone || contactType || customerAddress || paymentStatus) {
+      if (customerName || customerPhone || customerAddress || adminComment) {
         return NextResponse.json(
           { error: 'Нельзя изменять данные завершенного заказа' },
           { status: 400 }
@@ -189,56 +189,18 @@ export async function PUT(
       );
     }
 
-    // 3. Нельзя изменить статус с PAID на PENDING
-    if (existingOrder.status === 'PAID' && status === 'PENDING') {
+    // 3. Нельзя изменить статус с DELIVERED на более ранний (кроме CANCELED)
+    if (existingOrder.status === 'DELIVERED' && status && status !== 'CANCELED') {
       return NextResponse.json(
-        { error: 'Нельзя вернуть оплаченный заказ в статус "В ожидании"' },
-        { status: 400 }
-      );
-    }
-
-    // 4. Нельзя изменить статус с SHIPPED или COMPLETED на более ранний (кроме CANCELLED)
-    if ((existingOrder.status === 'SHIPPED' || existingOrder.status === 'COMPLETED') && status) {
-      const statusOrder = ['PENDING', 'PAID', 'SHIPPED', 'COMPLETED'];
-      const currentIndex = statusOrder.indexOf(existingOrder.status);
-      const newIndex = statusOrder.indexOf(status);
-      
-      if (newIndex < currentIndex && status !== 'CANCELLED') {
-        return NextResponse.json(
-          { error: 'Нельзя вернуть заказ на более ранний статус (кроме отмены)' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 5. Нельзя изменить статус платежа с SUCCESS на другой
-    if (existingOrder.payment?.status === 'SUCCESS' && paymentStatus && paymentStatus !== 'SUCCESS') {
-      return NextResponse.json(
-        { error: 'Нельзя изменить статус успешного платежа' },
+        { error: 'Доставленный заказ можно только отменить' },
         { status: 400 }
       );
     }
 
     // Валидация статуса заказа
-    if (status && !['PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED'].includes(status)) {
+    if (status && !['CREATED', 'COURIER_WAIT', 'COURIER_PICKED', 'ENROUTE', 'DELIVERED', 'CANCELED'].includes(status)) {
       return NextResponse.json(
         { error: 'Неверный статус заказа' },
-        { status: 400 }
-      );
-    }
-
-    // Валидация типа контакта
-    if (contactType && !['WHATSAPP', 'CALL'].includes(contactType)) {
-      return NextResponse.json(
-        { error: 'Неверный тип контакта' },
-        { status: 400 }
-      );
-    }
-
-    // Валидация статуса платежа
-    if (paymentStatus && !['PENDING', 'SUCCESS', 'FAILED'].includes(paymentStatus)) {
-      return NextResponse.json(
-        { error: 'Неверный статус платежа' },
         { status: 400 }
       );
     }
@@ -272,19 +234,19 @@ export async function PUT(
         });
       }
 
-      if (contactType && contactType !== existingOrder.contactType) {
+      if (customerAddress && customerAddress.trim() !== existingOrder.deliveryAddress) {
         changes.push({
-          field: 'contactType',
-          oldValue: existingOrder.contactType,
-          newValue: contactType
+          field: 'deliveryAddress',
+          oldValue: existingOrder.deliveryAddress,
+          newValue: customerAddress.trim()
         });
       }
 
-      if (customerAddress && customerAddress.trim() !== existingOrder.customerAddress) {
+      if (adminComment && adminComment.trim() !== existingOrder.adminComment) {
         changes.push({
-          field: 'customerAddress',
-          oldValue: existingOrder.customerAddress,
-          newValue: customerAddress.trim()
+          field: 'adminComment',
+          oldValue: existingOrder.adminComment || '',
+          newValue: adminComment.trim()
         });
       }
 
@@ -295,71 +257,20 @@ export async function PUT(
           ...(status && { status }),
           ...(customerName && { customerName: customerName.trim() }),
           ...(customerPhone && { customerPhone: customerPhone.trim() }),
-          ...(contactType && { contactType }),
-          ...(customerAddress && { customerAddress: customerAddress.trim() })
+          ...(customerAddress && { deliveryAddress: customerAddress.trim() }),
+          ...(adminComment && { adminComment: adminComment.trim() })
         }
       });
 
-      // Обновляем статус платежа, если указан
-      if (paymentStatus && existingOrder.payment && paymentStatus !== existingOrder.payment.status) {
-        changes.push({
-          field: 'paymentStatus',
-          oldValue: existingOrder.payment.status,
-          newValue: paymentStatus
-        });
 
-        await tx.payment.update({
-          where: { orderId: id },
+      // Если заказ отменяется, обновляем cancelComment
+      if (status === 'CANCELED' && existingOrder.status !== 'CANCELED') {
+        await tx.order.update({
+          where: { id },
           data: {
-            status: paymentStatus
+            cancelComment: comment || 'Заказ отменен администратором'
           }
         });
-      }
-
-      // Если заказ отменяется, возвращаем товары на склад
-      if (status === 'CANCELLED' && existingOrder.status !== 'CANCELLED') {
-        const orderItems = await tx.orderItem.findMany({
-          where: { orderId: id }
-        });
-
-        for (const item of orderItems) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              quantity: {
-                increment: item.quantity
-              }
-            }
-          });
-        }
-
-        // Записываем специальный аудит для отмены заказа
-        await createAuditLog(
-          tx,
-          id,
-          'STATUS_CHANGE',
-          'status',
-          existingOrder.status,
-          'CANCELLED',
-          `Заказ отменен. Товары возвращены на склад. ${comment || ''}`.trim(),
-          clientInfo
-        );
-      } else {
-        // Записываем обычный аудит изменений
-        if (changes.length > 0) {
-          for (const change of changes) {
-            await createAuditLog(
-              tx,
-              id,
-              change.field === 'status' ? 'STATUS_CHANGE' : 'UPDATE',
-              change.field,
-              change.oldValue,
-              change.newValue,
-              comment || null,
-              clientInfo
-            );
-          }
-        }
       }
 
       return updatedOrder;
@@ -369,36 +280,72 @@ export async function PUT(
     const fullOrder = await prisma.order.findUnique({
       where: { id },
       include: {
-        items: {
+        courier: {
+          select: {
+            id: true,
+            fullname: true,
+            phoneNumber: true
+          }
+        },
+        orderItems: {
           include: {
-            variant: {
-              include: {
-                product: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                category: {
                   select: {
-                    name: true,
-                    category: {
-                      select: {
-                        name: true
-                      }
-                    }
+                    id: true,
+                    name: true
                   }
-                },
-                images: true
+                }
+              }
+            },
+            size: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            color: {
+              select: {
+                id: true,
+                name: true,
+                colorCode: true
               }
             }
           }
-        },
-        payment: true
+        }
       }
     });
 
+    if (!fullOrder) {
+      return NextResponse.json(
+        { error: 'Заказ не найден' },
+        { status: 404 }
+      );
+    }
+
+    // Вычисляем общую стоимость
+    const totalPrice = fullOrder.orderItems.reduce((sum, item) => sum + (Number(item.price) * item.amount), 0);
+    const itemsCount = fullOrder.orderItems.reduce((sum, item) => sum + item.amount, 0);
+
     return NextResponse.json({
       ...fullOrder,
-      totalPrice: Number(fullOrder?.totalPrice || 0),
-      payment: fullOrder?.payment ? {
-        ...fullOrder.payment,
-        amount: Number(fullOrder.payment.amount)
-      } : null
+      totalPrice,
+      itemsCount,
+      productsCount: fullOrder.orderItems.length,
+      orderItems: fullOrder.orderItems.map(item => ({
+        ...item,
+        price: Number(item.price),
+        product: {
+          ...item.product,
+          price: Number(item.product.price),
+          imageUrl: item.product.imageUrl
+        }
+      }))
     });
   } catch (error) {
     console.error('Order PUT error:', error);
