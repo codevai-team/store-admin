@@ -159,7 +159,7 @@ export async function GET() {
         const statusNames: { [key: string]: string } = {
           'CREATED': 'Создан',
           'COURIER_WAIT': 'Ожидает курьера',
-          'COURIER_PICKED': 'Забрал курьер',
+          'COURIER_PICKED': 'Курьер принял',
           'ENROUTE': 'В пути',
           'DELIVERED': 'Доставлен',
           'CANCELED': 'Отменен'

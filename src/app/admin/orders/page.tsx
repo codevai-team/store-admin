@@ -494,70 +494,68 @@ export default function OrdersPage() {
             </div>
             
             {/* Статистика */}
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-              {/* В ожидании */}
-              <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-blue-500/20 rounded-md mb-1">
-                    <ClockIcon className="h-3 w-3 text-blue-400" />
+            <div className="flex items-center justify-between gap-4">
+              {/* Компактная статистика по статусам - левая сторона */}
+              <div className="grid grid-cols-2 gap-12">
+                {/* Первый столбец */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <ClockIcon className="h-4 w-4 text-blue-400" />
+                      <span className="text-gray-300">Создан:</span>
+                    </div>
+                    <span className="text-white font-semibold ml-8">{statistics.CREATED}</span>
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.CREATED}</div>
-                  <div className="text-xs text-blue-300">Создан</div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="h-4 w-4 text-yellow-400" />
+                      <span className="text-gray-300">Ожидает курьера:</span>
+                    </div>
+                    <span className="text-white font-semibold ml-8">{statistics.COURIER_WAIT}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <UserIcon className="h-4 w-4 text-indigo-400" />
+                      <span className="text-gray-300">Курьер принял:</span>
+                    </div>
+                    <span className="text-white font-semibold ml-8">{statistics.COURIER_PICKED}</span>
+                  </div>
+                </div>
+                
+                {/* Второй столбец */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <TruckIcon className="h-4 w-4 text-purple-400" />
+                      <span className="text-gray-300">В пути:</span>
+                    </div>
+                    <span className="text-white font-semibold mr-8">{statistics.ENROUTE}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <CheckBadgeIcon className="h-4 w-4 text-green-400" />
+                      <span className="text-gray-300">Доставлен:</span>
+                    </div>
+                    <span className="text-white font-semibold mr-8">{statistics.DELIVERED}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <XMarkIcon className="h-4 w-4 text-red-400" />
+                      <span className="text-gray-300">Отменен:</span>
+                    </div>
+                    <span className="text-white font-semibold mr-8">{statistics.CANCELED}</span>
+                  </div>
                 </div>
               </div>
-
-              {/* Подтверждён */}
-              <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-yellow-500/20 rounded-md mb-1">
-                    <CheckCircleIcon className="h-3 w-3 text-yellow-400" />
+              
+              {/* Всего заказов - правая сторона */}
+              <div className="bg-gradient-to-br from-gray-500/10 to-gray-600/5 border border-gray-500/20 rounded-lg p-4 backdrop-blur-sm flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                <div className="flex flex-col items-center space-y-2">
+                  <ShoppingBagIcon className="h-4 w-4 text-gray-400" />
+                  <div className="text-center">
+                    <div className="text-white font-bold text-[18px]">{totalItems}</div>
+                    <div className="text-gray-300 text-[12px]">Всего</div>
                   </div>
-                  <div className="text-sm font-bold text-white">{statistics.COURIER_WAIT}</div>
-                  <div className="text-xs text-yellow-300">Ожидает курьера</div>
-                </div>
-              </div>
-
-              {/* Отправлен */}
-              <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-purple-500/20 rounded-md mb-1">
-                    <TruckIcon className="h-3 w-3 text-purple-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">{statistics.ENROUTE}</div>
-                  <div className="text-xs text-purple-300">В пути</div>
-                </div>
-              </div>
-
-              {/* Завершён */}
-              <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-green-500/20 rounded-md mb-1">
-                    <CheckBadgeIcon className="h-3 w-3 text-green-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">{statistics.DELIVERED}</div>
-                  <div className="text-xs text-green-300">Доставлен</div>
-                </div>
-              </div>
-
-              {/* Отменён */}
-              <div className="bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-red-500/20 rounded-md mb-1">
-                    <XMarkIcon className="h-3 w-3 text-red-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">{statistics.CANCELED}</div>
-                  <div className="text-xs text-red-300">Отменен</div>
-                </div>
-              </div>
-
-              {/* Всего заказов */}
-              <div className="bg-gradient-to-br from-gray-500/10 to-gray-600/5 border border-gray-500/20 rounded-lg p-2 backdrop-blur-sm">
-                <div className="flex flex-col items-center text-center">
-                  <div className="p-1 bg-gray-500/20 rounded-md mb-1">
-                    <ShoppingBagIcon className="h-3 w-3 text-gray-400" />
-                  </div>
-                  <div className="text-sm font-bold text-white">{totalItems}</div>
-                  <div className="text-xs text-gray-300">Всего</div>
                 </div>
               </div>
             </div>
@@ -593,101 +591,114 @@ export default function OrdersPage() {
             </div>
 
             {/* Controls Row */}
-            <div className="flex flex-col lg:flex-row gap-3">
-              {/* Sort Controls */}
-              <div className="flex items-center space-x-2 flex-1">
-                <div className="flex-1 sm:flex-none">
-                  <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                    <BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as SortOption)}
-                      className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                    >
-                      <option value="newest" className="bg-gray-800">По дате</option>
-                      <option value="totalPrice" className="bg-gray-800">По сумме</option>
-                      <option value="itemsCount" className="bg-gray-800">По количеству товаров</option>
-                    </select>
-                    <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Левая сторона - Фильтры и сортировки */}
+              <div className="flex flex-col gap-4 flex-1">
+                {/* Sort Controls */}
+                <div className="flex items-center space-x-3">
+                  <div className="w-64 min-w-0">
+                    <div className="flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3">
+                      <BarsArrowUpIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                      >
+                        <option value="newest" className="bg-gray-800">По дате</option>
+                        <option value="totalPrice" className="bg-gray-800">По сумме</option>
+                        <option value="itemsCount" className="bg-gray-800">По количеству товаров</option>
+                      </select>
+                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className={`flex items-center justify-center w-12 h-12 rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                      sortOrder === 'desc'
+                        ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                        : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:border-gray-500/50 hover:text-gray-300'
+                    }`}
+                    title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
+                  >
+                    {sortOrder === 'desc' ? (
+                      <ArrowDownIcon className="h-5 w-5" />
+                    ) : (
+                      <ArrowUpIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex items-center space-x-3">
+                  <div className="w-79 min-w-0">
+                    <div className="flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3">
+                      <CheckCircleIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
+                      >
+                        <option value="all" className="bg-gray-800">Все статусы</option>
+                        <option value="CREATED" className="bg-gray-800">Создан</option>
+                        <option value="COURIER_WAIT" className="bg-gray-800">Ожидает курьера</option>
+                        <option value="COURIER_PICKED" className="bg-gray-800">Курьер принял</option>
+                        <option value="ENROUTE" className="bg-gray-800">В пути</option>
+                        <option value="DELIVERED" className="bg-gray-800">Доставлен</option>
+                        <option value="CANCELED" className="bg-gray-800">Отменен</option>
+                      </select>
+                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <button
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className={`flex items-center justify-center w-11 h-11 rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                    sortOrder === 'desc'
-                      ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
-                      : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:border-gray-500/50 hover:text-gray-300'
-                  }`}
-                  title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
-                >
-                  {sortOrder === 'desc' ? (
-                    <ArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  ) : (
-                    <ArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              {/* Правая сторона - Даты */}
+              <div className="flex flex-col gap-4 items-start justify-end">
+                {/* Quick Date Range Buttons */}
+                <div className="flex flex-wrap gap-2 items-center justify-between w-full">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setQuickDateRange('today')}
+                      className="px-3 py-1 text-xs bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full hover:bg-indigo-500/20 transition-all duration-200"
+                    >
+                      Сегодня
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('yesterday')}
+                      className="px-3 py-1 text-xs bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded-full hover:bg-blue-500/20 transition-all duration-200"
+                    >
+                      Вчера
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('week')}
+                      className="px-3 py-1 text-xs bg-green-500/10 border border-green-500/20 text-green-300 rounded-full hover:bg-green-500/20 transition-all duration-200"
+                    >
+                      Неделя
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('month')}
+                      className="px-3 py-1 text-xs bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/20 transition-all duration-200"
+                    >
+                      Месяц
+                    </button>
+                  </div>
+                  
+                  {/* Clear All Filters Button */}
+                  {(searchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter) && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-3 py-1 text-xs bg-gray-600/20 border border-gray-600/30 text-gray-300 rounded-full hover:bg-gray-600/30 transition-all duration-200"
+                    >
+                      Очистить фильтры
+                    </button>
                   )}
-                </button>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex-1 sm:flex-none">
-                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                  <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                  >
-                    <option value="all" className="bg-gray-800">Все статусы</option>
-                    <option value="CREATED" className="bg-gray-800">Создан</option>
-                    <option value="COURIER_WAIT" className="bg-gray-800">Ожидает курьера</option>
-                    <option value="COURIER_PICKED" className="bg-gray-800">Курьер принял</option>
-                    <option value="ENROUTE" className="bg-gray-800">В пути</option>
-                    <option value="DELIVERED" className="bg-gray-800">Доставлен</option>
-                    <option value="CANCELED" className="bg-gray-800">Отменен</option>
-                  </select>
-                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                 </div>
-              </div>
 
-              {/* Contact Type Filter */}
-              {/* Contact type filter removed - not in new schema */}
-            </div>
-
-            {/* Date Range Filters */}
-            <div className="space-y-3">
-              {/* Quick Date Range Buttons */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setQuickDateRange('today')}
-                  className="px-3 py-1.5 text-xs bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-lg hover:bg-indigo-500/30 transition-all duration-200"
-                >
-                  Сегодня
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('yesterday')}
-                  className="px-3 py-1.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-all duration-200"
-                >
-                  Вчера
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('week')}
-                  className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 text-green-300 rounded-lg hover:bg-green-500/30 transition-all duration-200"
-                >
-                  Неделя
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('month')}
-                  className="px-3 py-1.5 text-xs bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-all duration-200"
-                >
-                  Месяц
-                </button>
-              </div>
-
-              {/* Custom Date Range */}
-              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Custom Date Range */}
+                <div className="flex flex-col sm:flex-row gap-4">
                 {/* From Date */}
-                <div className="flex-1 relative date-time-dropdown">
+                <div className="w-80 relative date-time-dropdown">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -695,11 +706,11 @@ export default function OrdersPage() {
                       e.stopPropagation();
                       setShowDateTimeFrom(!showDateTimeFrom);
                     }}
-                    className={`w-full flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
                       dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
                     }`}
                   >
-                    <CalendarDaysIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                     <span className="text-white text-sm font-medium flex-1 text-left">
                       {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
                     </span>
@@ -797,7 +808,7 @@ export default function OrdersPage() {
                 </div>
 
                 {/* To Date */}
-                <div className="flex-1 relative date-time-dropdown">
+                <div className="w-80 relative date-time-dropdown">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -805,11 +816,11 @@ export default function OrdersPage() {
                       e.stopPropagation();
                       setShowDateTimeTo(!showDateTimeTo);
                     }}
-                    className={`w-full flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
                       dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
                     }`}
                   >
-                    <CalendarDaysIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                     <span className="text-white text-sm font-medium flex-1 text-left">
                       {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
                     </span>
@@ -906,15 +917,7 @@ export default function OrdersPage() {
                   )}
                 </div>
 
-                {/* Clear All Filters Button */}
-                {(searchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter) && (
-                  <button
-                    onClick={clearFilters}
-                    className="px-4 py-3 bg-gray-600/30 border border-gray-600/50 rounded-lg text-gray-300 hover:bg-gray-600/50 transition-colors text-sm whitespace-nowrap"
-                  >
-                    Очистить все
-                  </button>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -1154,7 +1157,7 @@ export default function OrdersPage() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-white">Детали заказа</h2>
-                    <p className="text-xs text-gray-400">{selectedOrder.orderNumber}</p>
+                    <p className="text-xs text-gray-400">#{selectedOrder.id.slice(-8)}</p>
                   </div>
                 </div>
                 <button
@@ -1181,7 +1184,7 @@ export default function OrdersPage() {
                         <div className="space-y-2.5">
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400 text-sm">Номер заказа</span>
-                            <span className="text-white font-mono text-sm">{selectedOrder.orderNumber}</span>
+                            <span className="text-white font-mono text-sm">#{selectedOrder.id.slice(-8)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400 text-sm">Статус</span>
@@ -1320,7 +1323,7 @@ export default function OrdersPage() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-white">Редактировать заказ</h2>
-                    <p className="text-xs text-gray-400">{selectedOrder.orderNumber}</p>
+                    <p className="text-xs text-gray-400">#{selectedOrder.id.slice(-8)}</p>
                   </div>
                 </div>
                 <button
@@ -1336,21 +1339,19 @@ export default function OrdersPage() {
                 <div className="p-5 space-y-4">
 
                   {/* Предупреждения */}
-                  {(selectedOrder.status === 'COMPLETED' || selectedOrder.status === 'SHIPPED' || selectedOrder.status === 'CANCELLED' || selectedOrder.status === 'PAID') && (
+                  {(selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'CANCELED') && (
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
                       <div className="flex items-start space-x-3">
                         <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                         <div className="text-sm text-yellow-300">
-                          {selectedOrder.status === 'COMPLETED' && "Завершенный заказ можно только отменить"}
-                          {selectedOrder.status === 'SHIPPED' && "Отправленный заказ нельзя вернуть на более ранние статусы (кроме отмены)"}
-                          {selectedOrder.status === 'CANCELLED' && "Отмененный заказ нельзя редактировать"}
-                          {selectedOrder.status === 'PAID' && "Оплаченный заказ нельзя вернуть в статус \"В ожидании\""}
+                          {selectedOrder.status === 'DELIVERED' && "Доставленный заказ можно только отменить"}
+                          {selectedOrder.status === 'CANCELED' && "Отмененный заказ нельзя редактировать"}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {selectedOrder.status !== 'CANCELLED' && (
+                  {selectedOrder.status !== 'CANCELED' && (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
                       <div className="flex items-center space-x-3">
                         <ShoppingBagIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
