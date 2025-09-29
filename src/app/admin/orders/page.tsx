@@ -110,6 +110,7 @@ export default function OrdersPage() {
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statistics, setStatistics] = useState({
@@ -158,9 +159,13 @@ export default function OrdersPage() {
   const [formLoading, setFormLoading] = useState(false);
 
   // Загрузка заказов
-  const fetchOrders = async () => {
+  const fetchOrders = async (isInitialLoad = false) => {
     try {
-      setLoading(true);
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setListLoading(true);
+      }
       
       // Отладочная информация
       const dateFromString = dateFromFilter ? getDateTimeString(dateFromFilter, timeFromFilter) : null;
@@ -205,6 +210,7 @@ export default function OrdersPage() {
       showError('Ошибка загрузки', 'Не удалось загрузить заказы');
     } finally {
       setLoading(false);
+      setListLoading(false);
     }
   };
 
@@ -220,6 +226,13 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [currentPage, sortBy, sortOrder, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter]);
+
+  // Отдельный эффект для обновления списка при изменении поиска
+  useEffect(() => {
+    if (debouncedSearchTerm !== '') {
+      fetchOrders(false);
+    }
+  }, [debouncedSearchTerm]);
 
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
@@ -950,7 +963,13 @@ export default function OrdersPage() {
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
             </div>
-          ) : orders.length === 0 ? (
+          ) : (
+            <div className="relative">
+              {listLoading ? (
+                <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+                </div>
+              ) : orders.length === 0 ? (
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <ShoppingBagIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
@@ -1050,6 +1069,8 @@ export default function OrdersPage() {
                 </div>
               );
             })
+          )}
+            </div>
           )}
         </div>
 
