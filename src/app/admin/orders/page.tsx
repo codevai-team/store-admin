@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
   PencilIcon,
   MagnifyingGlassIcon,
@@ -13,7 +14,6 @@ import {
   BarsArrowUpIcon,
   CalendarDaysIcon,
   ArchiveBoxIcon,
-  BarsArrowDownIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   CurrencyDollarIcon,
@@ -21,17 +21,19 @@ import {
   PhoneIcon,
   MapPinIcon,
   ShoppingBagIcon,
-  CreditCardIcon,
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
   TruckIcon,
   EyeIcon,
   CheckBadgeIcon,
+  ChevronDownIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useToast } from '@/hooks/useToast';
 import { ToastContainer } from '@/components/admin/products/Toast';
+import CustomSelect from '@/components/admin/products/CustomSelect';
 
 interface OrderItem {
   id: string;
@@ -43,7 +45,7 @@ interface OrderItem {
     id: string;
     name: string;
     description?: string;
-    imageUrl?: any; // JSON array
+    imageUrl?: string[]; // JSON array
     price: number;
     category: {
       id: string;
@@ -107,7 +109,7 @@ const ORDER_STATUSES = {
 // Removed contact types and payment constants as they're not in the current schema
 
 export default function OrdersPage() {
-  const { toasts, removeToast, showSuccess, showError, showWarning } = useToast();
+  const { toasts, removeToast, showSuccess, showError } = useToast();
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,19 +124,11 @@ export default function OrdersPage() {
     DELIVERED: 0,
     CANCELED: 0
   });
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [dateFromFilter, setDateFromFilter] = useState<string>('');
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [timeFromFilter, setTimeFromFilter] = useState<string>('00:00');
   const [timeToFilter, setTimeToFilter] = useState<string>('23:59');
-  const [showDateTimeFrom, setShowDateTimeFrom] = useState(false);
-  const [showDateTimeTo, setShowDateTimeTo] = useState(false);
-
-  // Refs для инпутов даты и времени
-  const dateFromInputRef = useRef<HTMLInputElement>(null);
-  const timeFromInputRef = useRef<HTMLInputElement>(null);
-  const dateToInputRef = useRef<HTMLInputElement>(null);
-  const timeToInputRef = useRef<HTMLInputElement>(null);
   
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,9 +167,205 @@ export default function OrdersPage() {
   const [isCustomerCommentModalOpen, setIsCustomerCommentModalOpen] = useState(false);
   const [isCancelReasonModalOpen, setIsCancelReasonModalOpen] = useState(false);
   const [isAdminCommentViewModalOpen, setIsAdminCommentViewModalOpen] = useState(false);
+  
+  // Состояние для раскрытия статистики на мобильных
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
+  
+  // Состояние для мобильных фильтров
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  
+  // Состояния для инлайнового редактирования дат
+  const [isEditingDateFrom, setIsEditingDateFrom] = useState(false);
+  const [isEditingDateTo, setIsEditingDateTo] = useState(false);
+  const [tempDateFrom, setTempDateFrom] = useState('');
+  const [tempDateTo, setTempDateTo] = useState('');
+
+  // Функции для работы с датами
+
+  // Автоматическое форматирование даты при вводе (ДД.ММ.ГГГГ)
+  const formatDateInput = (input: string, previousValue: string = '') => {
+    // Удаляем все нецифровые символы
+    const digits = input.replace(/\D/g, '');
+    const previousDigits = previousValue.replace(/\D/g, '');
+    
+    // Ограничиваем до 8 цифр (ДДММГГГГ)
+    const limitedDigits = digits.slice(0, 8);
+    
+    // Определяем, удаляет ли пользователь символы
+    const isDeleting = limitedDigits.length < previousDigits.length;
+    
+    // Форматируем в зависимости от длины
+    if (limitedDigits.length < 2) {
+      return limitedDigits;
+    } else if (limitedDigits.length === 2) {
+      // Ставим точку только если пользователь добавляет символы, а не удаляет
+      return isDeleting ? limitedDigits : `${limitedDigits}.`;
+    } else if (limitedDigits.length === 3) {
+      // После 2 цифр дня и 1 цифры месяца
+      return `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2)}`;
+    } else if (limitedDigits.length === 4) {
+      // Ставим вторую точку только если пользователь добавляет символы
+      return isDeleting ? `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2)}` : `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2, 4)}.`;
+    } else {
+      // После 4 цифр (день + месяц) ставим вторую точку и год
+      return `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2, 4)}.${limitedDigits.slice(4)}`;
+    }
+  };
+
+  // Проверка валидности даты в реальном времени (ДД.ММ.ГГГГ)
+  const validateDateInput = (dateString: string) => {
+    if (!dateString) return { isValid: true, error: '' };
+    
+    // Проверяем формат ДД.ММ.ГГГГ
+    if (!dateString.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
+      return { isValid: false, error: 'Неверный формат. Используйте ДД.ММ.ГГГГ' };
+    }
+    
+    // Парсим дату из формата ДД.ММ.ГГГГ
+    const [day, month, year] = dateString.split('.').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    // Проверяем валидность даты
+    if (isNaN(date.getTime()) || 
+        date.getDate() !== day || 
+        date.getMonth() !== month - 1 || 
+        date.getFullYear() !== year) {
+      return { isValid: false, error: 'Неверная дата' };
+    }
+    
+    // Проверяем, что дата не в будущем (опционально)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (date > today) {
+      return { isValid: false, error: 'Дата не может быть в будущем' };
+    }
+    
+    return { isValid: true, error: '' };
+  };
+
+  // Конвертация из ДД.ММ.ГГГГ в ГГГГ-ММ-ДД для сохранения
+  const convertToISOFormat = (dateString: string) => {
+    if (!dateString.match(/^\d{2}\.\d{2}\.\d{4}$/)) return '';
+    const [day, month, year] = dateString.split('.').map(Number);
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  };
+
+  // Конвертация из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ для отображения
+  const convertFromISOFormat = (dateString: string) => {
+    if (!dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return '';
+    const [year, month, day] = dateString.split('-').map(Number);
+    return `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.${year}`;
+  };
+
+  const handleDateFromEdit = () => {
+    setIsEditingDateFrom(true);
+    setTempDateFrom(convertFromISOFormat(dateFromFilter));
+  };
+
+  const handleDateToEdit = () => {
+    setIsEditingDateTo(true);
+    setTempDateTo(convertFromISOFormat(dateToFilter));
+  };
+
+  // Обработчики для автоматического форматирования и валидации
+  const handleDateFromChange = (value: string) => {
+    const formatted = formatDateInput(value, tempDateFrom);
+    setTempDateFrom(formatted);
+    
+    // Очищаем фильтр если поле пустое
+    if (!formatted || formatted.length === 0) {
+      setDateFromFilter('');
+      setTimeFromFilter('00:00');
+      return;
+    }
+    
+    // Автосохранение при полной и валидной дате
+    const validation = validateDateInput(formatted);
+    if (validation.isValid && formatted.length === 10) {
+      const isoFormat = convertToISOFormat(formatted);
+      setDateFromFilter(isoFormat);
+      setTimeFromFilter('00:00');
+      setIsEditingDateFrom(false);
+    }
+  };
+
+  const handleDateToChange = (value: string) => {
+    const formatted = formatDateInput(value, tempDateTo);
+    setTempDateTo(formatted);
+    
+    // Очищаем фильтр если поле пустое
+    if (!formatted || formatted.length === 0) {
+      setDateToFilter('');
+      setTimeToFilter('23:59');
+      return;
+    }
+    
+    // Автосохранение при полной и валидной дате
+    const validation = validateDateInput(formatted);
+    if (validation.isValid && formatted.length === 10) {
+      const isoFormat = convertToISOFormat(formatted);
+      setDateToFilter(isoFormat);
+      setTimeToFilter('23:59');
+      setIsEditingDateTo(false);
+    }
+  };
+
+  // Обработчики потери фокуса
+  const handleDateFromBlur = () => {
+    // Очищаем фильтр если поле пустое
+    if (!tempDateFrom || tempDateFrom.length === 0) {
+      setDateFromFilter('');
+      setTimeFromFilter('00:00');
+      setTempDateFrom('');
+      setIsEditingDateFrom(false);
+      return;
+    }
+    
+    const validation = validateDateInput(tempDateFrom);
+    if (validation.isValid && tempDateFrom.length === 10) {
+      // Сохраняем если дата полная и валидная
+      const isoFormat = convertToISOFormat(tempDateFrom);
+      setDateFromFilter(isoFormat);
+      setTimeFromFilter('00:00');
+    } else {
+      // Обнуляем если дата неполная или невалидная
+      setTempDateFrom('');
+    }
+    setIsEditingDateFrom(false);
+  };
+
+  const handleDateToBlur = () => {
+    // Очищаем фильтр если поле пустое
+    if (!tempDateTo || tempDateTo.length === 0) {
+      setDateToFilter('');
+      setTimeToFilter('23:59');
+      setTempDateTo('');
+      setIsEditingDateTo(false);
+      return;
+    }
+    
+    const validation = validateDateInput(tempDateTo);
+    if (validation.isValid && tempDateTo.length === 10) {
+      // Сохраняем если дата полная и валидная
+      const isoFormat = convertToISOFormat(tempDateTo);
+      setDateToFilter(isoFormat);
+      setTimeToFilter('23:59');
+    } else {
+      // Обнуляем если дата неполная или невалидная
+      setTempDateTo('');
+    }
+    setIsEditingDateTo(false);
+  };
+
+  const cancelDateEdit = () => {
+    setIsEditingDateFrom(false);
+    setIsEditingDateTo(false);
+    setTempDateFrom('');
+    setTempDateTo('');
+  };
 
   // Загрузка заказов
-  const fetchOrders = async (isInitialLoad = false) => {
+  const fetchOrders = useCallback(async (isInitialLoad = false) => {
     try {
       if (isInitialLoad) {
         setLoading(true);
@@ -187,21 +377,13 @@ export default function OrdersPage() {
       const dateFromString = dateFromFilter ? getDateTimeString(dateFromFilter, timeFromFilter) : null;
       const dateToString = dateToFilter ? getDateTimeString(dateToFilter, timeToFilter) : null;
       
-      console.log('Date filters:', {
-        dateFromFilter,
-        timeFromFilter,
-        dateToFilter,
-        timeToFilter,
-        dateFromString,
-        dateToString
-      });
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
         sortBy: sortBy === 'newest' ? 'createdAt' : sortBy,
         sortOrder,
-        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
         ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
         ...(dateFromString && { dateFrom: dateFromString }),
         ...(dateToString && { dateTo: dateToString }),
@@ -228,7 +410,7 @@ export default function OrdersPage() {
       setLoading(false);
       setListLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, sortBy, sortOrder, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, showError]);
 
   // Дебаунс для поиска
   useEffect(() => {
@@ -241,21 +423,21 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentPage, sortBy, sortOrder, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter]);
+  }, [currentPage, sortBy, sortOrder, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, fetchOrders]);
 
   // Отдельный эффект для обновления списка при изменении поиска
   useEffect(() => {
     if (debouncedSearchTerm !== '') {
       fetchOrders(false);
     }
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, fetchOrders]);
 
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder]);
+  }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder, currentPage]);
 
   // Клавиатурные сокращения и обработка кликов вне элементов
   useEffect(() => {
@@ -270,8 +452,8 @@ export default function OrdersPage() {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.date-time-dropdown')) {
-        setShowDateTimeFrom(false);
-        setShowDateTimeTo(false);
+        // Закрываем инлайновые редакторы дат при клике вне
+        cancelDateEdit();
       }
     };
 
@@ -289,19 +471,6 @@ export default function OrdersPage() {
     setIsViewModalOpen(true);
   };
 
-  const openEditModal = (order: Order) => {
-    setSelectedOrder(order);
-    setEditFormData({
-      status: order.status,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      deliveryAddress: order.deliveryAddress,
-      courierId: order.courierId || '',
-      customerComment: order.customerComment || '',
-      cancelComment: order.cancelComment || ''
-    });
-    setIsEditModalOpen(true);
-  };
 
   // Новые обработчики
   const openCourierModal = (order: Order) => {
@@ -379,15 +548,15 @@ export default function OrdersPage() {
     setIsAdminCommentEditModalOpen(true);
   };
 
-  const openCustomerCommentModal = (order: Order) => {
+  const openCustomerCommentModal = () => {
     setIsCustomerCommentModalOpen(true);
   };
 
-  const openCancelReasonModal = (order: Order) => {
+  const openCancelReasonModal = () => {
     setIsCancelReasonModalOpen(true);
   };
 
-  const openAdminCommentViewModal = (order: Order) => {
+  const openAdminCommentViewModal = () => {
     setIsAdminCommentViewModalOpen(true);
   };
 
@@ -543,7 +712,7 @@ export default function OrdersPage() {
       if (response.ok) {
         await fetchOrders();
         closeCourierModal();
-        showSuccess('Заказ передан курьерам', 'Статус заказа изменен на "Ожидает курьера"');
+        showSuccess('Заказ передан курьерам', 'Статус заказа изменен на &ldquo;Ожидает курьера&rdquo;');
       } else {
         const error = await response.json();
         showError('Ошибка передачи', error.error || 'Ошибка передачи заказа курьерам');
@@ -575,7 +744,7 @@ export default function OrdersPage() {
       if (response.ok) {
         await fetchOrders();
         closeCancelCommentModal();
-        showSuccess('Заказ отменен', 'Статус заказа изменен на "Отменен"');
+        showSuccess('Заказ отменен', 'Статус заказа изменен на &ldquo;Отменен&rdquo;');
       } else {
         const error = await response.json();
         showError('Ошибка отмены', error.error || 'Ошибка отмены заказа');
@@ -610,17 +779,52 @@ export default function OrdersPage() {
     });
   };
 
+  // Все возможные статусы заказов
+  const ALL_STATUSES = ['CREATED', 'COURIER_WAIT', 'COURIER_PICKED', 'ENROUTE', 'DELIVERED', 'CANCELED'];
+
+  // Функции для работы с множественным выбором статусов
+  const toggleStatusFilter = (status: string) => {
+    if (status === 'all') {
+      // Если выбираем "Все статусы", очищаем все остальные
+      setStatusFilter([]);
+    } else {
+      // Если выбираем конкретный статус, убираем "Все статусы" и добавляем/убираем статус
+      setStatusFilter(prev => {
+        let newStatusFilter;
+        
+        if (prev.includes(status)) {
+          // Убираем статус из списка
+          newStatusFilter = prev.filter(s => s !== status);
+        } else {
+          // Добавляем статус в список
+          newStatusFilter = [...prev, status];
+        }
+        
+        // Проверяем, выбраны ли все статусы
+        const allStatusesSelected = ALL_STATUSES.every(s => newStatusFilter.includes(s));
+        
+        // Если выбраны все статусы, очищаем список (активируем "Все статусы")
+        if (allStatusesSelected) {
+          return [];
+        }
+        
+        return newStatusFilter;
+      });
+    }
+  };
+
+
   // Очистка фильтров
   const clearFilters = () => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
-    setStatusFilter('all');
+    setStatusFilter([]);
     setDateFromFilter('');
     setDateToFilter('');
     setTimeFromFilter('00:00');
     setTimeToFilter('23:59');
-    setShowDateTimeFrom(false);
-    setShowDateTimeTo(false);
+    // Закрываем редакторы дат
+    cancelDateEdit();
   };
 
   // Функции для работы с датами
@@ -686,14 +890,6 @@ export default function OrdersPage() {
     }
   };
 
-  // Проверка возможности редактирования заказа
-  const canEditOrder = (order: Order) => {
-    // Нельзя редактировать отмененные заказы
-    if (order.status === 'CANCELED') {
-      return false;
-    }
-    return true;
-  };
 
 
 
@@ -760,67 +956,142 @@ export default function OrdersPage() {
             </div>
             
             {/* Статистика */}
-            <div className="flex items-center justify-between gap-4">
-              {/* Компактная статистика по статусам - левая сторона */}
-              <div className="grid grid-cols-2 gap-12">
-                {/* Первый столбец */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <ClockIcon className="h-4 w-4 text-blue-400" />
-                      <span className="text-gray-300">Создан:</span>
-                    </div>
-                    <span className="text-white font-semibold ml-8">{statistics.CREATED}</span>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 sm:gap-4">
+              {/* Мобильная версия - компактная с кнопкой раскрытия */}
+              <div className="lg:hidden w-full">
+                {/* Компактный вид - только общее количество */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <ShoppingBagIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-white font-bold text-sm">Всего заказов: {totalItems}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircleIcon className="h-4 w-4 text-yellow-400" />
-                      <span className="text-gray-300">Ожидает курьера:</span>
+                  <button
+                    onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                    className="p-1 rounded-md hover:bg-gray-700/50 transition-colors"
+                  >
+                    <ChevronDownIcon 
+                      className={`h-4 w-4 text-gray-400 transition-transform ${isStatsExpanded ? 'rotate-180' : ''}`} 
+                    />
+                  </button>
+                </div>
+                
+                {/* Раскрытая статистика в 2 ряда */}
+                {isStatsExpanded && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="h-3 w-3 text-blue-400" />
+                          <span className="text-gray-300">Создан:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.CREATED}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <CheckCircleIcon className="h-3 w-3 text-yellow-400" />
+                          <span className="text-gray-300">Ожидает курьера:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.COURIER_WAIT}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <UserIcon className="h-3 w-3 text-indigo-400" />
+                          <span className="text-gray-300">Курьер принял:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.COURIER_PICKED}</span>
+                      </div>
                     </div>
-                    <span className="text-white font-semibold ml-8">{statistics.COURIER_WAIT}</span>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <TruckIcon className="h-3 w-3 text-purple-400" />
+                          <span className="text-gray-300">В пути:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.ENROUTE}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <CheckBadgeIcon className="h-3 w-3 text-green-400" />
+                          <span className="text-gray-300">Доставлен:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.DELIVERED}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <XMarkIcon className="h-3 w-3 text-red-400" />
+                          <span className="text-gray-300">Отменен:</span>
+                        </div>
+                        <span className="text-white font-semibold text-xs">{statistics.CANCELED}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <UserIcon className="h-4 w-4 text-indigo-400" />
-                      <span className="text-gray-300">Курьер принял:</span>
+                )}
+              </div>
+
+              {/* Десктопная версия - оригинальная */}
+              <div className="hidden lg:flex items-center justify-between gap-4 w-full">
+                {/* Компактная статистика по статусам - левая сторона */}
+                <div className="grid grid-cols-2 gap-12">
+                  {/* Первый столбец */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <ClockIcon className="h-4 w-4 text-blue-400" />
+                        <span className="text-gray-300">Создан:</span>
+                      </div>
+                      <span className="text-white font-semibold ml-8">{statistics.CREATED}</span>
                     </div>
-                    <span className="text-white font-semibold ml-8">{statistics.COURIER_PICKED}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircleIcon className="h-4 w-4 text-yellow-400" />
+                        <span className="text-gray-300">Ожидает курьера:</span>
+                      </div>
+                      <span className="text-white font-semibold ml-8">{statistics.COURIER_WAIT}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <UserIcon className="h-4 w-4 text-indigo-400" />
+                        <span className="text-gray-300">Курьер принял:</span>
+                      </div>
+                      <span className="text-white font-semibold ml-8">{statistics.COURIER_PICKED}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Второй столбец */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <TruckIcon className="h-4 w-4 text-purple-400" />
+                        <span className="text-gray-300">В пути:</span>
+                      </div>
+                      <span className="text-white font-semibold mr-8">{statistics.ENROUTE}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <CheckBadgeIcon className="h-4 w-4 text-green-400" />
+                        <span className="text-gray-300">Доставлен:</span>
+                      </div>
+                      <span className="text-white font-semibold mr-8">{statistics.DELIVERED}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <XMarkIcon className="h-4 w-4 text-red-400" />
+                        <span className="text-gray-300">Отменен:</span>
+                      </div>
+                      <span className="text-white font-semibold mr-8">{statistics.CANCELED}</span>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Второй столбец */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <TruckIcon className="h-4 w-4 text-purple-400" />
-                      <span className="text-gray-300">В пути:</span>
+                {/* Всего заказов - правая сторона */}
+                <div className="bg-gradient-to-br from-gray-500/10 to-gray-600/5 border border-gray-500/20 rounded-lg p-4 backdrop-blur-sm flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                  <div className="flex flex-col items-center space-y-2">
+                    <ShoppingBagIcon className="h-4 w-4 text-gray-400" />
+                    <div className="text-center">
+                      <div className="text-white font-bold text-[18px]">{totalItems}</div>
+                      <div className="text-gray-300 text-[12px]">Всего</div>
                     </div>
-                    <span className="text-white font-semibold mr-8">{statistics.ENROUTE}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <CheckBadgeIcon className="h-4 w-4 text-green-400" />
-                      <span className="text-gray-300">Доставлен:</span>
-                    </div>
-                    <span className="text-white font-semibold mr-8">{statistics.DELIVERED}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <XMarkIcon className="h-4 w-4 text-red-400" />
-                      <span className="text-gray-300">Отменен:</span>
-                    </div>
-                    <span className="text-white font-semibold mr-8">{statistics.CANCELED}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Всего заказов - правая сторона */}
-              <div className="bg-gradient-to-br from-gray-500/10 to-gray-600/5 border border-gray-500/20 rounded-lg p-4 backdrop-blur-sm flex-shrink-0 w-20 h-20 flex items-center justify-center">
-                <div className="flex flex-col items-center space-y-2">
-                  <ShoppingBagIcon className="h-4 w-4 text-gray-400" />
-                  <div className="text-center">
-                    <div className="text-white font-bold text-[18px]">{totalItems}</div>
-                    <div className="text-gray-300 text-[12px]">Всего</div>
                   </div>
                 </div>
               </div>
@@ -830,52 +1101,67 @@ export default function OrdersPage() {
 
 
         {/* Filters and Search */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative overflow-visible">
           <div className="space-y-4">
-            {/* Search - Full width on mobile */}
-            <div className="w-full">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            {/* Search and Filter Row */}
+            <div className="flex flex-row gap-3">
+              {/* Search - Left side */}
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Поиск по номеру заказа, имени, телефону, адресу..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-12 h-10 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 text-sm sm:text-base"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Поиск по номеру заказа, имени, телефону, адресу..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 text-sm sm:text-base"
-                />
-                {searchTerm && (
+              </div>
+
+              {/* Right side controls */}
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {/* Mobile Filter Toggle Button - Only visible on mobile/tablet */}
+                <div className="lg:hidden">
                   <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+                    className="flex items-center justify-center px-3 py-2 h-10 rounded-lg border border-gray-600/50 bg-gray-700/30 text-gray-400 hover:border-gray-500/50 hover:text-gray-300 transition-all duration-200"
+                    title="Фильтры и сортировка"
                   >
-                    <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+                    <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Controls Row */}
-            <div className="flex flex-col lg:flex-row gap-4">
+            {/* Desktop Controls Row - Hidden on mobile/tablet */}
+            <div className="hidden lg:flex flex-col lg:flex-row gap-4">
               {/* Левая сторона - Фильтры и сортировки */}
               <div className="flex flex-col gap-4 flex-1">
                 {/* Sort Controls */}
                 <div className="flex items-center space-x-3">
                   <div className="w-64 min-w-0">
-                    <div className="flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3">
-                      <BarsArrowUpIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortOption)}
-                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                      >
-                        <option value="newest" className="bg-gray-800">По дате</option>
-                        <option value="totalPrice" className="bg-gray-800">По сумме</option>
-                        <option value="itemsCount" className="bg-gray-800">По количеству товаров</option>
-                      </select>
-                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    </div>
+                    <CustomSelect
+                      value={sortBy}
+                      onChange={(value) => setSortBy(value as SortOption)}
+                      options={[
+                        { value: 'newest', label: 'По дате' },
+                        { value: 'totalPrice', label: 'По сумме' },
+                        { value: 'itemsCount', label: 'По количеству товаров' }
+                      ]}
+                      icon={<BarsArrowUpIcon className="h-5 w-5" />}
+                      placeholder="Сортировка"
+                    />
                   </div>
 
                   <button
@@ -897,24 +1183,77 @@ export default function OrdersPage() {
 
                 {/* Status Filter */}
                 <div className="flex items-center space-x-3">
-                  <div className="w-79 min-w-0">
-                    <div className="flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3">
-                      <CheckCircleIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                      >
-                        <option value="all" className="bg-gray-800">Все статусы</option>
-                        <option value="CREATED" className="bg-gray-800">Создан</option>
-                        <option value="COURIER_WAIT" className="bg-gray-800">Ожидает курьера</option>
-                        <option value="COURIER_PICKED" className="bg-gray-800">Курьер принял</option>
-                        <option value="ENROUTE" className="bg-gray-800">В пути</option>
-                        <option value="DELIVERED" className="bg-gray-800">Доставлен</option>
-                        <option value="CANCELED" className="bg-gray-800">Отменен</option>
-                      </select>
-                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => toggleStatusFilter('all')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.length === 0
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Все статусы
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('CREATED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('CREATED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Создан
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('COURIER_WAIT')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('COURIER_WAIT')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Ожидает курьера
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('COURIER_PICKED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('COURIER_PICKED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Курьер принял
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('ENROUTE')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('ENROUTE')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      В пути
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('DELIVERED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('DELIVERED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Доставлен
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('CANCELED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('CANCELED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Отменен
+                    </button>
                   </div>
                 </div>
               </div>
@@ -951,7 +1290,7 @@ export default function OrdersPage() {
                   </div>
                   
                   {/* Clear All Filters Button */}
-                  {(searchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter) && (
+                  {(searchTerm || statusFilter.length > 0 || dateFromFilter || dateToFilter) && (
                     <button
                       onClick={clearFilters}
                       className="px-3 py-1 text-xs bg-gray-600/20 border border-gray-600/30 text-gray-300 rounded-full hover:bg-gray-600/30 transition-all duration-200"
@@ -964,226 +1303,312 @@ export default function OrdersPage() {
                 {/* Custom Date Range */}
                 <div className="flex flex-col sm:flex-row gap-4">
                 {/* From Date */}
-                <div className="w-80 relative date-time-dropdown">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDateTimeFrom(!showDateTimeFrom);
-                    }}
-                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
-                      dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
-                    }`}
-                  >
-                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                    <span className="text-white text-sm font-medium flex-1 text-left">
-                      {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
-                    </span>
-                    <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  </button>
-
-                  {/* Dropdown для "От даты" */}
-                  {showDateTimeFrom && (
-                    <div className="absolute top-full left-0 mt-2 w-80 bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-5 shadow-2xl ring-1 ring-white/5 z-50 date-time-dropdown">
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                          <CalendarDaysIcon className="h-4 w-4 text-indigo-400" />
-                          Выберите дату и время
-                        </h3>
-                        <button
-                          onClick={() => setShowDateTimeFrom(false)}
-                          className="p-1 hover:bg-gray-700/50 rounded-lg transition-colors"
-                        >
-                          <XMarkIcon className="h-4 w-4 text-gray-400" />
-                        </button>
-                      </div>
-
-                      {/* Date and Time Inputs - Parallel */}
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-300 mb-2">Дата</label>
-                          <div 
-                            className="relative cursor-pointer"
-                            onClick={() => {
-                              if (dateFromInputRef.current) {
-                                dateFromInputRef.current.focus();
-                                dateFromInputRef.current.showPicker?.();
-                              }
-                            }}
-                          >
-                            <input
-                              ref={dateFromInputRef}
-                              type="date"
-                              value={dateFromFilter}
-                              onChange={(e) => setDateFromFilter(e.target.value)}
-                              className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 cursor-pointer hover:bg-gray-800/80"
-                              style={{
-                                colorScheme: 'dark'
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-300 mb-2">Время</label>
-                          <div 
-                            className="relative cursor-pointer"
-                            onClick={() => {
-                              if (timeFromInputRef.current) {
-                                timeFromInputRef.current.focus();
-                                timeFromInputRef.current.showPicker?.();
-                              }
-                            }}
-                          >
-                            <input
-                              ref={timeFromInputRef}
-                              type="time"
-                              value={timeFromFilter}
-                              onChange={(e) => setTimeFromFilter(e.target.value)}
-                              className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 cursor-pointer hover:bg-gray-800/80"
-                              style={{
-                                colorScheme: 'dark'
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => setShowDateTimeFrom(false)}
-                          className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600/80 to-purple-600/80 hover:from-indigo-600 hover:to-purple-600 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                        >
-                          Применить
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDateFromFilter('');
-                            setTimeFromFilter('00:00');
-                            setShowDateTimeFrom(false);
-                          }}
-                          className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-xl transition-all duration-200 border border-red-500/30"
-                        >
-                          Очистить
-                        </button>
-                      </div>
-                    </div>
+                <div className="w-80 relative">
+                  {!isEditingDateFrom ? (
+                    <button
+                      type="button"
+                      onClick={handleDateFromEdit}
+                      className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                        dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                      }`}
+                    >
+                      <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <span className="text-white text-sm font-medium flex-1 text-left">
+                        {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
+                      </span>
+                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </button>
+                  ) : (
+                    <input
+                      type="text"
+                      value={tempDateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      onBlur={handleDateFromBlur}
+                      placeholder="ДД.ММ.ГГГГ"
+                      className="w-full px-4 py-3 bg-gray-700/30 border border-gray-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTempDateFrom('');
+                          setIsEditingDateFrom(false);
+                        }
+                      }}
+                    />
                   )}
                 </div>
 
                 {/* To Date */}
-                <div className="w-80 relative date-time-dropdown">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDateTimeTo(!showDateTimeTo);
-                    }}
-                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
-                      dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
-                    }`}
-                  >
-                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                    <span className="text-white text-sm font-medium flex-1 text-left">
-                      {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
-                    </span>
-                    <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  </button>
-
-                  {/* Dropdown для "До даты" */}
-                  {showDateTimeTo && (
-                    <div className="absolute top-full left-0 mt-2 w-80 bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-5 shadow-2xl ring-1 ring-white/5 z-50 date-time-dropdown">
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                          <CalendarDaysIcon className="h-4 w-4 text-indigo-400" />
-                          Выберите дату и время
-                        </h3>
-                        <button
-                          onClick={() => setShowDateTimeTo(false)}
-                          className="p-1 hover:bg-gray-700/50 rounded-lg transition-colors"
-                        >
-                          <XMarkIcon className="h-4 w-4 text-gray-400" />
-                        </button>
-                      </div>
-
-                      {/* Date and Time Inputs - Parallel */}
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-300 mb-2">Дата</label>
-                          <div 
-                            className="relative cursor-pointer"
-                            onClick={() => {
-                              if (dateToInputRef.current) {
-                                dateToInputRef.current.focus();
-                                dateToInputRef.current.showPicker?.();
-                              }
-                            }}
-                          >
-                            <input
-                              ref={dateToInputRef}
-                              type="date"
-                              value={dateToFilter}
-                              onChange={(e) => setDateToFilter(e.target.value)}
-                              className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 cursor-pointer hover:bg-gray-800/80"
-                              style={{
-                                colorScheme: 'dark'
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-300 mb-2">Время</label>
-                          <div 
-                            className="relative cursor-pointer"
-                            onClick={() => {
-                              if (timeToInputRef.current) {
-                                timeToInputRef.current.focus();
-                                timeToInputRef.current.showPicker?.();
-                              }
-                            }}
-                          >
-                            <input
-                              ref={timeToInputRef}
-                              type="time"
-                              value={timeToFilter}
-                              onChange={(e) => setTimeToFilter(e.target.value)}
-                              className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 cursor-pointer hover:bg-gray-800/80"
-                              style={{
-                                colorScheme: 'dark'
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => setShowDateTimeTo(false)}
-                          className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600/80 to-purple-600/80 hover:from-indigo-600 hover:to-purple-600 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-                        >
-                          Применить
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDateToFilter('');
-                            setTimeToFilter('23:59');
-                            setShowDateTimeTo(false);
-                          }}
-                          className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-xl transition-all duration-200 border border-red-500/30"
-                        >
-                          Очистить
-                        </button>
-                      </div>
-                    </div>
+                <div className="w-80 relative">
+                  {!isEditingDateTo ? (
+                    <button
+                      type="button"
+                      onClick={handleDateToEdit}
+                      className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                        dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                      }`}
+                    >
+                      <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <span className="text-white text-sm font-medium flex-1 text-left">
+                        {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
+                      </span>
+                      <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </button>
+                  ) : (
+                    <input
+                      type="text"
+                      value={tempDateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      onBlur={handleDateToBlur}
+                      placeholder="ДД.ММ.ГГГГ"
+                      className="w-full px-4 py-3 bg-gray-700/30 border border-gray-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTempDateTo('');
+                          setIsEditingDateTo(false);
+                        }
+                      }}
+                    />
                   )}
                 </div>
 
                 </div>
+              </div>
+            </div>
+
+            {/* Mobile Filters - Collapsible */}
+            <div className={`lg:hidden transition-all duration-300 ease-in-out ${
+              isMobileFiltersOpen ? 'max-h-[800px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
+              <div className="space-y-4 pt-4 border-t border-gray-700/50">
+                {/* Mobile Sort Controls */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Сортировка</h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1">
+                      <CustomSelect
+                        value={sortBy}
+                        onChange={(value) => setSortBy(value as SortOption)}
+                        options={[
+                          { value: 'newest', label: 'По дате' },
+                          { value: 'totalPrice', label: 'По сумме' },
+                          { value: 'itemsCount', label: 'По количеству товаров' }
+                        ]}
+                        icon={<BarsArrowUpIcon className="h-4 w-4" />}
+                        className="text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                        sortOrder === 'desc'
+                          ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+                          : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:border-gray-500/50 hover:text-gray-300'
+                      }`}
+                      title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
+                    >
+                      {sortOrder === 'desc' ? (
+                        <ArrowDownIcon className="h-4 w-4" />
+                      ) : (
+                        <ArrowUpIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Status Filter */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Статус</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => toggleStatusFilter('all')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.length === 0
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Все статусы
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('CREATED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('CREATED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Создан
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('COURIER_WAIT')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('COURIER_WAIT')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Ожидает курьера
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('COURIER_PICKED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('COURIER_PICKED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Курьер принял
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('ENROUTE')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('ENROUTE')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      В пути
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('DELIVERED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('DELIVERED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Доставлен
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('CANCELED')}
+                      className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                        statusFilter.includes('CANCELED')
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                          : 'bg-gray-600/20 border border-gray-600/30 text-gray-400 hover:bg-gray-600/30'
+                      }`}
+                    >
+                      Отменен
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Date Range Filters */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Период</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* От даты */}
+                    <div className="relative">
+                      {!isEditingDateFrom ? (
+                        <div
+                          onClick={handleDateFromEdit}
+                          className={`flex items-center space-x-2 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 py-2.5 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                            dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                          }`}
+                        >
+                          <CalendarDaysIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-white text-xs font-medium flex-1 text-left truncate">
+                            {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
+                          </span>
+                          <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={tempDateFrom}
+                          onChange={(e) => handleDateFromChange(e.target.value)}
+                          onBlur={handleDateFromBlur}
+                          placeholder="ДД.ММ.ГГГГ"
+                          className="w-full px-3 py-2.5 bg-gray-700/30 border border-gray-600/50 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setTempDateFrom('');
+                              setIsEditingDateFrom(false);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {/* До даты */}
+                    <div className="relative">
+                      {!isEditingDateTo ? (
+                        <div
+                          onClick={handleDateToEdit}
+                          className={`flex items-center space-x-2 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 py-2.5 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                            dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                          }`}
+                        >
+                          <CalendarDaysIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-white text-xs font-medium flex-1 text-left truncate">
+                            {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
+                          </span>
+                          <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={tempDateTo}
+                          onChange={(e) => handleDateToChange(e.target.value)}
+                          onBlur={handleDateToBlur}
+                          placeholder="ДД.ММ.ГГГГ"
+                          className="w-full px-3 py-2.5 bg-gray-700/30 border border-gray-600/50 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setTempDateTo('');
+                              setIsEditingDateTo(false);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Quick Date Range Buttons */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-300">Быстрый выбор периода</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setQuickDateRange('today')}
+                      className="px-3 py-1 text-xs bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full hover:bg-indigo-500/20 transition-all duration-200"
+                    >
+                      Сегодня
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('yesterday')}
+                      className="px-3 py-1 text-xs bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded-full hover:bg-blue-500/20 transition-all duration-200"
+                    >
+                      Вчера
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('week')}
+                      className="px-3 py-1 text-xs bg-green-500/10 border border-green-500/20 text-green-300 rounded-full hover:bg-green-500/20 transition-all duration-200"
+                    >
+                      Неделя
+                    </button>
+                    <button
+                      onClick={() => setQuickDateRange('month')}
+                      className="px-3 py-1 text-xs bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/20 transition-all duration-200"
+                    >
+                      Месяц
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Clear Filters */}
+                {(searchTerm || statusFilter.length > 0 || dateFromFilter || dateToFilter) && (
+                  <div className="pt-2">
+                    <button
+                      onClick={clearFilters}
+                      className="w-full px-3 py-2 text-xs bg-gray-600/20 border border-gray-600/30 text-gray-300 rounded-lg hover:bg-gray-600/30 transition-all duration-200"
+                    >
+                      Очистить все фильтры
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1202,7 +1627,7 @@ export default function OrdersPage() {
                 {debouncedSearchTerm && (
                   <div className="flex items-center space-x-2 text-indigo-400">
                     <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Поиск: "{debouncedSearchTerm}"</span>
+                    <span className="truncate">Поиск: &ldquo;{debouncedSearchTerm}&rdquo;</span>
                   </div>
                 )}
               </div>
@@ -1226,10 +1651,10 @@ export default function OrdersPage() {
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <ShoppingBagIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
-                {debouncedSearchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter ? 'Заказы не найдены' : 'Нет заказов'}
+                {debouncedSearchTerm || statusFilter.length > 0 || dateFromFilter || dateToFilter ? 'Заказы не найдены' : 'Нет заказов'}
               </h3>
               <p className="text-gray-500">
-                {debouncedSearchTerm || statusFilter !== 'all' || dateFromFilter || dateToFilter 
+                {debouncedSearchTerm || statusFilter.length > 0 || dateFromFilter || dateToFilter 
                   ? 'Попробуйте изменить критерии поиска' 
                   : 'Заказы будут отображаться здесь'
                 }
@@ -1241,66 +1666,106 @@ export default function OrdersPage() {
               const StatusIcon = statusInfo.icon;
               
               return (
-                <div 
-                  key={order.id} 
-                  onClick={() => openViewModal(order)}
-                  className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
-                >
-                  <div className="flex items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
-                      {/* Order Icon */}
-                      <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 bg-gray-700/50 rounded-lg flex items-center justify-center">
-                        <StatusIcon className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                          <h3 className="font-medium text-white text-sm sm:text-base truncate">
-                            Заказ #{order.id.slice(-8)}
-                          </h3>
-                          
-                          <div className="flex items-center space-x-2">
+                <div key={order.id}>
+                  {/* Mobile Layout */}
+                  <div className="lg:hidden mb-3">
+                    <div 
+                      onClick={() => openViewModal(order)}
+                      className="border border-gray-700/50 rounded-lg p-3 hover:bg-gray-700/30 transition-all duration-200 cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {/* Order Icon */}
+                        <div className="flex-shrink-0 w-10 h-10 bg-gray-700/50 rounded-lg flex items-center justify-center">
+                          <StatusIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-medium text-white text-sm truncate">
+                              Заказ #{order.id.slice(-8)}
+                            </h3>
                             <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${statusInfo.color}`}>
                               <StatusIcon className="h-3 w-3" />
                               <span>{statusInfo.label}</span>
                             </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-4 text-xs text-gray-400">
+                            <div className="flex items-center space-x-1">
+                              <UserIcon className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{order.customerName}</span>
+                            </div>
                             
-                            {/* Contact type removed - not in schema */}
-
-                            {/* Payment status removed - not in schema */}
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-1">
-                          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-400">
-                            <UserIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                            <span className="truncate">{order.customerName}</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-400">
-                            <PhoneIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                            <span>{order.customerPhone}</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-400">
-                            <CurrencyDollarIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                            <span className="font-medium text-white">{formatPrice(order.totalPrice)}</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-400">
-                            <ShoppingBagIcon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                            <span>{order.itemsCount} товаров</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1 text-xs text-gray-500">
-                            <CalendarDaysIcon className="h-3 w-3 flex-shrink-0" />
-                            <span>{formatDate(order.createdAt)}</span>
+                            <div className="flex items-center space-x-1">
+                              <CurrencyDollarIcon className="h-3 w-3 flex-shrink-0" />
+                              <span className="font-medium text-white">{formatPrice(order.totalPrice)}</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1">
+                              <ShoppingBagIcon className="h-3 w-3 flex-shrink-0" />
+                              <span>{order.itemsCount}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Кнопки действий убраны - теперь клик на весь заказ открывает детали */}
+                  {/* Desktop Layout */}
+                  <div className="hidden lg:block mb-3">
+                    <div 
+                      className="flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-gray-700/30 rounded-lg p-4 transition-colors duration-200 border border-gray-700/50"
+                      onClick={() => openViewModal(order)}
+                    >
+                      <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
+                        {/* Order Icon */}
+                        <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg flex items-center justify-center">
+                          <StatusIcon className="h-8 w-8 text-gray-400" />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                            <h3 className="font-medium text-white text-base truncate">
+                              Заказ #{order.id.slice(-8)}
+                            </h3>
+                            
+                            <div className="flex items-center space-x-2">
+                              <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${statusInfo.color}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                <span>{statusInfo.label}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-1">
+                            <div className="flex items-center space-x-1 text-sm text-gray-400">
+                              <UserIcon className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{order.customerName}</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1 text-sm text-gray-400">
+                              <PhoneIcon className="h-4 w-4 flex-shrink-0" />
+                              <span>{order.customerPhone}</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1 text-sm text-gray-400">
+                              <CurrencyDollarIcon className="h-4 w-4 flex-shrink-0" />
+                              <span className="font-medium text-white">{formatPrice(order.totalPrice)}</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1 text-sm text-gray-400">
+                              <ShoppingBagIcon className="h-4 w-4 flex-shrink-0" />
+                              <span>{order.itemsCount} товаров</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1 text-xs text-gray-500">
+                              <CalendarDaysIcon className="h-3 w-3 flex-shrink-0" />
+                              <span>{formatDate(order.createdAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -1404,7 +1869,7 @@ export default function OrdersPage() {
 
         {/* View Order Modal */}
         {isViewModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[9999]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50 flex-shrink-0">
@@ -1495,7 +1960,7 @@ export default function OrdersPage() {
                                 </span>
                                 {selectedOrder.customerComment.length > 50 && (
                                   <button
-                                    onClick={() => openCustomerCommentModal(selectedOrder)}
+                                    onClick={() => openCustomerCommentModal()}
                                     className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-indigo-500/50"
                                     title="Показать полный комментарий"
                                   >
@@ -1514,7 +1979,7 @@ export default function OrdersPage() {
                                 </span>
                                 {selectedOrder.cancelComment.length > 50 && (
                                   <button
-                                    onClick={() => openCancelReasonModal(selectedOrder)}
+                                    onClick={() => openCancelReasonModal()}
                                     className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-red-500/50"
                                     title="Показать полную причину отмены"
                                   >
@@ -1573,7 +2038,7 @@ export default function OrdersPage() {
                               </span>
                               {selectedOrder.adminComment && selectedOrder.adminComment.length > 50 && (
                                 <button
-                                  onClick={() => openAdminCommentViewModal(selectedOrder)}
+                                  onClick={() => openAdminCommentViewModal()}
                                   className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors flex-shrink-0 border border-gray-600/30 hover:border-indigo-500/50"
                                   title="Показать полный комментарий"
                                 >
@@ -1614,9 +2079,11 @@ export default function OrdersPage() {
                           }`}>
                             <div className="flex-shrink-0 w-14 h-14 bg-gray-700/50 rounded-xl overflow-hidden">
                               {item.product.imageUrl && Array.isArray(item.product.imageUrl) && item.product.imageUrl.length > 0 ? (
-                                <img 
+                                <Image 
                                   src={item.product.imageUrl[0]} 
                                   alt={item.product.name}
+                                  width={56}
+                                  height={56}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -1666,12 +2133,37 @@ export default function OrdersPage() {
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Action buttons - перемещены под товары */}
+                      <div className="mt-6 pt-4 border-t border-gray-700/30">
+                        <div className="flex items-center justify-center space-x-3">
+                          {/* Кнопка "Передать курьерам" - только для статуса CREATED */}
+                          {selectedOrder.status === 'CREATED' && (
+                            <button
+                              onClick={() => openCourierModal(selectedOrder)}
+                              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all duration-200 font-medium text-sm"
+                            >
+                              Передать курьерам
+                            </button>
+                          )}
+                          
+                          {/* Кнопка "Отменить заказ" - для статусов CREATED и COURIER_WAIT */}
+                          {(selectedOrder.status === 'CREATED' || selectedOrder.status === 'COURIER_WAIT') && (
+                            <button
+                              onClick={() => openCancelWarningModal(selectedOrder)}
+                              className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 font-medium text-sm"
+                            >
+                              Отменить заказ
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Footer with action buttons - теперь зафиксирован внизу */}
+              {/* Footer with status info - теперь только статус и дата */}
               <div className="px-5 py-4 border-t border-gray-700/30 bg-gradient-to-r from-gray-800/30 to-gray-900/30 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -1681,34 +2173,12 @@ export default function OrdersPage() {
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    {/* Кнопка "Передать курьерам" - только для статуса CREATED */}
-                    {selectedOrder.status === 'CREATED' && (
-                      <button
-                        onClick={() => openCourierModal(selectedOrder)}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all duration-200 font-medium text-sm"
-                      >
-                        Передать курьерам
-                      </button>
-                    )}
-                    
-                    {/* Кнопка "Отменить заказ" - для статусов CREATED и COURIER_WAIT */}
-                    {(selectedOrder.status === 'CREATED' || selectedOrder.status === 'COURIER_WAIT') && (
-                      <button
-                        onClick={() => openCancelWarningModal(selectedOrder)}
-                        className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-200 font-medium text-sm"
-                      >
-                        Отменить заказ
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={closeModals}
-                      className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium text-sm"
-                    >
-                      Закрыть
-                    </button>
-                  </div>
+                  <button
+                    onClick={closeModals}
+                    className="px-4 py-2 border border-gray-600/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:border-gray-500/50 transition-all duration-200 font-medium text-sm"
+                  >
+                    Закрыть
+                  </button>
                 </div>
               </div>
             </div>
@@ -1717,7 +2187,7 @@ export default function OrdersPage() {
 
         {/* Edit Order Modal */}
         {isEditModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -1774,18 +2244,13 @@ export default function OrdersPage() {
                           <CheckCircleIcon className="h-4 w-4 text-indigo-400" />
                           <span>Статус заказа</span>
                         </label>
-                        <select
+                        <CustomSelect
                           value={editFormData.status}
-                          onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
-                          className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
-                          required
-                        >
-                          {getAvailableStatuses(selectedOrder.status).map(status => (
-                            <option key={status.value} value={status.value} className="bg-gray-800">
-                              {status.label}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => setEditFormData(prev => ({ ...prev, status: value }))}
+                          options={getAvailableStatuses(selectedOrder.status)}
+                          icon={<CheckCircleIcon className="h-5 w-5" />}
+                          placeholder="Выберите статус"
+                        />
                       </div>
 
                       {/* Contact type field removed - not in schema */}
@@ -1902,7 +2367,7 @@ export default function OrdersPage() {
 
         {/* Transfer to Courier Modal */}
         {isCourierModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -1930,7 +2395,7 @@ export default function OrdersPage() {
                     <div className="flex items-center space-x-3">
                       <TruckIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
                       <div className="text-sm text-blue-300">
-                        Статус заказа будет изменен на "Ожидает курьера"
+                        Статус заказа будет изменен на &ldquo;Ожидает курьера&rdquo;
                       </div>
                     </div>
                   </div>
@@ -1984,7 +2449,7 @@ export default function OrdersPage() {
 
         {/* Cancel Warning Modal */}
         {isCancelWarningModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2048,7 +2513,7 @@ export default function OrdersPage() {
 
         {/* Cancel Comment Modal */}
         {isCancelCommentModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2126,7 +2591,7 @@ export default function OrdersPage() {
 
         {/* Edit Courier Modal */}
         {isCourierEditModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2155,18 +2620,19 @@ export default function OrdersPage() {
                       <UserIcon className="h-4 w-4 text-indigo-400" />
                       <span>Выберите курьера</span>
                     </label>
-                    <select
+                    <CustomSelect
                       value={selectedCourierId}
-                      onChange={(e) => setSelectedCourierId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200"
-                    >
-                      <option value="" className="bg-gray-800">Без курьера</option>
-                      {availableCouriers.map(courier => (
-                        <option key={courier.id} value={courier.id} className="bg-gray-800">
-                          {courier.fullname} ({courier.phoneNumber})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setSelectedCourierId(value)}
+                      options={[
+                        { value: '', label: 'Без курьера' },
+                        ...availableCouriers.map(courier => ({
+                          value: courier.id,
+                          label: `${courier.fullname} (${courier.phoneNumber})`
+                        }))
+                      ]}
+                      icon={<UserIcon className="h-4 w-4" />}
+                      placeholder="Выберите курьера"
+                    />
                   </div>
 
                   {selectedCourierId && (
@@ -2215,7 +2681,7 @@ export default function OrdersPage() {
 
         {/* Edit Admin Comment Modal */}
         {isAdminCommentEditModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2291,7 +2757,7 @@ export default function OrdersPage() {
 
         {/* Customer Comment Modal */}
         {isCustomerCommentModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2355,7 +2821,7 @@ export default function OrdersPage() {
 
         {/* Cancel Reason Modal */}
         {isCancelReasonModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2419,7 +2885,7 @@ export default function OrdersPage() {
 
         {/* Admin Comment View Modal */}
         {isAdminCommentViewModalOpen && selectedOrder && (
-          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-50">
+          <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center p-3 z-[10000]">
             <div className="bg-gray-900/98 backdrop-blur-lg rounded-2xl w-full max-w-md border border-gray-700/30 shadow-2xl ring-1 ring-white/5">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/30 bg-gradient-to-r from-gray-800/50 to-gray-900/50">
@@ -2488,3 +2954,4 @@ export default function OrdersPage() {
     </AdminLayout>
   );
 }
+
