@@ -231,6 +231,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import IconUpload from '@/components/admin/categories/IconUpload';
+import CustomSelect from '@/components/admin/products/CustomSelect';
 
 interface Category {
   id: string;
@@ -656,7 +657,7 @@ export default function CategoriesPage() {
         {/* Mobile Layout */}
         <div className="lg:hidden">
           <div 
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            className="border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
             onClick={() => openViewModal(category)}
           >
             <div className="flex items-start justify-between gap-3">
@@ -730,7 +731,7 @@ export default function CategoriesPage() {
         {/* Desktop Layout */}
         <div className="hidden lg:block">
           <div 
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            className="border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
             onClick={() => openViewModal(category)}
           >
             <div className="flex items-center justify-between gap-3">
@@ -886,19 +887,17 @@ export default function CategoriesPage() {
                 {/* Desktop Sort Controls - Hidden on mobile/tablet */}
                 <div className="hidden lg:flex items-center space-x-2">
                   <div className="min-w-[200px]">
-                    <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
-                      <BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortOption)}
-                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                      >
-                        <option value="popular" className="bg-gray-800">По популярности</option>
-                        <option value="alphabetical" className="bg-gray-800">По алфавиту</option>
-                        <option value="products" className="bg-gray-800">По товарам</option>
-                      </select>
-                      <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                    </div>
+                    <CustomSelect
+                      value={sortBy}
+                      onChange={(value) => setSortBy(value as SortOption)}
+                      options={[
+                        { value: 'popular', label: 'По популярности' },
+                        { value: 'alphabetical', label: 'По алфавиту' },
+                        { value: 'products', label: 'По товарам' }
+                      ]}
+                      icon={<BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
+                      className="text-sm"
+                    />
                   </div>
 
                   <button
@@ -955,19 +954,17 @@ export default function CategoriesPage() {
                   <h3 className="text-sm font-medium text-gray-300">Сортировка</h3>
                   <div className="flex items-center space-x-2">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
-                        <BarsArrowUpIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as SortOption)}
-                          className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                        >
-                          <option value="popular" className="bg-gray-800">По популярности</option>
-                          <option value="alphabetical" className="bg-gray-800">По алфавиту</option>
-                          <option value="products" className="bg-gray-800">По товарам</option>
-                        </select>
-                        <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                      </div>
+                      <CustomSelect
+                        value={sortBy}
+                        onChange={(value) => setSortBy(value as SortOption)}
+                        options={[
+                          { value: 'popular', label: 'По популярности' },
+                          { value: 'alphabetical', label: 'По алфавиту' },
+                          { value: 'products', label: 'По товарам' }
+                        ]}
+                        icon={<BarsArrowUpIcon className="h-4 w-4" />}
+                        className="text-sm"
+                      />
                     </div>
                     <button
                       onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -1052,27 +1049,29 @@ export default function CategoriesPage() {
 
         {/* Categories Tree */}
         <div className="space-y-3">
-        {categoryTree.length === 0 ? (
-          <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
-            <TagIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-300 mb-2">
-              {searchTerm ? 'Категории не найдены' : 'Нет категорий'}
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm ? 'Попробуйте изменить критерии поиска' : 'Создайте первую категорию для начала работы'}
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={openCreateModal}
-                className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200"
-              >
-                Создать категорию
-              </button>
-            )}
-          </div>
-        ) : (
-          categoryTree.map(category => renderCategoryRow(category))
-        )}
+          {categoryTree.length === 0 ? (
+            <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
+              <TagIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-300 mb-2">
+                {searchTerm ? 'Категории не найдены' : 'Нет категорий'}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm ? 'Попробуйте изменить критерии поиска' : 'Создайте первую категорию для начала работы'}
+              </p>
+              {!searchTerm && (
+                <button
+                  onClick={openCreateModal}
+                  className="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200"
+                >
+                  Создать категорию
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {categoryTree.map(category => renderCategoryRow(category))}
+            </div>
+          )}
         </div>
 
         {/* Pagination with Sort Indicator */}
@@ -1316,18 +1315,19 @@ export default function CategoriesPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Родительская категория
                   </label>
-                  <select
+                  <CustomSelect
                     value={formData.parentId || ''}
-                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value || null })}
-                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Нет (корневая категория)</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, parentId: value || null })}
+                    options={[
+                      { value: '', label: 'Нет (корневая категория)' },
+                      ...categories.map(cat => ({
+                        value: cat.id,
+                        label: cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name
+                      }))
+                    ]}
+                    placeholder="Выберите родительскую категорию"
+                    icon={<TagIcon className="h-4 w-4" />}
+                  />
                 </div>
 
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
@@ -1415,20 +1415,21 @@ export default function CategoriesPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Родительская категория
                   </label>
-                  <select
+                  <CustomSelect
                     value={formData.parentId || ''}
-                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value || null })}
-                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="">Нет (корневая категория)</option>
-                    {categories
-                      .filter(cat => cat.id !== editingCategory.id) // Исключаем саму категорию
-                      .map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name}
-                        </option>
-                      ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, parentId: value || null })}
+                    options={[
+                      { value: '', label: 'Нет (корневая категория)' },
+                      ...categories
+                        .filter(cat => cat.id !== editingCategory.id) // Исключаем саму категорию
+                        .map(cat => ({
+                          value: cat.id,
+                          label: cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name
+                        }))
+                    ]}
+                    placeholder="Выберите родительскую категорию"
+                    icon={<TagIcon className="h-4 w-4" />}
+                  />
                 </div>
 
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
