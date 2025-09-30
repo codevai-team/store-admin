@@ -81,7 +81,7 @@ export default function MobileProductCard({
 
   return (
     <div 
-      className="bg-gray-800/50 border border-gray-700/50 rounded-xl hover:bg-gray-800/70 transition-all duration-200 cursor-pointer group relative z-10"
+      className="border border-gray-700/50 rounded-xl hover:bg-gray-800/70 transition-all duration-200 cursor-pointer group relative z-10"
       onClick={() => onView(product)}
     >
       <div className="p-4">

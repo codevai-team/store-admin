@@ -1011,23 +1011,24 @@ export default function ProductsPage() {
               )}
             </div>
           ) : (
-            paginatedProducts.map(product => (
-              <div key={product.id}>
-                {/* Mobile Layout */}
-                <div className="lg:hidden">
-                  <MobileProductCard
-                    product={product}
-                    onView={openMobileViewModal}
-                    sellers={sellers}
-                  />
-                </div>
+            <div className="space-y-3">
+              {paginatedProducts.map(product => (
+                <div key={product.id}>
+                  {/* Mobile Layout */}
+                  <div className="lg:hidden">
+                    <MobileProductCard
+                      product={product}
+                      onView={openMobileViewModal}
+                      sellers={sellers}
+                    />
+                  </div>
 
-                {/* Desktop Layout */}
-                <div className="hidden lg:block p-4">
-                <div 
-                  className="flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-gray-700/30 rounded-lg p-2 -m-2 transition-colors duration-200"
-                  onClick={() => openViewModal(product)}
-                >
+                  {/* Desktop Layout */}
+                  <div className="hidden lg:block">
+                    <div 
+                      className="flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-gray-700/30 rounded-lg p-4 transition-colors duration-200 border border-gray-700/50"
+                      onClick={() => openViewModal(product)}
+                    >
                   <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
                     {/* Product Image */}
                       <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg overflow-hidden">
@@ -1156,7 +1157,8 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
-            ))
+            ))}
+            </div>
           )}
         </div>
 
