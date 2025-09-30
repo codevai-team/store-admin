@@ -78,7 +78,7 @@ export async function GET(request: Request) {
 
     // Строим условия сортировки
     const orderBy: any = {};
-    orderBy.createdAt = sortOrder;
+    orderBy[sortBy] = sortOrder;
 
     // Получаем заказы с подсчетом общего количества и статистики
     const [orders, totalCount, stats] = await Promise.all([

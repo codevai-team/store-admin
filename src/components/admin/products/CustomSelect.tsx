@@ -89,7 +89,11 @@ export default function CustomSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600/50 rounded-lg shadow-xl max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full bg-gray-800 border border-gray-600/50 rounded-lg shadow-xl max-h-60 overflow-auto
+          mt-1 lg:mt-1
+          -mt-1 sm:-mt-1
+          bottom-full lg:bottom-auto lg:top-full
+        ">
           {options.map((option, index) => (
             <button
               key={`${option.value}-${index}`}

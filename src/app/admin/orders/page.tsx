@@ -364,6 +364,22 @@ export default function OrdersPage() {
     setTempDateTo('');
   };
 
+  // Обновление выбранного заказа
+  const updateSelectedOrder = useCallback(async () => {
+    if (!selectedOrder) return;
+    
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Updated order data:', data); // Для отладки
+        setSelectedOrder(data);
+      }
+    } catch (error) {
+      console.error('Error updating selected order:', error);
+    }
+  }, [selectedOrder]);
+
   // Загрузка заказов
   const fetchOrders = useCallback(async (isInitialLoad = false) => {
     try {
@@ -381,7 +397,7 @@ export default function OrdersPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
-        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy,
+        sortBy: sortBy === 'newest' ? 'updatedAt' : sortBy,
         sortOrder,
         ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
         ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
@@ -527,6 +543,7 @@ export default function OrdersPage() {
 
       if (response.ok) {
         await fetchOrders();
+        await updateSelectedOrder();
         closeCourierEditModal();
         showSuccess('Курьер обновлен', 'Курьер заказа успешно изменен');
       } else {
@@ -577,6 +594,7 @@ export default function OrdersPage() {
 
       if (response.ok) {
         await fetchOrders();
+        await updateSelectedOrder();
         closeAdminCommentEditModal();
         showSuccess('Комментарий обновлен', 'Комментарий админа успешно сохранен');
       } else {
@@ -679,6 +697,7 @@ export default function OrdersPage() {
 
       if (response.ok) {
         await fetchOrders();
+        await updateSelectedOrder();
         closeModals();
         showSuccess('Заказ обновлен', 'Изменения успешно сохранены');
       } else {
@@ -711,6 +730,7 @@ export default function OrdersPage() {
 
       if (response.ok) {
         await fetchOrders();
+        await updateSelectedOrder();
         closeCourierModal();
         showSuccess('Заказ передан курьерам', 'Статус заказа изменен на &ldquo;Ожидает курьера&rdquo;');
       } else {
@@ -743,6 +763,7 @@ export default function OrdersPage() {
 
       if (response.ok) {
         await fetchOrders();
+        await updateSelectedOrder();
         closeCancelCommentModal();
         showSuccess('Заказ отменен', 'Статус заказа изменен на &ldquo;Отменен&rdquo;');
       } else {
@@ -2073,15 +2094,15 @@ export default function OrdersPage() {
                         </span>
                       </div>
                       <div className="space-y-3">
-                        {selectedOrder.orderItems.map((item, index) => (
+                        {selectedOrder.orderItems && selectedOrder.orderItems.length > 0 ? selectedOrder.orderItems.map((item, index) => (
                           <div key={item.id} className={`flex items-center space-x-4 p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 ${
-                            index !== selectedOrder.orderItems.length - 1 ? 'border-b border-gray-700/30' : ''
+                            index !== (selectedOrder.orderItems?.length || 0) - 1 ? 'border-b border-gray-700/30' : ''
                           }`}>
                             <div className="flex-shrink-0 w-14 h-14 bg-gray-700/50 rounded-xl overflow-hidden">
-                              {item.product.imageUrl && Array.isArray(item.product.imageUrl) && item.product.imageUrl.length > 0 ? (
+                              {item.product?.imageUrl && Array.isArray(item.product.imageUrl) && item.product.imageUrl.length > 0 ? (
                                 <Image 
                                   src={item.product.imageUrl[0]} 
-                                  alt={item.product.name}
+                                  alt={item.product?.name || 'Товар'}
                                   width={56}
                                   height={56}
                                   className="w-full h-full object-cover"
@@ -2094,8 +2115,8 @@ export default function OrdersPage() {
                             </div>
                             
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-white text-sm truncate">{item.product.name}</h4>
-                              <p className="text-xs text-gray-400 mb-1">{item.product.category.name}</p>
+                              <h4 className="font-medium text-white text-sm truncate">{item.product?.name || 'Товар не найден'}</h4>
+                              <p className="text-xs text-gray-400 mb-1">{item.product?.category?.name || 'Категория не указана'}</p>
                               <div className="flex items-center space-x-3 text-xs">
                                 {item.size && (
                                   <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
@@ -2109,7 +2130,7 @@ export default function OrdersPage() {
                                   </span>
                                 )}
                                 <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
-                                  Продавец: {item.product.seller.fullname}
+                                  Продавец: {item.product.seller?.fullname || 'Не указан'}
                                 </span>
                               </div>
                             </div>
@@ -2123,7 +2144,12 @@ export default function OrdersPage() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        )) : (
+                          <div className="text-center py-8 text-gray-400">
+                            <ShoppingBagIcon className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                            <p>Товары не найдены</p>
+                          </div>
+                        )}
                         
                         {/* Total */}
                         <div className="border-t border-gray-700/30 pt-3 mt-3">

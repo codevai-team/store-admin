@@ -843,7 +843,7 @@ export default function CategoriesPage() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative overflow-visible z-10">
           <div className="space-y-4">
             {/* Search and Sort Row */}
             <div className="flex flex-row gap-3">
@@ -945,7 +945,7 @@ export default function CategoriesPage() {
             </div>
 
             {/* Mobile Filters - Collapsible */}
-            <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-hidden ${
+            <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-visible relative z-20 ${
               isMobileFiltersOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
             }`}>
               <div className="space-y-4 pt-4 border-t border-gray-700/50">
