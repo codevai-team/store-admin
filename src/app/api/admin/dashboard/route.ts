@@ -10,11 +10,19 @@ export async function GET() {
     let totalOrders = 0;
     let totalRevenue = 0;
     let pendingOrders = 0;
+    let totalUsers = 0;
+    let totalCategories = 0;
+    let activeProducts = 0;
+    let totalCouriers = 0;
+    let totalSellers = 0;
     let recentOrders: any[] = [];
 
     try {
-      // Основные счетчики - убираем isActive, так как в схеме БД этого поля нет
+      // Основные счетчики
       totalProducts = await prisma.product.count();
+      activeProducts = await prisma.product.count({
+        where: { status: 'ACTIVE' }
+      });
     } catch (error) {
       console.log('Products count error:', error);
     }
@@ -26,19 +34,25 @@ export async function GET() {
     }
 
     try {
-      // Подсчитываем общую выручку через orderItems (так как totalPrice нет в Order)
-      const revenueResult = await prisma.orderItem.aggregate({
-        _sum: { 
-          price: true 
-        },
-        where: {
-          order: {
-            status: { in: ['DELIVERED'] } // используем правильные статусы из enum
-          }
-        }
+      totalUsers = await prisma.user.count();
+      totalCouriers = await prisma.user.count({
+        where: { role: 'COURIER', status: 'ACTIVE' }
       });
-      
-      // Также нужно учесть количество товаров
+      totalSellers = await prisma.user.count({
+        where: { role: 'SELLER', status: 'ACTIVE' }
+      });
+    } catch (error) {
+      console.log('Users count error:', error);
+    }
+
+    try {
+      totalCategories = await prisma.category.count();
+    } catch (error) {
+      console.log('Categories count error:', error);
+    }
+
+    try {
+      // Подсчитываем общую выручку через orderItems
       const orderItemsForRevenue = await prisma.orderItem.findMany({
         where: {
           order: {
@@ -61,7 +75,7 @@ export async function GET() {
     try {
       // Используем правильный статус из enum
       pendingOrders = await prisma.order.count({ 
-        where: { status: 'CREATED' } // CREATED = pending в нашей схеме
+        where: { status: 'CREATED' }
       });
     } catch (error) {
       console.log('Pending orders error:', error);
@@ -75,9 +89,12 @@ export async function GET() {
         include: {
           orderItems: {
             include: {
-              product: true
+              product: true,
+              color: true,
+              size: true
             }
-          }
+          },
+          courier: true
         }
       });
     } catch (error) {
@@ -120,6 +137,38 @@ export async function GET() {
         { date: '05.12', orders: 4, revenue: 12000 },
         { date: '06.12', orders: 6, revenue: 18000 },
         { date: '07.12', orders: 8, revenue: 24000 }
+      ],
+      userStats: [
+        { role: 'Продавцы', count: 12, active: 10 },
+        { role: 'Курьеры', count: 8, active: 6 },
+        { role: 'Администраторы', count: 2, active: 2 }
+      ],
+      courierPerformance: [
+        { name: 'Иван Петров', delivered: 45, revenue: 135000, rating: 4.8 },
+        { name: 'Мария Сидорова', delivered: 38, revenue: 114000, rating: 4.6 },
+        { name: 'Алексей Козлов', delivered: 32, revenue: 96000, rating: 4.4 }
+      ],
+      productInsights: {
+        totalColors: 15,
+        totalSizes: 8,
+        averagePrice: 2500,
+        lowStockProducts: 3,
+        topSellingColors: [
+          { color: 'Черный', count: 45 },
+          { color: 'Белый', count: 38 },
+          { color: 'Синий', count: 32 }
+        ],
+        topSellingSizes: [
+          { size: 'M', count: 52 },
+          { size: 'L', count: 48 },
+          { size: 'S', count: 35 }
+        ]
+      },
+      recentActivity: [
+        { type: 'order', message: 'Новый заказ #ORD-001', time: '2 мин назад' },
+        { type: 'product', message: 'Добавлен товар "Платье летнее"', time: '15 мин назад' },
+        { type: 'user', message: 'Зарегистрирован новый продавец', time: '1 час назад' },
+        { type: 'order', message: 'Заказ #ORD-002 доставлен', time: '2 часа назад' }
       ]
     };
 
@@ -260,16 +309,22 @@ export async function GET() {
         totalOrders: totalOrders || 89,
         totalRevenue: totalRevenue || 267500,
         pendingOrders: pendingOrders || 5,
-        revenueChange: 12.5,
-        ordersChange: 8.3,
-        productsChange: 5.1
+        totalUsers: totalUsers || 22,
+        totalCategories: totalCategories || 8,
+        activeProducts: activeProducts || 120,
+        totalCouriers: totalCouriers || 6,
+        totalSellers: totalSellers || 10
       },
       charts: hasRealData ? {
         monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
         topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
         categories: categories.length > 0 ? categories : mockData.categories,
         orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
-        dailyOrders: mockData.dailyOrders // пока оставляем демо-данные для дневной статистики
+        dailyOrders: mockData.dailyOrders,
+        userStats: mockData.userStats,
+        courierPerformance: mockData.courierPerformance,
+        productInsights: mockData.productInsights,
+        recentActivity: mockData.recentActivity
       } : mockData,
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
         // Подсчитываем общую стоимость заказа через orderItems
@@ -279,12 +334,13 @@ export async function GET() {
         
         return {
           id: order.id,
-          orderNumber: `ORD-${order.id.slice(-6).toUpperCase()}`, // генерируем номер заказа
+          orderNumber: `ORD-${order.id.slice(-6).toUpperCase()}`,
           customerName: order.customerName,
           totalPrice: totalPrice,
           status: order.status,
           createdAt: order.createdAt,
-          itemsCount: order.orderItems?.length || 0
+          itemsCount: order.orderItems?.length || 0,
+          courierName: order.courier?.fullname || null
         };
       }) : [
         {
@@ -292,27 +348,30 @@ export async function GET() {
           orderNumber: 'ORD-001',
           customerName: 'Анна Иванова',
           totalPrice: 4500,
-          status: 'paid',
+          status: 'DELIVERED',
           createdAt: new Date().toISOString(),
-          itemsCount: 2
+          itemsCount: 2,
+          courierName: 'Иван Петров'
         },
         {
           id: '2',
           orderNumber: 'ORD-002',
           customerName: 'Мария Петрова',
           totalPrice: 3200,
-          status: 'shipped',
+          status: 'ENROUTE',
           createdAt: new Date(Date.now() - 3600000).toISOString(),
-          itemsCount: 1
+          itemsCount: 1,
+          courierName: 'Мария Сидорова'
         },
         {
           id: '3',
           orderNumber: 'ORD-003',
           customerName: 'Елена Сидорова',
           totalPrice: 5600,
-          status: 'pending',
+          status: 'CREATED',
           createdAt: new Date(Date.now() - 7200000).toISOString(),
-          itemsCount: 3
+          itemsCount: 3,
+          courierName: null
         }
       ]
     });
@@ -327,9 +386,11 @@ export async function GET() {
         totalOrders: 89,
         totalRevenue: 267500,
         pendingOrders: 5,
-        revenueChange: 12.5,
-        ordersChange: 8.3,
-        productsChange: 5.1
+        totalUsers: 22,
+        totalCategories: 8,
+        activeProducts: 120,
+        totalCouriers: 6,
+        totalSellers: 10
       },
       charts: {
         monthlyRevenue: [

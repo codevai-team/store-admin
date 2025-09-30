@@ -6,7 +6,10 @@ import {
   ShoppingBagIcon, 
   CurrencyDollarIcon,
   ClockIcon,
-  ArrowTrendingUpIcon
+  ArrowTrendingUpIcon,
+  UserGroupIcon,
+  TagIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import StatCard from '@/components/admin/dashboard/StatCard';
@@ -14,6 +17,11 @@ import RevenueChart from '@/components/admin/dashboard/RevenueChart';
 import OrderStatusChart from '@/components/admin/dashboard/OrderStatusChart';
 import TopProductsChart from '@/components/admin/dashboard/TopProductsChart';
 import RecentOrders from '@/components/admin/dashboard/RecentOrders';
+import UserStatsChart from '@/components/admin/dashboard/UserStatsChart';
+import CourierPerformanceChart from '@/components/admin/dashboard/CourierPerformanceChart';
+import ProductInsightsChart from '@/components/admin/dashboard/ProductInsightsChart';
+import RecentActivityChart from '@/components/admin/dashboard/RecentActivityChart';
+import DailyOrdersChart from '@/components/admin/dashboard/DailyOrdersChart';
 
 interface DashboardData {
   overview: {
@@ -21,9 +29,11 @@ interface DashboardData {
     totalOrders: number;
     totalRevenue: number;
     pendingOrders: number;
-    revenueChange: number;
-    ordersChange: number;
-    productsChange: number;
+    totalUsers: number;
+    totalCategories: number;
+    activeProducts: number;
+    totalCouriers: number;
+    totalSellers: number;
   };
   charts: {
     monthlyRevenue: Array<{ month: string; revenue: number; orders: number }>;
@@ -31,6 +41,17 @@ interface DashboardData {
     categories: Array<{ name: string; products: number; orders: number; revenue: number }>;
     orderStatus: Array<{ status: string; count: number; revenue: number }>;
     dailyOrders: Array<{ date: string; orders: number; revenue: number }>;
+    userStats: Array<{ role: string; count: number; active: number }>;
+    courierPerformance: Array<{ name: string; delivered: number; revenue: number; rating: number }>;
+    productInsights: {
+      totalColors: number;
+      totalSizes: number;
+      averagePrice: number;
+      lowStockProducts: number;
+      topSellingColors: Array<{ color: string; count: number }>;
+      topSellingSizes: Array<{ size: string; count: number }>;
+    };
+    recentActivity: Array<{ type: string; message: string; time: string }>;
   };
   recentOrders: Array<{
     id: string;
@@ -40,6 +61,7 @@ interface DashboardData {
     status: string;
     createdAt: string;
     itemsCount: number;
+    courierName?: string | null;
   }>;
 }
 
@@ -118,31 +140,28 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Overview Stats */}
+        {/* Overview Stats - Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Общий доход"
             value={formatCurrency(data.overview.totalRevenue)}
-            change={data.overview.revenueChange}
             icon={<CurrencyDollarIcon className="h-6 w-6" />}
             color="green"
-            trend="up"
+            trend="neutral"
           />
           <StatCard
             title="Всего заказов"
             value={data.overview.totalOrders}
-            change={data.overview.ordersChange}
             icon={<ShoppingBagIcon className="h-6 w-6" />}
             color="blue"
-            trend="up"
+            trend="neutral"
           />
           <StatCard
             title="Активных товаров"
-            value={data.overview.totalProducts}
-            change={data.overview.productsChange}
+            value={data.overview.activeProducts}
             icon={<CubeIcon className="h-6 w-6" />}
             color="purple"
-            trend="up"
+            trend="neutral"
           />
           <StatCard
             title="Ожидают обработки"
@@ -153,43 +172,63 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Charts Row 1 */}
+        {/* Overview Stats - Row 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Всего пользователей"
+            value={data.overview.totalUsers}
+            icon={<UserGroupIcon className="h-6 w-6" />}
+            color="indigo"
+            trend="neutral"
+          />
+          <StatCard
+            title="Курьеры"
+            value={data.overview.totalCouriers}
+            icon={<ShoppingBagIcon className="h-6 w-6" />}
+            color="green"
+            trend="neutral"
+          />
+          <StatCard
+            title="Продавцы"
+            value={data.overview.totalSellers}
+            icon={<UserGroupIcon className="h-6 w-6" />}
+            color="blue"
+            trend="neutral"
+          />
+          <StatCard
+            title="Категории"
+            value={data.overview.totalCategories}
+            icon={<TagIcon className="h-6 w-6" />}
+            color="purple"
+            trend="neutral"
+          />
+        </div>
+
+        {/* Charts Row 1 - Main Analytics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RevenueChart data={data.charts.monthlyRevenue} />
           <OrderStatusChart data={data.charts.orderStatus} />
         </div>
 
-        {/* Charts Row 2 */}
+        {/* Charts Row 2 - Products & Daily Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <TopProductsChart data={data.charts.topProducts} />
-          
-          {/* Daily Performance */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Сегодня</h3>
-                <p className="text-sm text-gray-400">Показатели дня</p>
-              </div>
-              <ArrowTrendingUpIcon className="h-6 w-6 text-green-400" />
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-gray-700/30 rounded-lg">
-                <span className="text-gray-300 font-medium">Новые заказы</span>
-                <span className="text-white font-bold text-xl">
-                  {data.charts.dailyOrders.length > 0 ? data.charts.dailyOrders[data.charts.dailyOrders.length - 1].orders : 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gray-700/30 rounded-lg">
-                <span className="text-gray-300 font-medium">Доход за день</span>
-                <span className="text-white font-bold text-xl">
-                  {data.charts.dailyOrders.length > 0 ? formatCurrency(data.charts.dailyOrders[data.charts.dailyOrders.length - 1].revenue) : '₽0'}
-                </span>
-              </div>
-            </div>
-          </div>
+          <DailyOrdersChart data={data.charts.dailyOrders} />
         </div>
 
-        {/* Charts Row 3 */}
+        {/* Charts Row 3 - User Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <UserStatsChart data={data.charts.userStats} />
+          <CourierPerformanceChart data={data.charts.courierPerformance} />
+        </div>
+
+        {/* Charts Row 4 - Product Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ProductInsightsChart data={data.charts.productInsights} />
+          <RecentActivityChart data={data.charts.recentActivity} />
+        </div>
+
+        {/* Charts Row 5 - Recent Orders & Categories */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Top Categories */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
@@ -198,15 +237,19 @@ export default function Dashboard() {
                 <h3 className="text-lg font-semibold text-white">Топ категории</h3>
                 <p className="text-sm text-gray-400">По количеству товаров</p>
               </div>
+              <ChartBarIcon className="h-6 w-6 text-purple-400" />
             </div>
             <div className="space-y-4">
-              {data.charts.categories.slice(0, 3).map((category, index) => (
+              {data.charts.categories.slice(0, 5).map((category, index) => (
                 <div key={category.name} className="flex justify-between items-center p-3 bg-gray-700/30 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
                     <span className="text-gray-300 font-medium">{category.name}</span>
                   </div>
-                  <span className="text-white font-bold">{category.products}</span>
+                  <div className="text-right">
+                    <div className="text-white font-bold">{category.products}</div>
+                    <div className="text-xs text-gray-400">{formatCurrency(category.revenue)}</div>
+                  </div>
                 </div>
               ))}
             </div>
