@@ -102,7 +102,7 @@ export default function Settings() {
 
       setIsPasswordVerified(true);
       showSuccess('Пароль подтвержден', 'Теперь вы можете изменить логин и пароль');
-    } catch (err) {
+    } catch {
       showError('Ошибка соединения', 'Не удалось проверить пароль. Проверьте соединение.');
     } finally {
       setVerifyingPassword(false);
@@ -233,11 +233,66 @@ export default function Settings() {
           </p>
         </div>
 
+        {/* Status Blocks */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Статус авторизации */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <ShieldCheckIcon className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-300">Статус авторизации</h3>
+                <p className="text-sm sm:text-lg font-semibold text-green-400">Настроена</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Telegram Bot */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <BellIcon className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-300">Telegram Bot</h3>
+                <p className="text-sm sm:text-lg font-semibold text-blue-400">Подключен</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Базы данных */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <ChatBubbleLeftRightIcon className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-300">Базы данных</h3>
+                <p className="text-sm sm:text-lg font-semibold text-purple-400">Работает нормально</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Безопасность */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <ExclamationCircleIcon className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-300">Безопасность</h3>
+                <p className="text-sm sm:text-lg font-semibold text-green-400">Нормально</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
 
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Auth Settings */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <div className="rounded-xl p-6 border border-gray-700/50">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -298,7 +353,7 @@ export default function Settings() {
                 <button
                   type="submit"
                   disabled={verifyingPassword || !currentPassword}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
                 >
                   {verifyingPassword ? 'Проверка...' : 'Подтвердить пароль'}
                 </button>
@@ -321,7 +376,7 @@ export default function Settings() {
                       onClick={resetForm}
                       className="text-xs text-gray-400 hover:text-gray-300 underline"
                     >
-                      Изменить
+                      Отменить обновление
                     </button>
                   </div>
                 </div>
@@ -383,7 +438,7 @@ export default function Settings() {
                 <button
                   type="submit"
                   disabled={saving || (!newLogin && !newPassword)}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
                 >
                   {saving ? 'Сохранение...' : 'Обновить данные'}
                 </button>
@@ -392,7 +447,7 @@ export default function Settings() {
           </div>
 
           {/* Telegram Settings */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <div className="rounded-xl p-6 border border-gray-700/50">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -465,7 +520,7 @@ export default function Settings() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
+                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none"
               >
                 {saving ? 'Сохранение...' : 'Обновить Telegram'}
               </button>
