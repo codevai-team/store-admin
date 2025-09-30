@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import {
   PencilIcon,
@@ -155,6 +155,15 @@ export default function OrdersPage() {
     cancelComment: ''
   });
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Состояние для автоматического обновления (всегда включено)
+  const [lastOrderUpdateTime, setLastOrderUpdateTime] = useState<Date | null>(null);
+  const [isCheckingOrders, setIsCheckingOrders] = useState(false);
+  const lastAddNewOrdersTime = useRef<number>(0);
+  
+  // Состояние для отслеживания видимости страницы
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const [lastPageLeaveTime, setLastPageLeaveTime] = useState<Date | null>(null);
   
   // Новые состояния для модальных окон
   const [courierComment, setCourierComment] = useState('');
@@ -364,6 +373,142 @@ export default function OrdersPage() {
     setTempDateTo('');
   };
 
+  // Проверка пропущенных заказов при возвращении на страницу
+  const checkMissedOrders = useCallback(async () => {
+    if (!lastPageLeaveTime || !lastOrderUpdateTime) {
+      console.log('checkMissedOrders: No leave time or order update time, skipping');
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '50', // Получаем больше заказов для проверки
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+        ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
+        ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
+      });
+
+      const response = await fetch(`/api/admin/orders?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        const missedOrders = data.orders.filter((order: Order) => {
+          const orderUpdateTime = new Date(order.updatedAt);
+          return orderUpdateTime > lastOrderUpdateTime && orderUpdateTime > lastPageLeaveTime;
+        });
+
+        console.log(`checkMissedOrders: Found ${missedOrders.length} missed orders`);
+        
+        if (missedOrders.length > 0) {
+          showSuccess('Пропущенные заказы', `Пока вы были в другом разделе, поступило ${missedOrders.length} новых заказов`);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking missed orders:', error);
+    }
+  }, [lastPageLeaveTime, lastOrderUpdateTime, statusFilter, debouncedSearchTerm, showSuccess]);
+
+  // Проверка новых заказов
+  const checkForNewOrders = useCallback(async () => {
+    if (!lastOrderUpdateTime) {
+      console.log('checkForNewOrders: lastOrderUpdateTime is null, returning true');
+      return true; // Если нет времени последнего обновления, считаем что есть новые заказы
+    }
+    
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '1',
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+        ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
+        ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
+      });
+
+      const response = await fetch(`/api/admin/orders?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        const latestOrder = data.orders[0];
+        
+        if (latestOrder) {
+          const latestUpdateTime = new Date(latestOrder.updatedAt);
+          const hasNew = latestUpdateTime > lastOrderUpdateTime;
+          console.log(`checkForNewOrders: latest=${latestUpdateTime.toISOString()}, last=${lastOrderUpdateTime.toISOString()}, hasNew=${hasNew}`);
+          return hasNew;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new orders:', error);
+    }
+    
+    return false;
+  }, [lastOrderUpdateTime, statusFilter, debouncedSearchTerm]);
+
+  // Добавление только новых заказов
+  const addNewOrders = useCallback(async () => {
+    const now = Date.now();
+    // Предотвращаем вызовы чаще чем раз в 2 секунды
+    if (now - lastAddNewOrdersTime.current < 2000) {
+      console.log('addNewOrders: Skipping - too soon since last call');
+      return;
+    }
+    lastAddNewOrdersTime.current = now;
+    
+    console.log('addNewOrders: Starting to add new orders');
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '10', // Получаем первые 10 заказов
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+        ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
+        ...(debouncedSearchTerm.trim() && { search: debouncedSearchTerm.trim() }),
+      });
+
+      const response = await fetch(`/api/admin/orders?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`addNewOrders: Fetched ${data.orders.length} orders from API`);
+        
+        const newOrders = data.orders.filter((order: Order) => {
+          const orderUpdateTime = new Date(order.updatedAt);
+          const isNew = lastOrderUpdateTime ? orderUpdateTime > lastOrderUpdateTime : true;
+          console.log(`Order ${order.id}: ${orderUpdateTime.toISOString()} > ${lastOrderUpdateTime?.toISOString()} = ${isNew}`);
+          return isNew;
+        });
+
+        console.log(`addNewOrders: Found ${newOrders.length} new orders`);
+
+        if (newOrders.length > 0) {
+          // Сначала проверяем, сколько уникальных заказов будет добавлено
+          setOrders(prevOrders => {
+            const existingIds = new Set(prevOrders.map(order => order.id));
+            const uniqueNewOrders = newOrders.filter((order: Order) => !existingIds.has(order.id));
+            
+            console.log(`addNewOrders: Found ${uniqueNewOrders.length} unique new orders to add`);
+            
+            // Добавляем новые заказы в начало списка
+            return [...uniqueNewOrders, ...prevOrders];
+          });
+          
+          // Обновляем время последнего обновления
+          const latestOrder = data.orders[0];
+          setLastOrderUpdateTime(new Date(latestOrder.updatedAt));
+          
+          // Показываем уведомление для всех найденных новых заказов
+          // (так как мы уже отфильтровали их по времени)
+          console.log(`addNewOrders: Showing notification for ${newOrders.length} orders`);
+          showSuccess('Новые заказы', `Добавлено ${newOrders.length} новых заказов`);
+        } else {
+          console.log('addNewOrders: No new orders found');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding new orders:', error);
+    }
+  }, [lastOrderUpdateTime, statusFilter, debouncedSearchTerm, showSuccess]);
+
   // Обновление выбранного заказа
   const updateSelectedOrder = useCallback(async () => {
     if (!selectedOrder) return;
@@ -418,6 +563,12 @@ export default function OrdersPage() {
           COMPLETED: 0,
           CANCELLED: 0
         });
+        
+        // Обновляем время последнего обновления заказов
+        if (data.orders.length > 0) {
+          const latestOrder = data.orders[0];
+          setLastOrderUpdateTime(new Date(latestOrder.updatedAt));
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -454,6 +605,78 @@ export default function OrdersPage() {
       setCurrentPage(1);
     }
   }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder, currentPage]);
+
+  // Отслеживание видимости страницы
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Страница стала невидимой
+        console.log('Page became hidden, recording leave time');
+        setIsPageVisible(false);
+        setLastPageLeaveTime(new Date());
+      } else {
+        // Страница стала видимой
+        console.log('Page became visible, checking for missed orders');
+        setIsPageVisible(true);
+        
+        // Проверяем пропущенные заказы при возвращении на страницу
+        setTimeout(() => {
+          checkMissedOrders();
+        }, 1000); // Небольшая задержка для стабилизации
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkMissedOrders]);
+
+  // Автоматическое обновление заказов каждые 5 секунд
+  useEffect(() => {
+    if (!isPageVisible) return;
+
+    const interval = setInterval(async () => {
+      // Предотвращаем одновременные вызовы
+      if (isCheckingOrders) return;
+      
+      // Проверяем, что нет открытых модальных окон
+      const hasOpenModals = isEditModalOpen || isViewModalOpen || isCourierModalOpen || 
+                           isCancelWarningModalOpen || isCancelCommentModalOpen || 
+                           isCourierEditModalOpen || isAdminCommentEditModalOpen || 
+                           isAdminCommentViewModalOpen || isCustomerCommentModalOpen || 
+                           isCancelReasonModalOpen;
+      
+      if (!hasOpenModals) {
+        setIsCheckingOrders(true);
+        
+        try {
+          console.log('Auto refresh: Checking for new orders...');
+          // Сначала проверяем, есть ли новые заказы
+          const hasNewOrders = await checkForNewOrders();
+          console.log(`Auto refresh: hasNewOrders = ${hasNewOrders}`);
+          
+          if (hasNewOrders) {
+            // Если есть новые заказы, добавляем только их
+            console.log('Auto refresh: Adding new orders...');
+            await addNewOrders();
+          } else {
+            console.log('Auto refresh: No new orders found');
+          }
+        } finally {
+          setIsCheckingOrders(false);
+        }
+      } else {
+        console.log('Auto refresh: Skipping due to open modals');
+      }
+    }, 5000); // 5 секунд
+
+    return () => clearInterval(interval);
+  }, [isPageVisible, isEditModalOpen, isViewModalOpen, isCourierModalOpen, 
+      isCancelWarningModalOpen, isCancelCommentModalOpen, isCourierEditModalOpen, 
+      isAdminCommentEditModalOpen, isAdminCommentViewModalOpen, isCustomerCommentModalOpen, 
+      isCancelReasonModalOpen, isCheckingOrders, checkForNewOrders, addNewOrders]);
 
   // Клавиатурные сокращения и обработка кликов вне элементов
   useEffect(() => {
@@ -972,7 +1195,13 @@ export default function OrdersPage() {
         <div className="bg-gradient-to-r from-gray-800/60 to-gray-700/60 backdrop-blur-sm rounded-xl p-6 border border-gray-600/50">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Заказы</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold text-white">Заказы</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>Автообновление</span>
+                </div>
+              </div>
               <p className="text-gray-300">Управление заказами клиентов</p>
             </div>
             
