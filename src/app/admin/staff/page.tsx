@@ -28,6 +28,7 @@ import {
   ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
+import CustomSelect from '@/components/admin/products/CustomSelect';
 
 interface User {
   id: string;
@@ -397,7 +398,7 @@ export default function StaffPage() {
         {/* Mobile Layout */}
         <div className="lg:hidden">
           <div 
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            className="border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
             onClick={() => openViewModal(user)}
           >
             <div className="flex items-start justify-between gap-3">
@@ -482,7 +483,7 @@ export default function StaffPage() {
         {/* Desktop Layout */}
         <div className="hidden lg:block">
           <div 
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
+            className="border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200 cursor-pointer"
             onClick={() => openViewModal(user)}
           >
             <div className="flex items-center justify-between gap-3">
@@ -647,21 +648,13 @@ export default function StaffPage() {
                 {/* Desktop Sort Controls - Hidden on mobile/tablet */}
                 <div className="hidden lg:flex items-center space-x-2">
                   <div className="min-w-[200px]">
-                    <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
-                      <BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortOption)}
-                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                      >
-                        {getSortOptions().map(option => (
-                          <option key={option.value} value={option.value} className="bg-gray-800">
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                    </div>
+                    <CustomSelect
+                      value={sortBy}
+                      onChange={(value) => setSortBy(value as SortOption)}
+                      options={getSortOptions()}
+                      icon={<BarsArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
+                      className="text-sm"
+                    />
                   </div>
 
                   <button
@@ -687,39 +680,33 @@ export default function StaffPage() {
             <div className="hidden lg:flex flex-col lg:flex-row gap-3">
               {/* Role Filter */}
               <div className="min-w-[200px]">
-                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                  <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                  >
-                    <option value="" className="bg-gray-800">Все роли</option>
-                    <option value="SELLER" className="bg-gray-800">Продавцы</option>
-                    <option value="COURIER" className="bg-gray-800">Курьеры</option>
-                  </select>
-                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                </div>
+                <CustomSelect
+                  value={roleFilter}
+                  onChange={(value) => setRoleFilter(value)}
+                  options={[
+                    { value: '', label: 'Все роли' },
+                    { value: 'SELLER', label: 'Продавцы' },
+                    { value: 'COURIER', label: 'Курьеры' }
+                  ]}
+                  icon={<FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  className="text-sm"
+                />
               </div>
 
               {/* Status Filter */}
               <div className="min-w-[200px]">
-                <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                  <div className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  </div>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                  >
-                    <option value="" className="bg-gray-800">Активные</option>
-                    <option value="INACTIVE" className="bg-gray-800">Неактивные</option>
-                    <option value="DELETED" className="bg-gray-800">Удаленные</option>
-                    <option value="ALL" className="bg-gray-800">Все статусы</option>
-                  </select>
-                  <ChevronUpDownIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                </div>
+                <CustomSelect
+                  value={statusFilter}
+                  onChange={(value) => setStatusFilter(value)}
+                  options={[
+                    { value: '', label: 'Активные' },
+                    { value: 'INACTIVE', label: 'Неактивные' },
+                    { value: 'DELETED', label: 'Удаленные' },
+                    { value: 'ALL', label: 'Все статусы' }
+                  ]}
+                  icon={<div className="w-2 h-2 bg-gray-400 rounded-full"></div>}
+                  className="text-sm"
+                />
               </div>
             </div>
 
@@ -733,21 +720,13 @@ export default function StaffPage() {
                   <h3 className="text-sm font-medium text-gray-300">Сортировка</h3>
                   <div className="flex items-center space-x-2">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-2 h-10">
-                        <BarsArrowUpIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as SortOption)}
-                          className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                        >
-                          {getSortOptions().map(option => (
-                            <option key={option.value} value={option.value} className="bg-gray-800">
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                      </div>
+                      <CustomSelect
+                        value={sortBy}
+                        onChange={(value) => setSortBy(value as SortOption)}
+                        options={getSortOptions()}
+                        icon={<BarsArrowUpIcon className="h-4 w-4" />}
+                        className="text-sm"
+                      />
                     </div>
                     <button
                       onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -772,19 +751,17 @@ export default function StaffPage() {
                   <h3 className="text-sm font-medium text-gray-300">Фильтры</h3>
                   <div className="grid grid-cols-1 gap-3">
                     {/* Role Filter */}
-                    <div className="flex items-center space-x-2 sm:space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-3 sm:px-4 py-3">
-                      <FunnelIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer min-w-0 flex-1"
-                      >
-                        <option value="" className="bg-gray-800">Все роли</option>
-                        <option value="SELLER" className="bg-gray-800">Продавцы</option>
-                        <option value="COURIER" className="bg-gray-800">Курьеры</option>
-                      </select>
-                      <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                    </div>
+                    <CustomSelect
+                      value={roleFilter}
+                      onChange={(value) => setRoleFilter(value)}
+                      options={[
+                        { value: '', label: 'Все роли' },
+                        { value: 'SELLER', label: 'Продавцы' },
+                        { value: 'COURIER', label: 'Курьеры' }
+                      ]}
+                      icon={<FunnelIcon className="h-4 w-4" />}
+                      className="text-sm"
+                    />
                   </div>
                 </div>
               </div>
@@ -842,7 +819,9 @@ export default function StaffPage() {
               )}
             </div>
           ) : (
-            paginatedUsers.map(user => renderUserCard(user))
+            <div className="space-y-3">
+              {paginatedUsers.map(user => renderUserCard(user))}
+            </div>
           )}
         </div>
 
@@ -1012,14 +991,16 @@ export default function StaffPage() {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Роль
                     </label>
-                    <select
+                    <CustomSelect
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'SELLER' | 'COURIER' })}
-                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    >
-                      <option value="SELLER">Продавец</option>
-                      <option value="COURIER">Курьер</option>
-                    </select>
+                      onChange={(value) => setFormData({ ...formData, role: value as 'SELLER' | 'COURIER' })}
+                      options={[
+                        { value: 'SELLER', label: 'Продавец' },
+                        { value: 'COURIER', label: 'Курьер' }
+                      ]}
+                      placeholder="Выберите роль"
+                      icon={<UsersIcon className="h-4 w-4" />}
+                    />
                   </div>
 
                   <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
@@ -1107,14 +1088,16 @@ export default function StaffPage() {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Роль
                     </label>
-                    <select
+                    <CustomSelect
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'SELLER' | 'COURIER' })}
-                      className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    >
-                      <option value="SELLER">Продавец</option>
-                      <option value="COURIER">Курьер</option>
-                    </select>
+                      onChange={(value) => setFormData({ ...formData, role: value as 'SELLER' | 'COURIER' })}
+                      options={[
+                        { value: 'SELLER', label: 'Продавец' },
+                        { value: 'COURIER', label: 'Курьер' }
+                      ]}
+                      placeholder="Выберите роль"
+                      icon={<UsersIcon className="h-4 w-4" />}
+                    />
                   </div>
 
                   {/* Статус */}
