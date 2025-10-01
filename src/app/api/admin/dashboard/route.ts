@@ -70,6 +70,50 @@ export async function GET(request: Request) {
       // Ошибка подсчета пользователей
     }
 
+    // Получаем статистику пользователей по ролям
+    let userStats: Array<{ role: string; count: number; active: number }> = [];
+    try {
+      const userStatsData = await prisma.user.groupBy({
+        by: ['role', 'status'],
+        _count: {
+          id: true
+        }
+      });
+
+      // Группируем данные по ролям
+      const statsByRole: { [key: string]: { total: number; active: number } } = {};
+      
+      userStatsData.forEach(item => {
+        if (!statsByRole[item.role]) {
+          statsByRole[item.role] = { total: 0, active: 0 };
+        }
+        
+        statsByRole[item.role].total += item._count.id;
+        
+        if (item.status === 'ACTIVE') {
+          statsByRole[item.role].active += item._count.id;
+        }
+      });
+
+      // Преобразуем в нужный формат
+      userStats = Object.entries(statsByRole).map(([role, stats]) => {
+        const roleNames: { [key: string]: string } = {
+          'SELLER': 'Продавцы',
+          'COURIER': 'Курьеры', 
+          'ADMIN': 'Администраторы'
+        };
+        
+        return {
+          role: roleNames[role] || role,
+          count: stats.total,
+          active: stats.active
+        };
+      });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      // Ошибка получения статистики пользователей
+    }
+
     try {
       totalCategories = await prisma.category.count();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -680,7 +724,7 @@ export async function GET(request: Request) {
     }
 
     // Используем реальные данные если есть, иначе демо-данные
-    const hasRealData = totalOrders > 0 || totalProducts > 0;
+    const hasRealData = totalOrders > 0 || totalProducts > 0 || totalUsers > 0;
 
     return NextResponse.json({
       overview: {
@@ -700,7 +744,7 @@ export async function GET(request: Request) {
         categories: categories.length > 0 ? categories : mockData.categories,
         orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
         dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
-        userStats: mockData.userStats,
+        userStats: userStats.length > 0 ? userStats : mockData.userStats,
         courierPerformance: mockData.courierPerformance,
         productInsights: mockData.productInsights,
         recentActivity: mockData.recentActivity
