@@ -48,7 +48,10 @@ interface DashboardData {
       totalColors: number;
       totalSizes: number;
       averagePrice: number;
-      lowStockProducts: number;
+      deliveryCancelRate: {
+        delivered: number;
+        canceled: number;
+      };
       topSellingColors: Array<{ color: string; count: number }>;
       topSellingSizes: Array<{ size: string; count: number }>;
     };

@@ -174,6 +174,116 @@ export async function GET(request: Request) {
       // Ошибка получения статистики курьеров
     }
 
+    // Получаем аналитику товаров
+    let productInsights: {
+      totalColors: number;
+      totalSizes: number;
+      averagePrice: number;
+      deliveryCancelRate: {
+        delivered: number;
+        canceled: number;
+      };
+      topSellingColors: Array<{ color: string; count: number }>;
+      topSellingSizes: Array<{ size: string; count: number }>;
+    } = {
+      totalColors: 0,
+      totalSizes: 0,
+      averagePrice: 0,
+      deliveryCancelRate: { delivered: 0, canceled: 0 },
+      topSellingColors: [],
+      topSellingSizes: []
+    };
+
+    try {
+      // Общее количество цветов и размеров
+      const totalColors = await prisma.color.count();
+      const totalSizes = await prisma.size.count();
+
+      // Средняя цена товаров
+      const avgPriceResult = await prisma.product.aggregate({
+        _avg: {
+          price: true
+        }
+      });
+      const averagePrice = avgPriceResult._avg.price ? Number(avgPriceResult._avg.price) : 0;
+
+      // Проценты доставки и отмены заказов
+      const totalOrders = await prisma.order.count();
+      const deliveredOrders = await prisma.order.count({
+        where: { status: 'DELIVERED' }
+      });
+      const canceledOrders = await prisma.order.count({
+        where: { status: 'CANCELED' }
+      });
+
+      const deliveredPercent = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
+      const canceledPercent = totalOrders > 0 ? Math.round((canceledOrders / totalOrders) * 100) : 0;
+
+      // Популярные цвета из таблицы products (через productColors)
+      const topColorsData = await prisma.productColor.groupBy({
+        by: ['colorId'],
+        _count: {
+          id: true
+        },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
+        take: 3
+      });
+
+      const topSellingColors = await Promise.all(topColorsData.map(async (item) => {
+        const color = await prisma.color.findUnique({
+          where: { id: item.colorId }
+        });
+        return {
+          color: color?.name || 'Неизвестный',
+          count: item._count.id
+        };
+      }));
+
+      // Популярные размеры из таблицы products (через productSizes)
+      const topSizesData = await prisma.productSize.groupBy({
+        by: ['sizeId'],
+        _count: {
+          id: true
+        },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
+        take: 3
+      });
+
+      const topSellingSizes = await Promise.all(topSizesData.map(async (item) => {
+        const size = await prisma.size.findUnique({
+          where: { id: item.sizeId }
+        });
+        return {
+          size: size?.name || 'Неизвестный',
+          count: item._count.id
+        };
+      }));
+
+      productInsights = {
+        totalColors,
+        totalSizes,
+        averagePrice,
+        deliveryCancelRate: {
+          delivered: deliveredPercent,
+          canceled: canceledPercent
+        },
+        topSellingColors,
+        topSellingSizes
+      };
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      // Ошибка получения аналитики товаров
+    }
+
     try {
       totalCategories = await prisma.category.count();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -348,7 +458,10 @@ export async function GET(request: Request) {
         totalColors: 15,
         totalSizes: 8,
         averagePrice: 2500,
-        lowStockProducts: 3,
+        deliveryCancelRate: {
+          delivered: 75,
+          canceled: 25
+        },
         topSellingColors: [
           { color: 'Черный', count: 45 },
           { color: 'Белый', count: 38 },
@@ -806,7 +919,7 @@ export async function GET(request: Request) {
         dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
         userStats: userStats.length > 0 ? userStats : mockData.userStats,
         courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
-        productInsights: mockData.productInsights,
+        productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
         recentActivity: mockData.recentActivity
       } : mockData,
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {

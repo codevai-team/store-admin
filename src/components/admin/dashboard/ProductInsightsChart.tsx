@@ -12,7 +12,10 @@ interface ProductInsightsData {
   totalColors: number;
   totalSizes: number;
   averagePrice: number;
-  lowStockProducts: number;
+  deliveryCancelRate: {
+    delivered: number;
+    canceled: number;
+  };
   topSellingColors: Array<{
     color: string;
     count: number;
@@ -86,9 +89,11 @@ export default function ProductInsightsChart({ data }: ProductInsightsChartProps
         <div className="bg-gray-700/30 rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-2">
             <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-            <span className="text-gray-300 text-sm">Низкий остаток</span>
+            <span className="text-gray-300 text-sm">Доставка/Отмена</span>
           </div>
-          <div className="text-white font-bold text-xl">{data.lowStockProducts}</div>
+          <div className="text-white font-bold text-lg">
+            {data.deliveryCancelRate.delivered}% / {data.deliveryCancelRate.canceled}%
+          </div>
         </div>
       </div>
 
