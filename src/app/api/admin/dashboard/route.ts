@@ -31,18 +31,39 @@ export async function GET(request: Request) {
     let recentOrders: unknown[] = [];
 
     try {
-      // Основные счетчики
+      // Считаем активные товары по полю updatedAt (дате обновления)
+      const productDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
+      // Общее количество товаров не зависит от дат
       totalProducts = await prisma.product.count();
+      
+      // Активные товары считаем по дате обновления
       activeProducts = await prisma.product.count({
-        where: { status: 'ACTIVE' }
+        where: { 
+          status: 'ACTIVE',
+          ...productDateFilter
+        }
       });
     } catch (error) {
       console.log('Products count error:', error);
     }
 
     try {
+      // Считаем заказы по полю updatedAt (дате обновления)
+      const orderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       totalOrders = await prisma.order.count({
-        where: dateFilter
+        where: orderDateFilter
       });
     } catch (error) {
       console.log('Orders count error:', error);
@@ -67,12 +88,19 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Подсчитываем общую выручку через orderItems с учетом фильтра по датам
+      // Подсчитываем общую выручку через orderItems по полю updatedAt заказа
+      const revenueOrderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       const orderItemsForRevenue = await prisma.orderItem.findMany({
         where: {
           order: {
-            status: { in: ['DELIVERED'] },
-            ...dateFilter
+            status: 'DELIVERED',
+            ...revenueOrderDateFilter
           }
         },
         select: {
@@ -89,11 +117,18 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Используем правильный статус из enum с учетом фильтра по датам
+      // Считаем ожидающие заказы по полю updatedAt (дате обновления)
+      const pendingOrderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       pendingOrders = await prisma.order.count({ 
         where: { 
           status: 'CREATED',
-          ...dateFilter
+          ...pendingOrderDateFilter
         }
       });
     } catch (error) {
@@ -101,11 +136,18 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Последние заказы с правильными связями и фильтром по датам
+      // Последние заказы с правильными связями и фильтром по updatedAt
+      const recentOrderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       recentOrders = await prisma.order.findMany({
         take: 5,
-        where: dateFilter,
-        orderBy: { createdAt: 'desc' },
+        where: recentOrderDateFilter,
+        orderBy: { updatedAt: 'desc' },
         include: {
           orderItems: {
             include: {
@@ -211,7 +253,7 @@ export async function GET(request: Request) {
           days.push(new Date(d));
         }
         
-        // Получаем данные по заказам для каждого дня
+        // Получаем данные по заказам для каждого дня по updatedAt
         dailyOrders = await Promise.all(days.map(async (day) => {
           const dayStart = new Date(day);
           dayStart.setHours(0, 0, 0, 0);
@@ -220,7 +262,7 @@ export async function GET(request: Request) {
           
           const dayOrders = await prisma.order.count({
             where: {
-              createdAt: {
+              updatedAt: {
                 gte: dayStart,
                 lte: dayEnd
               }
@@ -230,7 +272,7 @@ export async function GET(request: Request) {
           const dayRevenue = await prisma.orderItem.findMany({
             where: {
               order: {
-                createdAt: {
+                updatedAt: {
                   gte: dayStart,
                   lte: dayEnd
                 },
@@ -256,22 +298,29 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Данные по статусам заказов с учетом фильтра по датам
+      // Данные по статусам заказов с учетом фильтра по updatedAt
+      const statusOrderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       const statusData = await prisma.order.groupBy({
         by: ['status'],
-        where: dateFilter,
+        where: statusOrderDateFilter,
         _count: {
           id: true
         }
       });
 
       orderStatus = await Promise.all(statusData.map(async (item) => {
-        // Получаем общую стоимость для каждого статуса с учетом фильтра по датам
+        // Получаем общую стоимость для каждого статуса с учетом фильтра по updatedAt
         const statusRevenue = await prisma.orderItem.findMany({
           where: {
             order: {
               status: item.status,
-              ...dateFilter
+              ...statusOrderDateFilter
             }
           },
           select: {
@@ -304,11 +353,18 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Топ товары по количеству продаж с учетом фильтра по датам
+      // Топ товары по количеству продаж с учетом фильтра по updatedAt заказа
+      const topProductsOrderDateFilter = startDate && endDate ? {
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {};
+      
       const topProductsData = await prisma.orderItem.groupBy({
         by: ['productId'],
         where: {
-          order: dateFilter
+          order: topProductsOrderDateFilter
         },
         _sum: {
           amount: true
@@ -332,7 +388,7 @@ export async function GET(request: Request) {
         const revenue = await prisma.orderItem.findMany({
           where: { 
             productId: item.productId,
-            order: dateFilter
+            order: topProductsOrderDateFilter
           },
           select: { price: true, amount: true }
         });

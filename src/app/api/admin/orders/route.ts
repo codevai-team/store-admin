@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     
     // Параметры сортировки
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortBy = searchParams.get('sortBy') || 'updatedAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     // Строим условия фильтрации
@@ -62,19 +62,19 @@ export async function GET(request: Request) {
     }
 
     if (dateFrom || dateTo) {
-      where.createdAt = {};
+      where.updatedAt = {};
       if (dateFrom) {
         // Проверяем, содержит ли строка время
         const fromDate = dateFrom.includes('T') ? new Date(dateFrom) : new Date(dateFrom + 'T00:00:00.000Z');
         if (!isNaN(fromDate.getTime())) {
-          where.createdAt.gte = fromDate;
+          where.updatedAt.gte = fromDate;
         }
       }
       if (dateTo) {
         // Проверяем, содержит ли строка время
         const toDate = dateTo.includes('T') ? new Date(dateTo) : new Date(dateTo + 'T23:59:59.999Z');
         if (!isNaN(toDate.getTime())) {
-          where.createdAt.lte = toDate;
+          where.updatedAt.lte = toDate;
         }
       }
     }
@@ -84,7 +84,16 @@ export async function GET(request: Request) {
 
     // Строим условия сортировки
     const orderBy: any = {};
-    orderBy[sortBy] = sortOrder;
+    
+    // Для вычисляемых полей (totalPrice, itemsCount) используем сортировку по умолчанию,
+    // а затем сортируем в JavaScript после получения данных
+    if (sortBy === 'totalPrice' || sortBy === 'itemsCount') {
+      // Используем сортировку по updatedAt по умолчанию для вычисляемых полей
+      orderBy['updatedAt'] = 'desc';
+    } else {
+      // Для обычных полей используем стандартную сортировку
+      orderBy[sortBy] = sortOrder;
+    }
 
     // Получаем заказы с подсчетом общего количества и статистики
     const [orders, totalCount, stats] = await Promise.all([
