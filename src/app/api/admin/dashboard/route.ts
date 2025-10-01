@@ -114,6 +114,66 @@ export async function GET(request: Request) {
       // Ошибка получения статистики пользователей
     }
 
+    // Получаем статистику производительности курьеров
+    let courierPerformance: Array<{ name: string; delivered: number; revenue: number }> = [];
+    try {
+      // Создаем фильтр по датам для доставленных заказов
+      const courierOrderDateFilter = startDate && endDate ? {
+        status: 'DELIVERED' as const,
+        updatedAt: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      } : {
+        status: 'DELIVERED' as const
+      };
+
+      // Получаем всех курьеров с их доставленными заказами в диапазоне дат
+      const couriers = await prisma.user.findMany({
+        where: { 
+          role: 'COURIER',
+          status: 'ACTIVE'
+        },
+        include: {
+          deliveredOrders: {
+            where: courierOrderDateFilter,
+            include: {
+              orderItems: {
+                select: {
+                  price: true,
+                  amount: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Обрабатываем данные для каждого курьера
+      courierPerformance = couriers.map(courier => {
+        const deliveredCount = courier.deliveredOrders.length;
+        
+        // Подсчитываем общую выручку от доставленных заказов
+        const totalRevenue = courier.deliveredOrders.reduce((sum, order) => {
+          const orderRevenue = order.orderItems.reduce((orderSum, item) => {
+            return orderSum + (Number(item.price) * item.amount);
+          }, 0);
+          return sum + orderRevenue;
+        }, 0);
+
+        return {
+          name: courier.fullname,
+          delivered: deliveredCount,
+          revenue: totalRevenue
+        };
+      }).sort((a, b) => b.delivered - a.delivered) // Сортируем по количеству доставок
+        .slice(0, 3); // Показываем топ-3 курьеров
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      // Ошибка получения статистики курьеров
+    }
+
     try {
       totalCategories = await prisma.category.count();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -745,7 +805,7 @@ export async function GET(request: Request) {
         orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
         dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
         userStats: userStats.length > 0 ? userStats : mockData.userStats,
-        courierPerformance: mockData.courierPerformance,
+        courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
         productInsights: mockData.productInsights,
         recentActivity: mockData.recentActivity
       } : mockData,

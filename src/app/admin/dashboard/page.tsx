@@ -43,7 +43,7 @@ interface DashboardData {
     orderStatus: Array<{ status: string; count: number; revenue: number }>;
     dailyOrders: Array<{ date: string; orders: number; revenue: number }>;
     userStats: Array<{ role: string; count: number; active: number }>;
-    courierPerformance: Array<{ name: string; delivered: number; revenue: number; rating: number }>;
+    courierPerformance: Array<{ name: string; delivered: number; revenue: number }>;
     productInsights: {
       totalColors: number;
       totalSizes: number;
@@ -281,7 +281,10 @@ export default function Dashboard() {
         {/* Charts Row 3 - User Analytics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <UserStatsChart data={data.charts.userStats} />
-          <CourierPerformanceChart data={data.charts.courierPerformance} />
+          <CourierPerformanceChart 
+            data={data.charts.courierPerformance} 
+            periodLabel={selectedRange.label}
+          />
         </div>
 
         {/* Charts Row 4 - Product Insights */}
