@@ -104,6 +104,22 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
+  // Функция для форматирования диапазона дат
+  const formatDateRange = (startDate: Date, endDate: Date) => {
+    const formatDateTime = (date: Date) => {
+      return date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) + ' ' + date.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    return `${formatDateTime(startDate)} - ${formatDateTime(endDate)}`;
+  };
+
   const handlePresetClick = (preset: typeof presetRanges[0]) => {
     const { startDate, endDate } = preset.getValue();
     onRangeChange({
@@ -242,7 +258,7 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
         <div className="text-xs text-gray-400 flex items-center justify-between">
           <span>Период:</span>
           <span className="text-white font-medium bg-gray-600/20 px-2 py-1 rounded">
-            {selectedRange.label}
+            {selectedRange.label} ({formatDateRange(selectedRange.startDate, selectedRange.endDate)})
           </span>
         </div>
       </div>

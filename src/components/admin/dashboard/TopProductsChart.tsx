@@ -32,11 +32,11 @@ export default function TopProductsChart({ data }: TopProductsChartProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Топ товары</h3>
-          <p className="text-sm text-gray-400">Самые продаваемые за месяц</p>
+          <p className="text-sm text-gray-400">Топ-10 продаваемых товаров за период</p>
         </div>
       </div>
       
-      <div className="h-80">
+      <div className="h-96">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={formattedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />

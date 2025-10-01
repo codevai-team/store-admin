@@ -209,7 +209,12 @@ export async function GET(request: Request) {
         { name: 'Блузка классическая', sold: 32, revenue: 48000 },
         { name: 'Юбка мини', sold: 28, revenue: 42000 },
         { name: 'Джинсы прямые', sold: 24, revenue: 36000 },
-        { name: 'Топ базовый', sold: 20, revenue: 30000 }
+        { name: 'Топ базовый', sold: 20, revenue: 30000 },
+        { name: 'Кардиган теплый', sold: 18, revenue: 27000 },
+        { name: 'Брюки классические', sold: 15, revenue: 22500 },
+        { name: 'Свитер вязаный', sold: 12, revenue: 18000 },
+        { name: 'Рубашка белая', sold: 10, revenue: 15000 },
+        { name: 'Шорты джинсовые', sold: 8, revenue: 12000 }
       ],
       categories: [
         { name: 'Платья', products: 15, orders: 45, revenue: 135000 },
@@ -574,13 +579,16 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Топ товары по количеству продаж с учетом фильтра по updatedAt заказа
+      // Топ-10 товары по количеству продаж (только доставленные заказы за период)
       const topProductsOrderDateFilter = startDate && endDate ? {
         updatedAt: {
           gte: new Date(startDate),
           lte: new Date(endDate)
-        }
-      } : {};
+        },
+        status: 'DELIVERED'
+      } : {
+        status: 'DELIVERED'
+      };
       
       const topProductsData = await prisma.orderItem.groupBy({
         by: ['productId'],
@@ -598,7 +606,7 @@ export async function GET(request: Request) {
             amount: 'desc'
           }
         },
-        take: 5
+        take: 10
       });
 
       topProducts = await Promise.all(topProductsData.map(async (item) => {
@@ -768,7 +776,12 @@ export async function GET(request: Request) {
           { name: 'Блузка классическая', sold: 32, revenue: 48000 },
           { name: 'Юбка мини', sold: 28, revenue: 42000 },
           { name: 'Джинсы прямые', sold: 24, revenue: 36000 },
-          { name: 'Топ базовый', sold: 20, revenue: 30000 }
+          { name: 'Топ базовый', sold: 20, revenue: 30000 },
+          { name: 'Кардиган теплый', sold: 18, revenue: 27000 },
+          { name: 'Брюки классические', sold: 15, revenue: 22500 },
+          { name: 'Свитер вязаный', sold: 12, revenue: 18000 },
+          { name: 'Рубашка белая', sold: 10, revenue: 15000 },
+          { name: 'Шорты джинсовые', sold: 8, revenue: 12000 }
         ],
         categories: [
           { name: 'Платья', products: 15, orders: 45, revenue: 135000 },
