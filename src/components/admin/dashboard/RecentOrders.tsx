@@ -78,15 +78,15 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-white">Последние заказы</h3>
-          <p className="text-sm text-gray-400">Новые поступления</p>
+          <h3 className="text-base sm:text-lg font-semibold text-white">Последние заказы</h3>
+          <p className="text-xs sm:text-sm text-gray-400">Новые поступления</p>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {orders.length === 0 ? (
           <div className="text-center py-8">
             <ClockIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
@@ -94,8 +94,40 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
           </div>
         ) : (
           orders.slice(0, 4).map((order) => (
-            <div key={order.id} className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200">
-              <div className="flex items-center justify-between">
+            <div key={order.id} className="bg-gray-700/30 rounded-lg p-3 sm:p-4 border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200">
+              {/* Мобильная версия - вертикальная компоновка */}
+              <div className="block sm:hidden">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <UserIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="font-medium text-white truncate">{order.customerName}</span>
+                    </div>
+                    <span className="text-xs text-gray-400">#{order.orderNumber}</span>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)} flex-shrink-0`}>
+                    {getStatusLabel(order.status)}
+                  </span>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-1 text-gray-400">
+                      <CurrencyDollarIcon className="h-4 w-4" />
+                      <span className="font-medium text-white">{formatCurrency(order.totalPrice)}</span>
+                    </div>
+                    <span className="text-gray-400">{order.itemsCount} шт.</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 text-xs text-gray-400">
+                    <ClockIcon className="h-3 w-3" />
+                    <span>{formatDate(order.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Десктопная версия - горизонтальная компоновка */}
+              <div className="hidden sm:flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <div className="flex items-center space-x-2">
@@ -133,9 +165,11 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
         <div className="mt-4 pt-4 border-t border-gray-600/30">
           <button 
             onClick={handleViewAllOrders}
-            className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-200"
+            className="w-full sm:w-auto text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-200 text-center sm:text-left"
           >
-            Посмотреть все заказы →
+            <span className="block sm:inline">Посмотреть все заказы</span>
+            <span className="hidden sm:inline"> →</span>
+            <span className="block sm:hidden text-xs mt-1 opacity-75">Нажмите для перехода к полному списку</span>
           </button>
         </div>
       )}
