@@ -3,8 +3,21 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Получаем параметры фильтрации по датам из URL
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
+    // Создаем фильтр по датам если параметры переданы
+    const dateFilter = startDate && endDate ? {
+      createdAt: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    } : {};
+
     // Безопасные запросы с fallback для пустой БД
     let totalProducts = 0;
     let totalOrders = 0;
@@ -15,7 +28,7 @@ export async function GET() {
     let activeProducts = 0;
     let totalCouriers = 0;
     let totalSellers = 0;
-    let recentOrders: any[] = [];
+    let recentOrders: unknown[] = [];
 
     try {
       // Основные счетчики
@@ -28,7 +41,9 @@ export async function GET() {
     }
 
     try {
-      totalOrders = await prisma.order.count();
+      totalOrders = await prisma.order.count({
+        where: dateFilter
+      });
     } catch (error) {
       console.log('Orders count error:', error);
     }
@@ -52,11 +67,12 @@ export async function GET() {
     }
 
     try {
-      // Подсчитываем общую выручку через orderItems
+      // Подсчитываем общую выручку через orderItems с учетом фильтра по датам
       const orderItemsForRevenue = await prisma.orderItem.findMany({
         where: {
           order: {
-            status: { in: ['DELIVERED'] }
+            status: { in: ['DELIVERED'] },
+            ...dateFilter
           }
         },
         select: {
@@ -73,18 +89,22 @@ export async function GET() {
     }
 
     try {
-      // Используем правильный статус из enum
+      // Используем правильный статус из enum с учетом фильтра по датам
       pendingOrders = await prisma.order.count({ 
-        where: { status: 'CREATED' }
+        where: { 
+          status: 'CREATED',
+          ...dateFilter
+        }
       });
     } catch (error) {
       console.log('Pending orders error:', error);
     }
 
     try {
-      // Последние заказы с правильными связями
+      // Последние заказы с правильными связями и фильтром по датам
       recentOrders = await prisma.order.findMany({
         take: 5,
+        where: dateFilter,
         orderBy: { createdAt: 'desc' },
         include: {
           orderItems: {
@@ -173,26 +193,85 @@ export async function GET() {
     };
 
     // Получаем данные для графиков
-    let monthlyRevenue: any[] = [];
-    let topProducts: any[] = [];
-    let categories: any[] = [];
-    let orderStatus: any[] = [];
+    const monthlyRevenue: unknown[] = [];
+    let dailyOrders: unknown[] = [];
+    let topProducts: unknown[] = [];
+    let categories: unknown[] = [];
+    let orderStatus: unknown[] = [];
+
+    // Генерируем данные по дням для выбранного периода
+    try {
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const days = [];
+        
+        // Создаем массив дат для периода
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          days.push(new Date(d));
+        }
+        
+        // Получаем данные по заказам для каждого дня
+        dailyOrders = await Promise.all(days.map(async (day) => {
+          const dayStart = new Date(day);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(day);
+          dayEnd.setHours(23, 59, 59, 999);
+          
+          const dayOrders = await prisma.order.count({
+            where: {
+              createdAt: {
+                gte: dayStart,
+                lte: dayEnd
+              }
+            }
+          });
+          
+          const dayRevenue = await prisma.orderItem.findMany({
+            where: {
+              order: {
+                createdAt: {
+                  gte: dayStart,
+                  lte: dayEnd
+                },
+                status: 'DELIVERED'
+              }
+            },
+            select: { price: true, amount: true }
+          });
+          
+          const revenue = dayRevenue.reduce((sum, item) => {
+            return sum + (Number(item.price) * item.amount);
+          }, 0);
+          
+          return {
+            date: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+            orders: dayOrders,
+            revenue: revenue
+          };
+        }));
+      }
+    } catch (error) {
+      console.log('Daily orders error:', error);
+    }
 
     try {
-      // Данные по статусам заказов
+      // Данные по статусам заказов с учетом фильтра по датам
       const statusData = await prisma.order.groupBy({
         by: ['status'],
+        where: dateFilter,
         _count: {
           id: true
         }
       });
 
       orderStatus = await Promise.all(statusData.map(async (item) => {
-        // Получаем общую стоимость для каждого статуса
+        // Получаем общую стоимость для каждого статуса с учетом фильтра по датам
         const statusRevenue = await prisma.orderItem.findMany({
           where: {
             order: {
-              status: item.status
+              status: item.status,
+              ...dateFilter
             }
           },
           select: {
@@ -225,9 +304,12 @@ export async function GET() {
     }
 
     try {
-      // Топ товары по количеству продаж
+      // Топ товары по количеству продаж с учетом фильтра по датам
       const topProductsData = await prisma.orderItem.groupBy({
         by: ['productId'],
+        where: {
+          order: dateFilter
+        },
         _sum: {
           amount: true
         },
@@ -248,7 +330,10 @@ export async function GET() {
         });
         
         const revenue = await prisma.orderItem.findMany({
-          where: { productId: item.productId },
+          where: { 
+            productId: item.productId,
+            order: dateFilter
+          },
           select: { price: true, amount: true }
         });
         
@@ -320,7 +405,7 @@ export async function GET() {
         topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
         categories: categories.length > 0 ? categories : mockData.categories,
         orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
-        dailyOrders: mockData.dailyOrders,
+        dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
         userStats: mockData.userStats,
         courierPerformance: mockData.courierPerformance,
         productInsights: mockData.productInsights,

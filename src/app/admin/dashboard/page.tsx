@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   CubeIcon, 
   ShoppingBagIcon, 
@@ -22,6 +22,7 @@ import CourierPerformanceChart from '@/components/admin/dashboard/CourierPerform
 import ProductInsightsChart from '@/components/admin/dashboard/ProductInsightsChart';
 import RecentActivityChart from '@/components/admin/dashboard/RecentActivityChart';
 import DailyOrdersChart from '@/components/admin/dashboard/DailyOrdersChart';
+import DateRangePicker, { DateRange } from '@/components/admin/dashboard/DateRangePicker';
 
 interface DashboardData {
   overview: {
@@ -69,15 +70,52 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState<DateRange>(() => {
+    // Инициализируем с правильной логикой для "Последняя неделя"
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = воскресенье, 1 = понедельник, ..., 6 = суббота
+    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1; // Если воскресенье, то 6 дней назад был понедельник
+    
+    const mondayDate = new Date(today);
+    mondayDate.setDate(today.getDate() - daysToMonday);
+    
+    const sundayDate = new Date(mondayDate);
+    sundayDate.setDate(mondayDate.getDate() + 6);
+    
+    const startDate = new Date(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate(), 0, 0, 0, 0);
+    const endDate = new Date(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate(), 23, 59, 59, 999);
+    
+    return {
+      startDate,
+      endDate,
+      label: 'Последняя неделя',
+      type: 'preset'
+    };
+  });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/dashboard');
+      
+      // Форматируем даты в правильном формате без конвертации в UTC
+      const formatDateForAPI = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        const ms = String(date.getMilliseconds()).padStart(3, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}Z`;
+      };
+      
+      // Формируем URL с параметрами фильтрации по датам
+      const params = new URLSearchParams({
+        startDate: formatDateForAPI(selectedRange.startDate),
+        endDate: formatDateForAPI(selectedRange.endDate)
+      });
+      
+      const response = await fetch(`/api/admin/dashboard?${params}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data');
@@ -91,6 +129,14 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  }, [selectedRange]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const handleRangeChange = (range: DateRange) => {
+    setSelectedRange(range);
   };
 
   const formatCurrency = (value: number) => {
@@ -132,12 +178,25 @@ export default function Dashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-gray-800/60 to-gray-700/60 backdrop-blur-sm rounded-xl p-6 border border-gray-600/50">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Панель управления
-          </h1>
-          <p className="text-gray-300">
-            Полная аналитика и управление вашим интернет-магазином
-          </p>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Панель управления
+              </h1>
+              <p className="text-gray-300">
+                Полная аналитика и управление вашим интернет-магазином
+              </p>
+            </div>
+            
+            {/* Compact Date Range Picker */}
+            <div className="lg:min-w-fit">
+              <DateRangePicker 
+                selectedRange={selectedRange}
+                onRangeChange={handleRangeChange}
+                compact={true}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Overview Stats - Row 1 */}
@@ -240,7 +299,7 @@ export default function Dashboard() {
               <ChartBarIcon className="h-6 w-6 text-purple-400" />
             </div>
             <div className="space-y-4">
-              {data.charts.categories.slice(0, 5).map((category, index) => (
+              {data.charts.categories.slice(0, 5).map((category) => (
                 <div key={category.name} className="flex justify-between items-center p-3 bg-gray-700/30 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
