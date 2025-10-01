@@ -29,7 +29,13 @@ export async function GET(request: Request) {
     const where: any = {};
 
     if (status && status !== 'all') {
-      where.status = status;
+      // Если статус содержит запятые, разделяем на массив и используем оператор in
+      if (status.includes(',')) {
+        const statusArray = status.split(',').map(s => s.trim()).filter(s => s);
+        where.status = { in: statusArray };
+      } else {
+        where.status = status;
+      }
     }
 
     // contactType removed as it doesn't exist in new schema

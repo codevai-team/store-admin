@@ -8,6 +8,11 @@ interface OrderStatusData {
   revenue: number;
 }
 
+interface LegendEntry {
+  payload: OrderStatusData;
+  value: string;
+}
+
 interface OrderStatusChartProps {
   data: OrderStatusData[];
 }
@@ -21,6 +26,26 @@ export default function OrderStatusChart({ data }: OrderStatusChartProps) {
       currency: 'RUB',
       minimumFractionDigits: 0,
     }).format(value);
+  };
+
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: OrderStatusData }> }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg">
+          <p className="text-blue-400 font-medium">{data.status}</p>
+          <p className="text-white">
+            <span className="text-gray-400">Количество: </span>
+            {data.count} заказов
+          </p>
+          <p className="text-white">
+            <span className="text-gray-400">Сумма: </span>
+            <span className="text-blue-400 font-semibold">{formatCurrency(data.revenue)}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -49,20 +74,10 @@ export default function OrderStatusChart({ data }: OrderStatusChartProps) {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#F9FAFB'
-              }}
-              formatter={(value: number, name: string) => [
-                name === 'count' ? `${value} заказов` : formatCurrency(value),
-                name === 'count' ? 'Количество' : 'Доход'
-              ]}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend 
               wrapperStyle={{ color: '#F9FAFB', fontSize: '12px' }}
+              formatter={(value, entry) => (entry as LegendEntry)?.payload?.status || value}
             />
           </PieChart>
         </ResponsiveContainer>
