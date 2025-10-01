@@ -7,8 +7,7 @@ import {
   CurrencyDollarIcon,
   ClockIcon,
   UserGroupIcon,
-  TagIcon,
-  ChartBarIcon
+  TagIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import StatCard from '@/components/admin/dashboard/StatCard';
@@ -21,6 +20,7 @@ import CourierPerformanceChart from '@/components/admin/dashboard/CourierPerform
 import ProductInsightsChart from '@/components/admin/dashboard/ProductInsightsChart';
 import RecentActivityChart from '@/components/admin/dashboard/RecentActivityChart';
 import DailyOrdersChart from '@/components/admin/dashboard/DailyOrdersChart';
+import TopCategoriesChart from '@/components/admin/dashboard/TopCategoriesChart';
 import DateRangePicker, { DateRange } from '@/components/admin/dashboard/DateRangePicker';
 
 interface DashboardData {
@@ -298,29 +298,7 @@ export default function Dashboard() {
         {/* Charts Row 5 - Recent Orders & Categories */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Top Categories */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Топ категории</h3>
-                <p className="text-sm text-gray-400">По количеству товаров</p>
-              </div>
-              <ChartBarIcon className="h-6 w-6 text-purple-400" />
-            </div>
-            <div className="space-y-4">
-              {data.charts.categories.slice(0, 5).map((category) => (
-                <div key={category.name} className="flex justify-between items-center p-3 bg-gray-700/30 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                    <span className="text-gray-300 font-medium">{category.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-white font-bold">{category.products}</div>
-                    <div className="text-xs text-gray-400">{formatCurrency(category.revenue)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TopCategoriesChart data={data.charts.categories} />
 
           {/* Recent Orders - растянуто на 2 колонки */}
           <div className="lg:col-span-2">

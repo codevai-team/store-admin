@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { ClockIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 interface Order {
@@ -17,6 +18,12 @@ interface RecentOrdersProps {
 }
 
 export default function RecentOrders({ orders }: RecentOrdersProps) {
+  const router = useRouter();
+
+  const handleViewAllOrders = () => {
+    router.push('/admin/orders');
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -86,7 +93,7 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
             <p className="text-gray-400">Пока нет заказов</p>
           </div>
         ) : (
-          orders.map((order) => (
+          orders.slice(0, 4).map((order) => (
             <div key={order.id} className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -124,7 +131,10 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
       
       {orders.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-600/30">
-          <button className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-200">
+          <button 
+            onClick={handleViewAllOrders}
+            className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-200"
+          >
             Посмотреть все заказы →
           </button>
         </div>

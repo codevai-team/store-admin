@@ -512,7 +512,7 @@ export async function GET(request: Request) {
       } : {};
       
       recentOrders = await prisma.order.findMany({
-        take: 5,
+        take: 4,
         where: recentOrderDateFilter,
         orderBy: { updatedAt: 'desc' },
         include: {
@@ -1009,19 +1009,19 @@ export async function GET(request: Request) {
           return sum + product.orderItems.length;
         }, 0);
         
-        const totalRevenue = category.products.reduce((sum, product) => {
-          return sum + product.orderItems.reduce((productSum, orderItem) => {
-            return productSum + (Number(orderItem.price) * orderItem.amount);
-          }, 0);
+        // Считаем общую стоимость всех товаров в категории (не от заказов)
+        const totalProductsValue = category.products.reduce((sum, product) => {
+          return sum + Number(product.price);
         }, 0);
 
         return {
           name: category.name,
           products: category.products.length,
           orders: totalOrders,
-          revenue: totalRevenue
+          revenue: totalProductsValue // Используем стоимость товаров, а не выручку от заказов
         };
-      }).filter(cat => cat.products > 0);
+      }).sort((a, b) => b.products - a.products) // Сортируем по количеству товаров
+        .slice(0, 5); // Берем топ-5 категорий
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка получения данных по категориям
