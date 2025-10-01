@@ -11,12 +11,6 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate');
     
     // Создаем фильтр по датам если параметры переданы
-    const dateFilter = startDate && endDate ? {
-      createdAt: {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    } : {};
 
     // Безопасные запросы с fallback для пустой БД
     let totalProducts = 0;
@@ -28,7 +22,8 @@ export async function GET(request: Request) {
     let activeProducts = 0;
     let totalCouriers = 0;
     let totalSellers = 0;
-    let recentOrders: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let recentOrders: any[] = [];
 
     try {
       // Общее количество товаров не зависит от дат
@@ -40,7 +35,8 @@ export async function GET(request: Request) {
           status: 'ACTIVE'
         }
       });
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета товаров
     }
 
@@ -56,7 +52,8 @@ export async function GET(request: Request) {
       totalOrders = await prisma.order.count({
         where: orderDateFilter
       });
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета заказов
     }
 
@@ -68,13 +65,15 @@ export async function GET(request: Request) {
       totalSellers = await prisma.user.count({
         where: { role: 'SELLER', status: 'ACTIVE' }
       });
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета пользователей
     }
 
     try {
       totalCategories = await prisma.category.count();
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета категорий
     }
 
@@ -87,20 +86,12 @@ export async function GET(request: Request) {
         }
       } : {};
       
-      // Сначала проверим, есть ли заказы с нужным статусом в указанный период
-      const deliveredOrdersCount = await prisma.order.count({
-        where: {
-          status: 'DELIVERED',
-          ...revenueOrderDateFilter
-        }
-      });
-      
       // Подсчет доставленных заказов в периоде
       
       const orderItemsForRevenue = await prisma.orderItem.findMany({
         where: {
           order: {
-            status: 'DELIVERED',
+            status: 'DELIVERED' as const,
             ...revenueOrderDateFilter
           }
         },
@@ -113,7 +104,7 @@ export async function GET(request: Request) {
       // Получение элементов заказов для подсчета дохода
       
       // Используем сырой SQL запрос для точного подсчета, как в вашем примере
-      let revenueResult;
+      let revenueResult: Array<{ total_revenue: number }>;
       if (startDate && endDate) {
         revenueResult = await prisma.$queryRaw`
           SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
@@ -143,7 +134,8 @@ export async function GET(request: Request) {
           return sum + itemTotal;
         }, 0);
       }
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета дохода
     }
 
@@ -162,7 +154,8 @@ export async function GET(request: Request) {
           ...pendingOrderDateFilter
         }
       });
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка подсчета ожидающих заказов
     }
 
@@ -190,7 +183,8 @@ export async function GET(request: Request) {
           courier: true
         }
       });
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения последних заказов
     }
 
@@ -228,13 +222,13 @@ export async function GET(request: Request) {
         { status: 'Ожидает', count: 5, revenue: 15000 }
       ],
       dailyOrders: [
-        { date: '01.12', orders: 3, revenue: 9000 },
-        { date: '02.12', orders: 5, revenue: 15000 },
-        { date: '03.12', orders: 2, revenue: 6000 },
-        { date: '04.12', orders: 7, revenue: 21000 },
-        { date: '05.12', orders: 4, revenue: 12000 },
-        { date: '06.12', orders: 6, revenue: 18000 },
-        { date: '07.12', orders: 8, revenue: 24000 }
+        { date: '01.12', orders: 3, deliveredOrders: 2, revenue: 9000 },
+        { date: '02.12', orders: 5, deliveredOrders: 4, revenue: 15000 },
+        { date: '03.12', orders: 2, deliveredOrders: 1, revenue: 6000 },
+        { date: '04.12', orders: 7, deliveredOrders: 6, revenue: 21000 },
+        { date: '05.12', orders: 4, deliveredOrders: 3, revenue: 12000 },
+        { date: '06.12', orders: 6, deliveredOrders: 5, revenue: 18000 },
+        { date: '07.12', orders: 8, deliveredOrders: 7, revenue: 24000 }
       ],
       userStats: [
         { role: 'Продавцы', count: 12, active: 10 },
@@ -287,14 +281,11 @@ export async function GET(request: Request) {
         
         // Определяем интервал группировки в зависимости от длительности периода
         let groupBy = 'day';
-        let dateFormat = 'DD.MM';
         
         if (diffDays > 90) {
           groupBy = 'month';
-          dateFormat = 'MMM YYYY';
         } else if (diffDays > 14) {
           groupBy = 'week';
-          dateFormat = 'DD.MM';
         }
         
         if (groupBy === 'day') {
@@ -319,7 +310,7 @@ export async function GET(request: Request) {
               }
             });
             
-            const dayRevenueResult = await prisma.$queryRaw`
+            const dayRevenueResult: Array<{ total_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -328,7 +319,7 @@ export async function GET(request: Request) {
               AND o.updated_at <= ${dayEnd}
             `;
             
-            const dayCanceledRevenueResult = await prisma.$queryRaw`
+            const dayCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -375,7 +366,7 @@ export async function GET(request: Request) {
               }
             });
             
-            const weekRevenueResult = await prisma.$queryRaw`
+            const weekRevenueResult: Array<{ total_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -384,7 +375,7 @@ export async function GET(request: Request) {
               AND o.updated_at <= ${week.end}
             `;
             
-            const weekCanceledRevenueResult = await prisma.$queryRaw`
+            const weekCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -430,7 +421,7 @@ export async function GET(request: Request) {
               }
             });
             
-            const monthRevenueResult = await prisma.$queryRaw`
+            const monthRevenueResult: Array<{ total_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -439,7 +430,7 @@ export async function GET(request: Request) {
               AND o.updated_at <= ${month.end}
             `;
             
-            const monthCanceledRevenueResult = await prisma.$queryRaw`
+            const monthCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
@@ -463,7 +454,8 @@ export async function GET(request: Request) {
           }));
         }
       }
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения данных по доходам
     }
 
@@ -486,12 +478,24 @@ export async function GET(request: Request) {
           const dayEnd = new Date(day);
           dayEnd.setHours(23, 59, 59, 999);
           
+          // Все заказы за день
           const dayOrders = await prisma.order.count({
             where: {
               updatedAt: {
                 gte: dayStart,
                 lte: dayEnd
               }
+            }
+          });
+          
+          // Только доставленные заказы за день
+          const dayDeliveredOrders = await prisma.order.count({
+            where: {
+              updatedAt: {
+                gte: dayStart,
+                lte: dayEnd
+              },
+              status: 'DELIVERED' as const
             }
           });
           
@@ -502,7 +506,7 @@ export async function GET(request: Request) {
                   gte: dayStart,
                   lte: dayEnd
                 },
-                status: 'DELIVERED'
+                status: 'DELIVERED' as const
               }
             },
             select: { price: true, amount: true }
@@ -515,11 +519,13 @@ export async function GET(request: Request) {
           return {
             date: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
             orders: dayOrders,
+            deliveredOrders: dayDeliveredOrders,
             revenue: revenue
           };
         }));
       }
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения данных по дням
     }
 
@@ -574,7 +580,8 @@ export async function GET(request: Request) {
           revenue: revenue
         };
       }));
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения данных по статусам заказов
     }
 
@@ -585,9 +592,9 @@ export async function GET(request: Request) {
           gte: new Date(startDate),
           lte: new Date(endDate)
         },
-        status: 'DELIVERED'
+        status: 'DELIVERED' as const
       } : {
-        status: 'DELIVERED'
+        status: 'DELIVERED' as const
       };
       
       const topProductsData = await prisma.orderItem.groupBy({
@@ -628,11 +635,12 @@ export async function GET(request: Request) {
 
         return {
           name: product?.name || 'Неизвестный товар',
-          sold: item._sum.amount || 0,
+          sold: item._sum?.amount || 0,
           revenue: totalRevenue
         };
       }));
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения топ товаров
     }
 
@@ -666,7 +674,8 @@ export async function GET(request: Request) {
           revenue: totalRevenue
         };
       }).filter(cat => cat.products > 0);
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
       // Ошибка получения данных по категориям
     }
 
@@ -698,7 +707,7 @@ export async function GET(request: Request) {
       } : mockData,
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
         // Подсчитываем общую стоимость заказа через orderItems
-        const totalPrice = order.orderItems.reduce((sum: number, item: any) => {
+        const totalPrice = order.orderItems.reduce((sum: number, item: { price: number; amount: number }) => {
           return sum + (Number(item.price) * item.amount);
         }, 0);
         
@@ -718,7 +727,7 @@ export async function GET(request: Request) {
           orderNumber: 'ORD-001',
           customerName: 'Анна Иванова',
           totalPrice: 4500,
-          status: 'DELIVERED',
+          status: 'DELIVERED' as const,
           createdAt: new Date().toISOString(),
           itemsCount: 2,
           courierName: 'Иван Петров'
@@ -746,7 +755,8 @@ export async function GET(request: Request) {
       ]
     });
 
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_) {
     // Общая ошибка API дашборда
     
     // Возвращаем безопасные значения в случае любой ошибки
@@ -795,13 +805,13 @@ export async function GET(request: Request) {
           { status: 'Ожидает', count: 5, revenue: 15000 }
         ],
         dailyOrders: [
-          { date: '01.12', orders: 3, revenue: 9000 },
-          { date: '02.12', orders: 5, revenue: 15000 },
-          { date: '03.12', orders: 2, revenue: 6000 },
-          { date: '04.12', orders: 7, revenue: 21000 },
-          { date: '05.12', orders: 4, revenue: 12000 },
-          { date: '06.12', orders: 6, revenue: 18000 },
-          { date: '07.12', orders: 8, revenue: 24000 }
+          { date: '01.12', orders: 3, deliveredOrders: 2, revenue: 9000 },
+          { date: '02.12', orders: 5, deliveredOrders: 4, revenue: 15000 },
+          { date: '03.12', orders: 2, deliveredOrders: 1, revenue: 6000 },
+          { date: '04.12', orders: 7, deliveredOrders: 6, revenue: 21000 },
+          { date: '05.12', orders: 4, deliveredOrders: 3, revenue: 12000 },
+          { date: '06.12', orders: 6, deliveredOrders: 5, revenue: 18000 },
+          { date: '07.12', orders: 8, deliveredOrders: 7, revenue: 24000 }
         ]
       },
       recentOrders: [

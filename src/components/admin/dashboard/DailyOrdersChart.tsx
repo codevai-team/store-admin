@@ -8,6 +8,7 @@ import {
 interface DailyOrdersData {
   date: string;
   orders: number;
+  deliveredOrders: number;
   revenue: number;
 }
 
@@ -52,8 +53,9 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
   
   const trend = secondHalfAvg > firstHalfAvg ? 'up' : 'down';
 
-  // Подсчитываем общее количество проданных товаров (предполагаем, что это количество заказов)
-  const totalSold = data.reduce((sum, d) => sum + d.orders, 0);
+  // Подсчитываем общее количество заказов и доставленных заказов
+  const totalOrders = data.reduce((sum, d) => sum + d.orders, 0);
+  const totalDelivered = data.reduce((sum, d) => sum + d.deliveredOrders, 0);
 
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
@@ -155,10 +157,10 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
         <div className="bg-gray-700/30 rounded-lg p-4">
           <div className="text-gray-400 text-sm">Всего заказов</div>
           <div className="text-white font-bold text-xl">
-            {totalSold}
+            {totalOrders}
           </div>
           <div className="text-gray-500 text-xs mt-1">
-            Продано: {totalSold} шт.
+            Продано: {totalDelivered} шт.
           </div>
         </div>
         <div className="bg-gray-700/30 rounded-lg p-4">
