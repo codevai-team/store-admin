@@ -272,7 +272,10 @@ export default function Dashboard() {
         {/* Charts Row 2 - Products & Daily Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <TopProductsChart data={data.charts.topProducts} />
-          <DailyOrdersChart data={data.charts.dailyOrders} />
+          <DailyOrdersChart 
+            data={data.charts.dailyOrders} 
+            periodLabel={selectedRange.label}
+          />
         </div>
 
         {/* Charts Row 3 - User Analytics */}

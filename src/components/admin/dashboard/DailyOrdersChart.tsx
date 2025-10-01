@@ -1,7 +1,6 @@
 'use client';
 
 import { 
-  ChartBarIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
@@ -14,9 +13,10 @@ interface DailyOrdersData {
 
 interface DailyOrdersChartProps {
   data: DailyOrdersData[];
+  periodLabel?: string; // Добавляем опциональный параметр для описания периода
 }
 
-export default function DailyOrdersChart({ data }: DailyOrdersChartProps) {
+export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -27,8 +27,23 @@ export default function DailyOrdersChart({ data }: DailyOrdersChartProps) {
 
   const maxOrders = Math.max(...data.map(d => d.orders));
   const maxRevenue = Math.max(...data.map(d => d.revenue));
+  
 
-  // Вычисляем тренд
+  // Определяем описание периода
+  const getPeriodDescription = () => {
+    if (periodLabel) return periodLabel;
+    
+    const dayCount = data.length;
+    if (dayCount <= 1) return 'За день';
+    if (dayCount <= 7) return `За ${dayCount} дн.`;
+    if (dayCount <= 31) return `За ${dayCount} дн.`;
+    if (dayCount <= 90) return `За ${dayCount} дн.`;
+    return `За ${dayCount} дн.`;
+  };
+
+  // Вычисляем тренд: сравниваем среднее количество заказов в первой и второй половине периода
+  // Логика: делим данные пополам, считаем среднее для каждой половины
+  // Если среднее во второй половине больше - "Рост", иначе - "Спад"
   const firstHalf = data.slice(0, Math.floor(data.length / 2));
   const secondHalf = data.slice(Math.floor(data.length / 2));
   
@@ -37,8 +52,27 @@ export default function DailyOrdersChart({ data }: DailyOrdersChartProps) {
   
   const trend = secondHalfAvg > firstHalfAvg ? 'up' : 'down';
 
+  // Подсчитываем общее количество проданных товаров (предполагаем, что это количество заказов)
+  const totalSold = data.reduce((sum, d) => sum + d.orders, 0);
+
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+      <style jsx>{`
+        .overflow-x-auto::-webkit-scrollbar {
+          height: 6px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-track {
+          background-color: #172130 !important;
+          border-radius: 3px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+          background-color: #6b7280 !important;
+          border-radius: 3px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+          background-color: #9ca3af !important;
+        }
+      `}</style>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Дневная статистика</h3>
@@ -58,51 +92,61 @@ export default function DailyOrdersChart({ data }: DailyOrdersChartProps) {
 
       {/* График заказов */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-white font-medium">Заказы</h4>
-          <span className="text-gray-400 text-sm">За последние 7 дней</span>
-        </div>
-        <div className="flex items-end space-x-2 h-32">
-          {data.map((day, index) => (
-            <div key={day.date} className="flex-1 flex flex-col items-center">
-              <div 
-                className="w-full bg-blue-500 rounded-t transition-all duration-300 hover:bg-blue-400"
-                style={{ 
-                  height: `${(day.orders / maxOrders) * 100}%`,
-                  minHeight: '4px'
-                }}
-                title={`${day.date}: ${day.orders} заказов`}
-              ></div>
-              <div className="text-xs text-gray-400 mt-2">{day.date}</div>
-              <div className="text-xs text-white font-medium mt-1">{day.orders}</div>
-            </div>
-          ))}
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-white font-medium">Заказы ({data.length} дн.)</h4>
+        <span className="text-gray-400 text-sm">{getPeriodDescription()}</span>
+      </div>
+        <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-700 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#6b7280 #172130'
+        }}>
+          <div className="flex items-end space-x-2 h-32" style={{ minWidth: `${Math.max(data.length * 60, 400)}px` }}>
+            {data.map((day) => (
+              <div key={day.date} className="flex flex-col items-center" style={{ minWidth: '50px' }}>
+                <div 
+                  className="bg-blue-500 rounded-t transition-all duration-300 hover:bg-blue-400"
+                  style={{ 
+                    height: maxOrders > 0 ? `${Math.max((day.orders / maxOrders) * 120, 4)}px` : '4px',
+                    width: '40px'
+                  }}
+                  title={`${day.date}: ${day.orders} заказов`}
+                ></div>
+                <div className="text-xs text-gray-400 mt-2 transform -rotate-45 origin-center">{day.date}</div>
+                <div className="text-xs text-white font-medium mt-1">{day.orders}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* График выручки */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-white font-medium">Выручка</h4>
-          <span className="text-gray-400 text-sm">За последние 7 дней</span>
+          <h4 className="text-white font-medium">Выручка ({data.length} дн.)</h4>
+          <span className="text-gray-400 text-sm">{getPeriodDescription()}</span>
         </div>
-        <div className="flex items-end space-x-2 h-32">
-          {data.map((day, index) => (
-            <div key={day.date} className="flex-1 flex flex-col items-center">
-              <div 
-                className="w-full bg-green-500 rounded-t transition-all duration-300 hover:bg-green-400"
-                style={{ 
-                  height: `${(day.revenue / maxRevenue) * 100}%`,
-                  minHeight: '4px'
-                }}
-                title={`${day.date}: ${formatCurrency(day.revenue)}`}
-              ></div>
-              <div className="text-xs text-gray-400 mt-2">{day.date}</div>
-              <div className="text-xs text-white font-medium mt-1">
-                {formatCurrency(day.revenue).replace('₽', '₽').replace(/\s/g, '')}
+        <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-700 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#6b7280 #172130'
+        }}>
+          <div className="flex items-end space-x-2 h-32" style={{ minWidth: `${Math.max(data.length * 60, 400)}px` }}>
+            {data.map((day) => (
+              <div key={day.date} className="flex flex-col items-center" style={{ minWidth: '50px' }}>
+                <div 
+                  className="bg-green-500 rounded-t transition-all duration-300 hover:bg-green-400"
+                  style={{ 
+                    height: maxRevenue > 0 ? `${Math.max((day.revenue / maxRevenue) * 120, 4)}px` : '4px',
+                    width: '40px'
+                  }}
+                  title={`${day.date}: ${formatCurrency(day.revenue)}`}
+                ></div>
+                <div className="text-xs text-gray-400 mt-2 transform -rotate-45 origin-center">{day.date}</div>
+                <div className="text-xs text-white font-medium mt-1">
+                  {formatCurrency(day.revenue).replace('₽', '₽').replace(/\s/g, '')}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -111,13 +155,19 @@ export default function DailyOrdersChart({ data }: DailyOrdersChartProps) {
         <div className="bg-gray-700/30 rounded-lg p-4">
           <div className="text-gray-400 text-sm">Всего заказов</div>
           <div className="text-white font-bold text-xl">
-            {data.reduce((sum, d) => sum + d.orders, 0)}
+            {totalSold}
+          </div>
+          <div className="text-gray-500 text-xs mt-1">
+            Продано: {totalSold} шт.
           </div>
         </div>
         <div className="bg-gray-700/30 rounded-lg p-4">
           <div className="text-gray-400 text-sm">Общая выручка</div>
           <div className="text-white font-bold text-lg">
             {formatCurrency(data.reduce((sum, d) => sum + d.revenue, 0))}
+          </div>
+          <div className="text-gray-500 text-xs mt-1">
+            Только доставленные
           </div>
         </div>
       </div>
