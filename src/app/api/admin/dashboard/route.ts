@@ -31,26 +31,17 @@ export async function GET(request: Request) {
     let recentOrders: unknown[] = [];
 
     try {
-      // Считаем активные товары по полю updatedAt (дате обновления)
-      const productDateFilter = startDate && endDate ? {
-        updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
-        }
-      } : {};
-      
       // Общее количество товаров не зависит от дат
       totalProducts = await prisma.product.count();
       
-      // Активные товары считаем по дате обновления
+      // Активные товары - все товары со статусом ACTIVE (без учета периода)
       activeProducts = await prisma.product.count({
         where: { 
-          status: 'ACTIVE',
-          ...productDateFilter
+          status: 'ACTIVE'
         }
       });
     } catch (error) {
-      console.log('Products count error:', error);
+      // Ошибка подсчета товаров
     }
 
     try {
@@ -66,7 +57,7 @@ export async function GET(request: Request) {
         where: orderDateFilter
       });
     } catch (error) {
-      console.log('Orders count error:', error);
+      // Ошибка подсчета заказов
     }
 
     try {
@@ -78,13 +69,13 @@ export async function GET(request: Request) {
         where: { role: 'SELLER', status: 'ACTIVE' }
       });
     } catch (error) {
-      console.log('Users count error:', error);
+      // Ошибка подсчета пользователей
     }
 
     try {
       totalCategories = await prisma.category.count();
     } catch (error) {
-      console.log('Categories count error:', error);
+      // Ошибка подсчета категорий
     }
 
     try {
@@ -95,6 +86,16 @@ export async function GET(request: Request) {
           lte: new Date(endDate)
         }
       } : {};
+      
+      // Сначала проверим, есть ли заказы с нужным статусом в указанный период
+      const deliveredOrdersCount = await prisma.order.count({
+        where: {
+          status: 'DELIVERED',
+          ...revenueOrderDateFilter
+        }
+      });
+      
+      // Подсчет доставленных заказов в периоде
       
       const orderItemsForRevenue = await prisma.orderItem.findMany({
         where: {
@@ -109,11 +110,41 @@ export async function GET(request: Request) {
         }
       });
       
-      totalRevenue = orderItemsForRevenue.reduce((sum, item) => {
-        return sum + (Number(item.price) * item.amount);
-      }, 0);
+      // Получение элементов заказов для подсчета дохода
+      
+      // Используем сырой SQL запрос для точного подсчета, как в вашем примере
+      let revenueResult;
+      if (startDate && endDate) {
+        revenueResult = await prisma.$queryRaw`
+          SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+          FROM order_items oi
+          JOIN orders o ON oi.order_id = o.id
+          WHERE o.status = 'delivered'
+          AND o.updated_at >= ${new Date(startDate)}
+          AND o.updated_at <= ${new Date(endDate)}
+        `;
+      } else {
+        revenueResult = await prisma.$queryRaw`
+          SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+          FROM order_items oi
+          JOIN orders o ON oi.order_id = o.id
+          WHERE o.status = 'delivered'
+        `;
+      }
+      
+      // Используем результат SQL запроса как основной
+      if (revenueResult[0]?.total_revenue !== undefined) {
+        totalRevenue = parseFloat(revenueResult[0].total_revenue.toString());
+      } else {
+        // Fallback: ручной подсчет через orderItems
+        totalRevenue = orderItemsForRevenue.reduce((sum, item) => {
+          const price = parseFloat(item.price.toString());
+          const itemTotal = price * item.amount;
+          return sum + itemTotal;
+        }, 0);
+      }
     } catch (error) {
-      console.log('Revenue error:', error);
+      // Ошибка подсчета дохода
     }
 
     try {
@@ -132,7 +163,7 @@ export async function GET(request: Request) {
         }
       });
     } catch (error) {
-      console.log('Pending orders error:', error);
+      // Ошибка подсчета ожидающих заказов
     }
 
     try {
@@ -160,7 +191,7 @@ export async function GET(request: Request) {
         }
       });
     } catch (error) {
-      console.log('Recent orders error:', error);
+      // Ошибка получения последних заказов
     }
 
     // Генерируем демо-данные для диаграмм если база пустая
@@ -294,7 +325,7 @@ export async function GET(request: Request) {
         }));
       }
     } catch (error) {
-      console.log('Daily orders error:', error);
+      // Ошибка получения данных по дням
     }
 
     try {
@@ -349,7 +380,7 @@ export async function GET(request: Request) {
         };
       }));
     } catch (error) {
-      console.log('Order status error:', error);
+      // Ошибка получения данных по статусам заказов
     }
 
     try {
@@ -404,7 +435,7 @@ export async function GET(request: Request) {
         };
       }));
     } catch (error) {
-      console.log('Top products error:', error);
+      // Ошибка получения топ товаров
     }
 
     try {
@@ -438,7 +469,7 @@ export async function GET(request: Request) {
         };
       }).filter(cat => cat.products > 0);
     } catch (error) {
-      console.log('Categories error:', error);
+      // Ошибка получения данных по категориям
     }
 
     // Используем реальные данные если есть, иначе демо-данные
@@ -446,15 +477,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       overview: {
-        totalProducts: totalProducts || 127,
-        totalOrders: totalOrders || 89,
-        totalRevenue: totalRevenue || 267500,
-        pendingOrders: pendingOrders || 5,
-        totalUsers: totalUsers || 22,
-        totalCategories: totalCategories || 8,
-        activeProducts: activeProducts || 120,
-        totalCouriers: totalCouriers || 6,
-        totalSellers: totalSellers || 10
+        totalProducts: totalProducts, // Всегда реальное значение
+        totalOrders: totalOrders, // Всегда реальное значение (может быть 0)
+        totalRevenue: totalRevenue, // Всегда реальное значение (может быть 0)
+        pendingOrders: pendingOrders, // Всегда реальное значение (может быть 0)
+        totalUsers: totalUsers, // Всегда реальное значение
+        totalCategories: totalCategories, // Всегда реальное значение
+        activeProducts: activeProducts, // Всегда реальное значение
+        totalCouriers: totalCouriers, // Всегда реальное значение
+        totalSellers: totalSellers // Всегда реальное значение
       },
       charts: hasRealData ? {
         monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
@@ -518,20 +549,20 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    console.error('Dashboard API Error:', error);
+    // Общая ошибка API дашборда
     
-    // Возвращаем демо-данные в случае любой ошибки
+    // Возвращаем безопасные значения в случае любой ошибки
     return NextResponse.json({
       overview: {
-        totalProducts: 127,
-        totalOrders: 89,
-        totalRevenue: 267500,
-        pendingOrders: 5,
-        totalUsers: 22,
-        totalCategories: 8,
-        activeProducts: 120,
-        totalCouriers: 6,
-        totalSellers: 10
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0, // Не используем демо-данные для дохода
+        pendingOrders: 0,
+        totalUsers: 0,
+        totalCategories: 0,
+        activeProducts: 0,
+        totalCouriers: 0,
+        totalSellers: 0
       },
       charts: {
         monthlyRevenue: [
