@@ -37,7 +37,7 @@ interface DashboardData {
     totalSellers: number;
   };
   charts: {
-    monthlyRevenue: Array<{ month: string; revenue: number; orders: number }>;
+    monthlyRevenue: Array<{ month: string; revenue: number; canceledRevenue: number; orders: number }>;
     topProducts: Array<{ name: string; sold: number; revenue: number }>;
     categories: Array<{ name: string; products: number; orders: number; revenue: number }>;
     orderStatus: Array<{ status: string; count: number; revenue: number }>;

@@ -197,12 +197,12 @@ export async function GET(request: Request) {
     // Генерируем демо-данные для диаграмм если база пустая
     const mockData = {
       monthlyRevenue: [
-        { month: 'Янв', revenue: 45000, orders: 12 },
-        { month: 'Фев', revenue: 52000, orders: 15 },
-        { month: 'Мар', revenue: 48000, orders: 14 },
-        { month: 'Апр', revenue: 61000, orders: 18 },
-        { month: 'Май', revenue: 55000, orders: 16 },
-        { month: 'Июн', revenue: 67000, orders: 20 }
+        { month: 'Янв', revenue: 45000, canceledRevenue: 5000, orders: 12 },
+        { month: 'Фев', revenue: 52000, canceledRevenue: 3000, orders: 15 },
+        { month: 'Мар', revenue: 48000, canceledRevenue: 7000, orders: 14 },
+        { month: 'Апр', revenue: 61000, canceledRevenue: 4000, orders: 18 },
+        { month: 'Май', revenue: 55000, canceledRevenue: 6000, orders: 16 },
+        { month: 'Июн', revenue: 67000, canceledRevenue: 2000, orders: 20 }
       ],
       topProducts: [
         { name: 'Платье летнее', sold: 45, revenue: 67500 },
@@ -266,11 +266,201 @@ export async function GET(request: Request) {
     };
 
     // Получаем данные для графиков
-    const monthlyRevenue: unknown[] = [];
+    let monthlyRevenue: unknown[] = [];
     let dailyOrders: unknown[] = [];
     let topProducts: unknown[] = [];
     let categories: unknown[] = [];
     let orderStatus: unknown[] = [];
+
+    // Генерируем данные по доходам для выбранного периода
+    try {
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Определяем интервал группировки в зависимости от длительности периода
+        let groupBy = 'day';
+        let dateFormat = 'DD.MM';
+        
+        if (diffDays > 90) {
+          groupBy = 'month';
+          dateFormat = 'MMM YYYY';
+        } else if (diffDays > 14) {
+          groupBy = 'week';
+          dateFormat = 'DD.MM';
+        }
+        
+        if (groupBy === 'day') {
+          // Группировка по дням
+          const days = [];
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            days.push(new Date(d));
+          }
+          
+          monthlyRevenue = await Promise.all(days.map(async (day) => {
+            const dayStart = new Date(day);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(day);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            const dayOrdersCount = await prisma.order.count({
+              where: {
+                updatedAt: {
+                  gte: dayStart,
+                  lte: dayEnd
+                }
+              }
+            });
+            
+            const dayRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'delivered'
+              AND o.updated_at >= ${dayStart}
+              AND o.updated_at <= ${dayEnd}
+            `;
+            
+            const dayCanceledRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'canceled'
+              AND o.updated_at >= ${dayStart}
+              AND o.updated_at <= ${dayEnd}
+            `;
+            
+            const revenue = dayRevenueResult[0]?.total_revenue ? parseFloat(dayRevenueResult[0].total_revenue.toString()) : 0;
+            const canceledRevenue = dayCanceledRevenueResult[0]?.canceled_revenue ? parseFloat(dayCanceledRevenueResult[0].canceled_revenue.toString()) : 0;
+            
+            return {
+              month: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+              revenue: revenue,
+              canceledRevenue: canceledRevenue,
+              orders: dayOrdersCount
+            };
+          }));
+        } else if (groupBy === 'week') {
+          // Группировка по неделям
+          const weeks = [];
+          const currentDate = new Date(start);
+          
+          while (currentDate <= end) {
+            const weekStart = new Date(currentDate);
+            const weekEnd = new Date(currentDate);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            if (weekEnd > end) {
+              weekEnd.setTime(end.getTime());
+            }
+            
+            weeks.push({ start: new Date(weekStart), end: new Date(weekEnd) });
+            currentDate.setDate(currentDate.getDate() + 7);
+          }
+          
+          monthlyRevenue = await Promise.all(weeks.map(async (week) => {
+            const weekOrdersCount = await prisma.order.count({
+              where: {
+                updatedAt: {
+                  gte: week.start,
+                  lte: week.end
+                }
+              }
+            });
+            
+            const weekRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'delivered'
+              AND o.updated_at >= ${week.start}
+              AND o.updated_at <= ${week.end}
+            `;
+            
+            const weekCanceledRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'canceled'
+              AND o.updated_at >= ${week.start}
+              AND o.updated_at <= ${week.end}
+            `;
+            
+            const revenue = weekRevenueResult[0]?.total_revenue ? parseFloat(weekRevenueResult[0].total_revenue.toString()) : 0;
+            const canceledRevenue = weekCanceledRevenueResult[0]?.canceled_revenue ? parseFloat(weekCanceledRevenueResult[0].canceled_revenue.toString()) : 0;
+            
+            return {
+              month: `${week.start.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}-${week.end.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`,
+              revenue: revenue,
+              canceledRevenue: canceledRevenue,
+              orders: weekOrdersCount
+            };
+          }));
+        } else {
+          // Группировка по месяцам
+          const months = [];
+          const currentDate = new Date(start.getFullYear(), start.getMonth(), 1);
+          
+          while (currentDate <= end) {
+            const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+            
+            if (monthEnd > end) {
+              monthEnd.setTime(end.getTime());
+            }
+            
+            months.push({ start: new Date(monthStart), end: new Date(monthEnd) });
+            currentDate.setMonth(currentDate.getMonth() + 1);
+          }
+          
+          monthlyRevenue = await Promise.all(months.map(async (month) => {
+            const monthOrdersCount = await prisma.order.count({
+              where: {
+                updatedAt: {
+                  gte: month.start,
+                  lte: month.end
+                }
+              }
+            });
+            
+            const monthRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'delivered'
+              AND o.updated_at >= ${month.start}
+              AND o.updated_at <= ${month.end}
+            `;
+            
+            const monthCanceledRevenueResult = await prisma.$queryRaw`
+              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
+              FROM order_items oi
+              JOIN orders o ON oi.order_id = o.id
+              WHERE o.status = 'canceled'
+              AND o.updated_at >= ${month.start}
+              AND o.updated_at <= ${month.end}
+            `;
+            
+            const revenue = monthRevenueResult[0]?.total_revenue ? parseFloat(monthRevenueResult[0].total_revenue.toString()) : 0;
+            const canceledRevenue = monthCanceledRevenueResult[0]?.canceled_revenue ? parseFloat(monthCanceledRevenueResult[0].canceled_revenue.toString()) : 0;
+            
+            const monthNumber = String(month.start.getMonth() + 1).padStart(2, '0');
+            const year = month.start.getFullYear();
+            
+            return {
+              month: `${monthNumber}.${year}`,
+              revenue: revenue,
+              canceledRevenue: canceledRevenue,
+              orders: monthOrdersCount
+            };
+          }));
+        }
+      }
+    } catch (error) {
+      // Ошибка получения данных по доходам
+    }
 
     // Генерируем данные по дням для выбранного периода
     try {
@@ -566,12 +756,12 @@ export async function GET(request: Request) {
       },
       charts: {
         monthlyRevenue: [
-          { month: 'Янв', revenue: 45000, orders: 12 },
-          { month: 'Фев', revenue: 52000, orders: 15 },
-          { month: 'Мар', revenue: 48000, orders: 14 },
-          { month: 'Апр', revenue: 61000, orders: 18 },
-          { month: 'Май', revenue: 55000, orders: 16 },
-          { month: 'Июн', revenue: 67000, orders: 20 }
+          { month: 'Янв', revenue: 45000, canceledRevenue: 5000, orders: 12 },
+          { month: 'Фев', revenue: 52000, canceledRevenue: 3000, orders: 15 },
+          { month: 'Мар', revenue: 48000, canceledRevenue: 7000, orders: 14 },
+          { month: 'Апр', revenue: 61000, canceledRevenue: 4000, orders: 18 },
+          { month: 'Май', revenue: 55000, canceledRevenue: 6000, orders: 16 },
+          { month: 'Июн', revenue: 67000, canceledRevenue: 2000, orders: 20 }
         ],
         topProducts: [
           { name: 'Платье летнее', sold: 45, revenue: 67500 },
