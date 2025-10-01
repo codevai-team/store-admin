@@ -3,6 +3,39 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Функция для форматирования времени "сколько времени назад"
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} сек назад`;
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} мин назад`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} ч назад`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} дн назад`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} нед назад`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} мес назад`;
+}
+
 export async function GET(request: Request) {
   try {
     // Получаем параметры фильтрации по датам из URL
@@ -284,6 +317,102 @@ export async function GET(request: Request) {
       // Ошибка получения аналитики товаров
     }
 
+    // Получаем последнюю активность
+    let recentActivity: Array<{ type: string; message: string; time: string; createdAt: string }> = [];
+    try {
+      // Получаем последние заказы
+      const recentOrders = await prisma.order.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          customerName: true,
+          status: true,
+          createdAt: true
+        }
+      });
+
+      // Получаем последние товары
+      const recentProducts = await prisma.product.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true
+        }
+      });
+
+      // Получаем последних пользователей
+      const recentUsers = await prisma.user.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          fullname: true,
+          role: true,
+          createdAt: true
+        }
+      });
+
+      // Формируем массив активности
+      const activities: Array<{ type: string; message: string; time: string; createdAt: string }> = [];
+
+      // Добавляем заказы
+      recentOrders.forEach(order => {
+        const statusNames: { [key: string]: string } = {
+          'CREATED': 'создан',
+          'COURIER_WAIT': 'ожидает курьера',
+          'COURIER_PICKED': 'принят курьером',
+          'ENROUTE': 'в пути',
+          'DELIVERED': 'доставлен',
+          'CANCELED': 'отменен'
+        };
+
+        activities.push({
+          type: 'order',
+          message: `Заказ #${order.id.slice(-6).toUpperCase()} от ${order.customerName} ${statusNames[order.status] || order.status}`,
+          time: getTimeAgo(order.createdAt),
+          createdAt: order.createdAt.toISOString()
+        });
+      });
+
+      // Добавляем товары
+      recentProducts.forEach(product => {
+        activities.push({
+          type: 'product',
+          message: `Добавлен товар "${product.name}"`,
+          time: getTimeAgo(product.createdAt),
+          createdAt: product.createdAt.toISOString()
+        });
+      });
+
+      // Добавляем пользователей
+      recentUsers.forEach(user => {
+        const roleNames: { [key: string]: string } = {
+          'SELLER': 'продавец',
+          'COURIER': 'курьер',
+          'ADMIN': 'администратор'
+        };
+
+        activities.push({
+          type: 'user',
+          message: `Зарегистрирован ${roleNames[user.role] || user.role} ${user.fullname}`,
+          time: getTimeAgo(user.createdAt),
+          createdAt: user.createdAt.toISOString()
+        });
+      });
+
+      // Сортируем по дате создания и берем последние 6
+      recentActivity = activities
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 6);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      // Ошибка получения последней активности
+    }
+
     try {
       totalCategories = await prisma.category.count();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -473,12 +602,14 @@ export async function GET(request: Request) {
           { size: 'S', count: 35 }
         ]
       },
-      recentActivity: [
-        { type: 'order', message: 'Новый заказ #ORD-001', time: '2 мин назад' },
-        { type: 'product', message: 'Добавлен товар "Платье летнее"', time: '15 мин назад' },
-        { type: 'user', message: 'Зарегистрирован новый продавец', time: '1 час назад' },
-        { type: 'order', message: 'Заказ #ORD-002 доставлен', time: '2 часа назад' }
-      ]
+        recentActivity: [
+          { type: 'order', message: 'Новый заказ #ORD-001', time: '2 мин назад', createdAt: new Date().toISOString() },
+          { type: 'product', message: 'Добавлен товар "Платье летнее"', time: '15 мин назад', createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
+          { type: 'user', message: 'Зарегистрирован новый продавец', time: '1 час назад', createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
+          { type: 'order', message: 'Заказ #ORD-002 доставлен', time: '2 часа назад', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
+          { type: 'product', message: 'Добавлен товар "Блузка классическая"', time: '3 часа назад', createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() },
+          { type: 'user', message: 'Зарегистрирован новый курьер', time: '4 часа назад', createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() }
+        ]
     };
 
     // Получаем данные для графиков
@@ -920,7 +1051,7 @@ export async function GET(request: Request) {
         userStats: userStats.length > 0 ? userStats : mockData.userStats,
         courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
         productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
-        recentActivity: mockData.recentActivity
+        recentActivity: recentActivity.length > 0 ? recentActivity : mockData.recentActivity
       } : mockData,
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
         // Подсчитываем общую стоимость заказа через orderItems

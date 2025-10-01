@@ -12,6 +12,7 @@ interface RecentActivityData {
   type: string;
   message: string;
   time: string;
+  createdAt: string;
 }
 
 interface RecentActivityChartProps {
@@ -54,7 +55,7 @@ export default function RecentActivityChart({ data }: RecentActivityChartProps) 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Последняя активность</h3>
-          <p className="text-sm text-gray-400">События в реальном времени</p>
+          <p className="text-sm text-gray-400">Последние события системы</p>
         </div>
         <ClockIcon className="h-6 w-6 text-blue-400" />
       </div>

@@ -6,7 +6,6 @@ import {
   ShoppingBagIcon, 
   CurrencyDollarIcon,
   ClockIcon,
-  ArrowTrendingUpIcon,
   UserGroupIcon,
   TagIcon,
   ChartBarIcon
@@ -55,7 +54,7 @@ interface DashboardData {
       topSellingColors: Array<{ color: string; count: number }>;
       topSellingSizes: Array<{ size: string; count: number }>;
     };
-    recentActivity: Array<{ type: string; message: string; time: string }>;
+    recentActivity: Array<{ type: string; message: string; time: string; createdAt: string }>;
   };
   recentOrders: Array<{
     id: string;

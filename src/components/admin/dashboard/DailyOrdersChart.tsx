@@ -8,7 +8,7 @@ import {
 interface DailyOrdersData {
   date: string;
   orders: number;
-  deliveredOrders: number;
+  deliveredOrders?: number; // Делаем опциональным
   revenue: number;
 }
 
@@ -55,7 +55,7 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
 
   // Подсчитываем общее количество заказов и доставленных заказов
   const totalOrders = data.reduce((sum, d) => sum + d.orders, 0);
-  const totalDelivered = data.reduce((sum, d) => sum + d.deliveredOrders, 0);
+  const totalDelivered = data.reduce((sum, d) => sum + (d.deliveredOrders || 0), 0);
 
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
