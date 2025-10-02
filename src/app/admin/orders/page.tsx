@@ -381,12 +381,12 @@ export default function OrdersPage() {
   // Создаем стабильную ссылку на функцию добавления новых заказов
   const addNewOrdersRef = useRef<(() => Promise<void>) | null>(null);
   
-  // Добавление только новых заказов
-  const addNewOrders = useCallback(async () => {
+  // Инкрементальное обновление заказов (новые + измененные)
+  const updateOrdersIncrementally = useCallback(async () => {
     const now = Date.now();
     // Предотвращаем вызовы чаще чем раз в 2 секунды
     if (now - lastAddNewOrdersTime.current < 2000) {
-      console.log('addNewOrders: Skipping - too soon since last call');
+      console.log('updateOrdersIncrementally: Skipping - too soon since last call');
       return;
     }
     lastAddNewOrdersTime.current = now;
@@ -396,15 +396,15 @@ export default function OrdersPage() {
                              debouncedSearchTerm.trim() || sortBy !== 'newest' || sortOrder !== 'desc';
     
     if (hasActiveFilters) {
-      console.log('addNewOrders: Skipping due to active filters, search or custom sorting');
+      console.log('updateOrdersIncrementally: Skipping due to active filters, search or custom sorting');
       return;
     }
     
-    console.log('addNewOrders: Starting to add new orders');
+    console.log('updateOrdersIncrementally: Starting to check for new and updated orders');
     try {
       const params = new URLSearchParams({
         page: '1',
-        limit: '10', // Получаем первые 10 заказов
+        limit: '50', // Увеличиваем лимит для проверки изменений в существующих заказах
         sortBy: 'updatedAt',
         sortOrder: 'desc',
         ...(statusFilter.length > 0 && { status: statusFilter.join(',') }),
@@ -414,60 +414,101 @@ export default function OrdersPage() {
       const response = await fetch(`/api/admin/orders?${params}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(`addNewOrders: Fetched ${data.orders.length} orders from API`);
+        console.log(`updateOrdersIncrementally: Fetched ${data.orders.length} orders from API`);
         
-        const newOrders = data.orders.filter((order: Order) => {
-          const orderUpdateTime = new Date(order.updatedAt);
-          const isNew = lastOrderUpdateTime ? orderUpdateTime > lastOrderUpdateTime : true;
-          console.log(`Order ${order.id}: ${orderUpdateTime.toISOString()} > ${lastOrderUpdateTime?.toISOString()} = ${isNew}`);
-          return isNew;
-        });
-
-        console.log(`addNewOrders: Found ${newOrders.length} new orders`);
-
-        if (newOrders.length > 0) {
-          // Сначала проверяем, сколько уникальных заказов будет добавлено
-          setOrders(prevOrders => {
-            const existingIds = new Set(prevOrders.map(order => order.id));
-            const uniqueNewOrders = newOrders.filter((order: Order) => !existingIds.has(order.id));
+        setOrders(prevOrders => {
+          const existingOrdersMap = new Map(prevOrders.map(order => [order.id, order]));
+          const newOrders: Order[] = [];
+          const updatedOrders: Order[] = [];
+          
+          // Проверяем каждый заказ из API
+          data.orders.forEach((apiOrder: Order) => {
+            const existingOrder = existingOrdersMap.get(apiOrder.id);
             
-            console.log(`addNewOrders: Found ${uniqueNewOrders.length} unique new orders to add`);
-            
-            // Показываем уведомление для каждого нового заказа отдельно с проверкой дублирования
-            uniqueNewOrders.forEach((order: Order) => {
-              if (!notifiedOrderIds.current.has(order.id)) {
-                notifiedOrderIds.current.add(order.id);
-                showSuccess('Новый заказ', `Поступил заказ #${order.id.slice(-8)} от ${order.customerName}`);
-                
-                // Очищаем старые уведомления (оставляем только последние 50)
-                if (notifiedOrderIds.current.size > 50) {
-                  const idsArray = Array.from(notifiedOrderIds.current);
-                  const toRemove = idsArray.slice(0, idsArray.length - 50);
-                  toRemove.forEach(id => notifiedOrderIds.current.delete(id));
-                }
-              } else {
-                console.log(`Notification already shown for order ${order.id}, skipping`);
+            if (!existingOrder) {
+              // Это новый заказ
+              const orderUpdateTime = new Date(apiOrder.updatedAt);
+              const isNew = lastOrderUpdateTime ? orderUpdateTime > lastOrderUpdateTime : true;
+              if (isNew) {
+                newOrders.push(apiOrder);
+                console.log(`New order found: ${apiOrder.id}`);
               }
-            });
-            
-            // Добавляем новые заказы в начало списка
-            return [...uniqueNewOrders, ...prevOrders];
+            } else {
+              // Проверяем, изменился ли существующий заказ
+              const apiOrderTime = new Date(apiOrder.updatedAt);
+              const existingOrderTime = new Date(existingOrder.updatedAt);
+              
+              if (apiOrderTime > existingOrderTime) {
+                updatedOrders.push(apiOrder);
+                console.log(`Updated order found: ${apiOrder.id} (${apiOrderTime.toISOString()} > ${existingOrderTime.toISOString()})`);
+              }
+            }
           });
           
-          // Обновляем время последнего обновления
+          console.log(`updateOrdersIncrementally: Found ${newOrders.length} new orders and ${updatedOrders.length} updated orders`);
+          
+          // Показываем уведомления для новых заказов
+          newOrders.forEach((order: Order) => {
+            if (!notifiedOrderIds.current.has(order.id)) {
+              notifiedOrderIds.current.add(order.id);
+              showSuccess('Новый заказ', `Поступил заказ #${order.id.slice(-8)} от ${order.customerName}`);
+              
+              // Очищаем старые уведомления (оставляем только последние 50)
+              if (notifiedOrderIds.current.size > 50) {
+                const idsArray = Array.from(notifiedOrderIds.current);
+                const toRemove = idsArray.slice(0, idsArray.length - 50);
+                toRemove.forEach(id => notifiedOrderIds.current.delete(id));
+              }
+            }
+          });
+          
+          // Показываем уведомления для обновленных заказов (более сдержанно)
+          if (updatedOrders.length > 0) {
+            console.log(`Обновлено заказов: ${updatedOrders.length}`);
+            // Можно добавить уведомление, но не для каждого заказа отдельно
+            // showSuccess('Обновления', `Обновлено ${updatedOrders.length} заказов`);
+          }
+          
+          if (newOrders.length === 0 && updatedOrders.length === 0) {
+            console.log('updateOrdersIncrementally: No changes found');
+            return prevOrders;
+          }
+          
+          // Создаем обновленный список заказов
+          const updatedOrdersMap = new Map(updatedOrders.map(order => [order.id, order]));
+          
+          // Удаляем обновленные заказы из их старых позиций и обновляем данные остальных
+          const ordersWithoutUpdated = prevOrders
+            .filter(order => !updatedOrdersMap.has(order.id))
+            .map(order => order);
+          
+          // Объединяем все заказы: новые + обновленные + остальные
+          const allOrders = [...newOrders, ...updatedOrders, ...ordersWithoutUpdated];
+          
+          // Сортируем весь список по updated_at (новые сначала)
+          const finalOrders = allOrders.sort((a, b) => {
+            const dateA = new Date(a.updatedAt);
+            const dateB = new Date(b.updatedAt);
+            return dateB.getTime() - dateA.getTime();
+          });
+          
+          console.log('updateOrdersIncrementally: Reordered orders by updated_at');
+          return finalOrders;
+        });
+        
+        // Обновляем время последнего обновления, если есть изменения
+        if (data.orders.length > 0) {
           const latestOrder = data.orders[0];
           setLastOrderUpdateTime(new Date(latestOrder.updatedAt));
-        } else {
-          console.log('addNewOrders: No new orders found');
         }
       }
     } catch (error) {
-      console.error('Error adding new orders:', error);
+      console.error('Error updating orders incrementally:', error);
     }
   }, [lastOrderUpdateTime, statusFilter, debouncedSearchTerm, dateFromFilter, dateToFilter, sortBy, sortOrder, showSuccess]);
 
   // Обновляем ссылку при изменении функции
-  addNewOrdersRef.current = addNewOrders;
+  addNewOrdersRef.current = updateOrdersIncrementally;
 
   // Обновление выбранного заказа
   const updateSelectedOrder = useCallback(async () => {
@@ -567,7 +608,7 @@ export default function OrdersPage() {
   }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder, currentPage]);
 
 
-  // Автоматическое обновление заказов каждые 5 секунд
+  // Автоматическое обновление заказов каждые 5 секунд (новые + измененные)
   useEffect(() => {
     const interval = setInterval(async () => {
       // Предотвращаем одновременные вызовы
@@ -593,9 +634,9 @@ export default function OrdersPage() {
         setIsCheckingOrders(true);
         
         try {
-          console.log('Auto refresh: Directly adding new orders...');
-          // Упрощаем логику - сразу вызываем addNewOrders
-          // Внутри addNewOrders уже есть проверка на новые заказы
+          console.log('Auto refresh: Checking for new and updated orders...');
+          // Вызываем функцию инкрементального обновления
+          // Она проверяет как новые, так и измененные заказы
           if (addNewOrdersRef.current) {
             await addNewOrdersRef.current();
           }
