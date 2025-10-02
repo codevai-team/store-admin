@@ -430,7 +430,7 @@ export default function BannerManager({ onBannersChange }: BannerManagerProps) {
 
       {/* Banners List */}
       {banners.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800/30 rounded-lg border border-gray-700/50">
+        <div className="text-center py-12 rounded-lg border border-gray-700/50">
           <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-300 mb-2">Нет баннеров</h3>
           <p className="text-gray-500 mb-4">Добавьте первый баннер для отображения в приложении</p>
@@ -457,7 +457,7 @@ export default function BannerManager({ onBannersChange }: BannerManagerProps) {
                    ? 'bg-blue-500/20 border-blue-500/50 opacity-50 cursor-grabbing'
                    : dragOverIndex === index
                    ? 'bg-green-500/20 border-green-500/50 cursor-pointer'
-                   : 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70 cursor-grab hover:cursor-grab'
+                   : 'border-gray-700/50 hover:border-gray-600/50 cursor-grab hover:cursor-grab'
                }`}
                onClick={() => openPreviewModal(banner)}
                title="Нажмите для предварительного просмотра • Перетащите для изменения порядка"

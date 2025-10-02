@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   PlusIcon,
   PencilIcon,
@@ -292,6 +293,7 @@ const renderCategoryIcon = (imageUrl: string | null) => {
 };
 
 export default function CategoriesPage() {
+  const searchParams = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -418,6 +420,21 @@ export default function CategoriesPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, showOnlyParents, sortBy, sortOrder]);
+
+  // Обработка URL параметров для автоматического открытия категории
+  useEffect(() => {
+    const viewCategoryId = searchParams.get('view');
+    if (viewCategoryId && categories.length > 0) {
+      const categoryToView = categories.find(c => c.id === viewCategoryId);
+      if (categoryToView) {
+        openViewModal(categoryToView);
+        // Очищаем URL параметр после открытия модального окна
+        const url = new URL(window.location.href);
+        url.searchParams.delete('view');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams, categories]);
 
   // Клавиатурные сокращения
   useEffect(() => {

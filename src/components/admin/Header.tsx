@@ -6,14 +6,15 @@ import Image from 'next/image';
 import {
   BellIcon,
   UserIcon,
-  MagnifyingGlassIcon,
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
+import GlobalSearch from './GlobalSearch';
 
 export default function Header() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
   const router = useRouter();
 
   // Закрытие меню при клике вне его области
@@ -36,9 +37,9 @@ export default function Header() {
   return (
     <header className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700/50 h-16 flex items-center justify-between px-4 lg:px-6 shadow-lg backdrop-blur-sm relative z-50">
       {/* Logo and Brand */}
-      <div className="flex items-center">
-        {/* Logo */}
-        <div className="w-9 h-9 relative sm:mr-4">
+      <div className="flex items-center flex-1">
+        {/* Logo - скрывается при фокусе на мобильном поиске */}
+        <div className={`w-9 h-9 relative sm:mr-4 transition-all duration-300 ${isMobileSearchFocused ? 'sm:block hidden' : ''}`}>
           <Image
             src="/logo-bugu.svg"
             alt="Bugu Store"
@@ -57,54 +58,40 @@ export default function Header() {
           </div>
         </div>
         
-        {/* Search bar - Mobile (сразу после логотипа) */}
-        <div className="flex-1 ml-3 mr-3 sm:hidden">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 group-focus-within:text-indigo-400 transition-colors duration-200" />
-            </div>
-            <input
-              type="text"
-              placeholder="Поиск..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-600/50 rounded-lg leading-5 bg-gray-800/50 text-gray-200 placeholder-gray-400 focus:outline-none focus:bg-gray-700/70 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all duration-200 backdrop-blur-sm"
-            />
-            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
-          </div>
+        {/* Search bar - Mobile (расширяется при фокусе) */}
+        <div className={`sm:hidden transition-all duration-300 ${
+          isMobileSearchFocused 
+            ? 'flex-1 ml-2 mr-2' 
+            : 'flex-1 ml-3 mr-3'
+        }`}>
+          <GlobalSearch 
+            placeholder="Поиск..."
+            isMobile={true}
+            onFocusChange={setIsMobileSearchFocused}
+          />
         </div>
         
         {/* Search bar - Desktop (до кнопки Online) */}
-        <div className="ml-8 mr-8 hidden lg:block" style={{ width: 'calc(100vw - 780px)' }}>
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-400 transition-colors duration-200" />
-            </div>
-            <input
-              type="text"
-              placeholder="Поиск товаров, заказов, клиентов..."
-              className="block w-full pl-12 pr-4 py-2.5 border border-gray-600/50 rounded-xl leading-5 bg-gray-800/50 text-gray-200 placeholder-gray-400 focus:outline-none focus:bg-gray-700/70 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all duration-200 backdrop-blur-sm"
-            />
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
-          </div>
+        <div className="ml-32 mr-8 hidden lg:block" style={{ width: 'calc(100vw - 780px)' }}>
+          <GlobalSearch 
+            placeholder="Поиск товаров, заказов, клиентов..."
+            isMobile={false}
+          />
         </div>
         
         {/* Search bar - Tablet (компактная версия) */}
-        <div className="ml-6 mr-6 hidden sm:block lg:hidden">
-          <div className="relative group" style={{ width: '280px' }}>
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 group-focus-within:text-indigo-400 transition-colors duration-200" />
-            </div>
-            <input
-              type="text"
-              placeholder="Поиск..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-600/50 rounded-lg leading-5 bg-gray-800/50 text-gray-200 placeholder-gray-400 focus:outline-none focus:bg-gray-700/70 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all duration-200 backdrop-blur-sm"
-            />
-            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
-          </div>
+        <div className="ml-6 mr-6 hidden sm:block lg:hidden" style={{ width: '280px' }}>
+          <GlobalSearch 
+            placeholder="Поиск..."
+            isMobile={false}
+          />
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center space-x-3">
+      {/* Right side - скрывается на мобильных при фокусе поиска */}
+      <div className={`flex items-center space-x-3 transition-all duration-300 ${
+        isMobileSearchFocused ? 'sm:flex hidden' : 'flex'
+      }`}>
 
         {/* Quick Stats */}
         <div className="hidden lg:flex items-center space-x-4 mr-2">

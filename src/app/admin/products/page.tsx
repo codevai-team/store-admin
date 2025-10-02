@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   PlusIcon,
   PencilIcon,
@@ -100,6 +101,7 @@ type SortOrder = 'asc' | 'desc';
 
 export default function ProductsPage() {
   const { toasts, removeToast, showSuccess, showError, showWarning } = useToast();
+  const searchParams = useSearchParams();
   
   // Ref для модального окна редактирования
   const editModalRef = useRef<SimpleAddProductModalRef>(null);
@@ -358,6 +360,21 @@ export default function ProductsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
+
+  // Обработка URL параметров для автоматического открытия продукта
+  useEffect(() => {
+    const viewProductId = searchParams.get('view');
+    if (viewProductId && products.length > 0) {
+      const productToView = products.find(p => p.id === viewProductId);
+      if (productToView) {
+        openViewModal(productToView);
+        // Очищаем URL параметр после открытия модального окна
+        const url = new URL(window.location.href);
+        url.searchParams.delete('view');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams, products]);
 
   // Клавиатурные сокращения
   useEffect(() => {

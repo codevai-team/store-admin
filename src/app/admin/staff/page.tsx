@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   PlusIcon,
   PencilIcon,
@@ -62,6 +63,7 @@ interface PaginationInfo {
 }
 
 export default function StaffPage() {
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -156,6 +158,21 @@ export default function StaffPage() {
       document.body.style.overflow = 'unset';
     };
   }, [isCreateModalOpen, isEditModalOpen, isDeleteModalOpen, isViewModalOpen]);
+
+  // Обработка URL параметров для автоматического открытия сотрудника
+  useEffect(() => {
+    const viewUserId = searchParams.get('view');
+    if (viewUserId && users.length > 0) {
+      const userToView = users.find(u => u.id === viewUserId);
+      if (userToView) {
+        openViewModal(userToView);
+        // Очищаем URL параметр после открытия модального окна
+        const url = new URL(window.location.href);
+        url.searchParams.delete('view');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams, users]);
 
   // Получение доступных опций сортировки в зависимости от фильтра
   const getSortOptions = () => {

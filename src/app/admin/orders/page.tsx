@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
   PencilIcon,
@@ -110,6 +111,7 @@ const ORDER_STATUSES = {
 
 export default function OrdersPage() {
   const { toasts, removeToast, showSuccess, showError } = useToast();
+  const searchParams = useSearchParams();
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -610,6 +612,21 @@ export default function OrdersPage() {
       isAdminCommentEditModalOpen, isAdminCommentViewModalOpen, isCustomerCommentModalOpen, 
       isCancelReasonModalOpen, isCheckingOrders, dateFromFilter, dateToFilter, 
       statusFilter, debouncedSearchTerm, sortBy, sortOrder]);
+
+  // Обработка URL параметров для автоматического открытия заказа
+  useEffect(() => {
+    const viewOrderId = searchParams.get('view');
+    if (viewOrderId && orders.length > 0) {
+      const orderToView = orders.find(o => o.id === viewOrderId);
+      if (orderToView) {
+        openViewModal(orderToView);
+        // Очищаем URL параметр после открытия модального окна
+        const url = new URL(window.location.href);
+        url.searchParams.delete('view');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams, orders]);
 
   // Клавиатурные сокращения и обработка кликов вне элементов
   useEffect(() => {

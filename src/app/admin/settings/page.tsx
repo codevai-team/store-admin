@@ -291,7 +291,7 @@ export default function Settings() {
         </div>
 
         {/* Banner Management Section */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+        <div className="rounded-xl p-6 border border-gray-700/50">
           <div className="flex items-center space-x-3 mb-6">
             <div className="p-2 bg-purple-500/20 rounded-lg">
               <PhotoIcon className="h-6 w-6 text-purple-400" />
