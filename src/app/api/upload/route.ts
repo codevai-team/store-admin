@@ -114,15 +114,16 @@ export async function DELETE(request: NextRequest) {
     
     try {
       await s3Client.send(deleteCommand);
-    } catch (deleteError: any) {
+    } catch (deleteError: unknown) {
       // Если файл не найден, считаем это успехом
-      if (deleteError.$metadata?.httpStatusCode === 404 || 
-          deleteError.name === 'NoSuchKey' ||
-          deleteError.message?.includes('NoSuchKey')) {
+      const error = deleteError as { $metadata?: { httpStatusCode?: number }; name?: string; message?: string };
+      if (error.$metadata?.httpStatusCode === 404 || 
+          error.name === 'NoSuchKey' ||
+          error.message?.includes('NoSuchKey')) {
         console.log('File not found, considering as successful deletion:', fileName);
       } else {
         // Для других ошибок логируем и продолжаем
-        console.warn('S3 delete warning (continuing anyway):', deleteError.message);
+        console.warn('S3 delete warning (continuing anyway):', error.message || 'Unknown error');
       }
     }
 
