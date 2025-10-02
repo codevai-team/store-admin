@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 // Инициализация S3 клиента
 const s3Client = new S3Client({
@@ -101,12 +102,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Создаем временные файлы
-    const tempDir = '/tmp';
+    // Создаем временные файлы с кроссплатформенной поддержкой
+    const tempDir = os.tmpdir(); // Используем системную временную директорию
     const inputFileName = `input_${randomUUID()}.jpg`;
     const outputFileName = `output_${randomUUID()}.jpg`;
     const inputPath = path.join(tempDir, inputFileName);
     const outputPath = path.join(tempDir, outputFileName);
+
+    // Убеждаемся, что временная директория существует
+    if (!fs.existsSync(tempDir)) {
+      try {
+        fs.mkdirSync(tempDir, { recursive: true });
+      } catch (mkdirError) {
+        console.error('Failed to create temp directory:', mkdirError);
+        return NextResponse.json(
+          { error: 'Не удалось создать временную директорию', details: mkdirError instanceof Error ? mkdirError.message : 'Unknown error' },
+          { status: 500 }
+        );
+      }
+    }
+
+    console.log('Using temp directory:', tempDir);
+    console.log('Input file path:', inputPath);
 
     try {
       // Сохраняем оригинальное изображение во временный файл
@@ -115,8 +132,29 @@ export async function POST(request: NextRequest) {
       // Запускаем Python скрипт для удаления фона
       const pythonScript = path.join(process.cwd(), 'scripts', 'remove_background.py');
       
-      const pythonProcess = spawn('python3', [pythonScript, inputPath], {
+      // Проверяем существование Python скрипта
+      if (!fs.existsSync(pythonScript)) {
+        return NextResponse.json(
+          { error: 'Python скрипт не найден', details: `Script path: ${pythonScript}` },
+          { status: 500 }
+        );
+      }
+      
+      // Определяем команду Python в зависимости от платформы
+      const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
+      
+      console.log('Running Python command:', pythonCommand);
+      console.log('Python script path:', pythonScript);
+      console.log('Input path:', inputPath);
+      
+      const pythonProcess = spawn(pythonCommand, [pythonScript, inputPath], {
         stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      // Обработка ошибки запуска процесса
+      pythonProcess.on('error', (spawnError) => {
+        console.error('Failed to start Python process:', spawnError);
+        throw new Error(`Не удалось запустить Python: ${spawnError.message}`);
       });
 
       let stdout = '';
@@ -137,8 +175,10 @@ export async function POST(request: NextRequest) {
 
       if (exitCode !== 0) {
         console.error('Python script error:', stderr);
+        console.error('Python script stdout:', stdout);
+        console.error('Python script exit code:', exitCode);
         return NextResponse.json(
-          { error: 'Ошибка обработки изображения', details: stderr },
+          { error: 'Ошибка обработки изображения', details: stderr || 'Python script failed' },
           { status: 500 }
         );
       }

@@ -76,6 +76,36 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
   const [attributes, setAttributes] = useState<{key: string, value: string}[]>([]);
   const [resetImageState, setResetImageState] = useState(false); // Флаг для сброса состояния изображений
 
+  // Функция для проверки валидности формы
+  const isFormValid = () => {
+    return (
+      formData.name.trim() !== '' &&
+      formData.description.trim() !== '' &&
+      formData.categoryId !== '' &&
+      formData.price > 0 &&
+      formData.imageUrl && formData.imageUrl.length > 0 &&
+      formData.sizes && formData.sizes.length > 0 &&
+      formData.colors && formData.colors.length > 0 &&
+      formData.sellerId !== ''
+    );
+  };
+
+  // Функция для подсчета заполненных полей
+  const getFilledFieldsCount = () => {
+    let count = 0;
+    if (formData.name.trim() !== '') count++;
+    if (formData.description.trim() !== '') count++;
+    if (formData.categoryId !== '') count++;
+    if (formData.price > 0) count++;
+    if (formData.imageUrl && formData.imageUrl.length > 0) count++;
+    if (formData.sizes && formData.sizes.length > 0) count++;
+    if (formData.colors && formData.colors.length > 0) count++;
+    return count;
+  };
+
+  const totalRequiredFields = 7;
+  const filledFields = getFilledFieldsCount();
+
   // Инициализация формы при открытии модального окна
   useEffect(() => {
     if (isOpen) {
@@ -119,21 +149,49 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Валидация названия товара
     if (!formData.name.trim()) {
       onShowError('Ошибка валидации', 'Название товара обязательно');
       return;
     }
 
+    // Валидация описания
+    if (!formData.description.trim()) {
+      onShowError('Ошибка валидации', 'Описание товара обязательно');
+      return;
+    }
+
+    // Валидация категории
     if (!formData.categoryId) {
       onShowError('Ошибка валидации', 'Выберите категорию');
       return;
     }
 
+    // Валидация цены
     if (formData.price <= 0) {
       onShowError('Ошибка валидации', 'Цена должна быть больше 0');
       return;
     }
 
+    // Валидация изображений
+    if (!formData.imageUrl || formData.imageUrl.length === 0) {
+      onShowError('Ошибка валидации', 'Добавьте хотя бы одно изображение товара');
+      return;
+    }
+
+    // Валидация размеров
+    if (!formData.sizes || formData.sizes.length === 0) {
+      onShowError('Ошибка валидации', 'Выберите хотя бы один размер');
+      return;
+    }
+
+    // Валидация цветов
+    if (!formData.colors || formData.colors.length === 0) {
+      onShowError('Ошибка валидации', 'Выберите хотя бы один цвет');
+      return;
+    }
+
+    // Валидация продавца
     if (!formData.sellerId) {
       onShowError('Ошибка валидации', 'Выберите продавца');
       return;
@@ -344,7 +402,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
             {/* Название */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Название товара *
+                Название товара <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -360,7 +418,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
             {/* Описание */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Описание
+                Описание <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={formData.description}
@@ -369,13 +427,14 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
                 className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                 maxLength={200}
                 placeholder="Описание товара"
+                required
               />
             </div>
 
             {/* Цена */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Цена *
+                Цена <span className="text-red-400">*</span>
               </label>
               <div className="relative">
                 <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -411,7 +470,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
             {/* Категория */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Категория *
+                Категория <span className="text-red-400">*</span>
               </label>
               <CustomSelect
                 value={formData.categoryId}
@@ -469,7 +528,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
 
           {/* Изображения */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Изображения</h3>
+            <h3 className="text-lg font-semibold text-white">Изображения <span className="text-red-400">*</span></h3>
             <ImageUpload
               images={formData.imageUrl}
               onImagesChange={handleImagesChange}
@@ -481,7 +540,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
 
           {/* Размеры */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Размеры</h3>
+            <h3 className="text-lg font-semibold text-white">Размеры <span className="text-red-400">*</span></h3>
             <SizeSelector
               selectedSizes={formData.sizes}
               onSizesChange={(sizes) => setFormData(prev => ({ ...prev, sizes }))}
@@ -490,7 +549,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
 
           {/* Цвета */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Цвета</h3>
+            <h3 className="text-lg font-semibold text-white">Цвета <span className="text-red-400">*</span></h3>
             <ColorSelector
               selectedColors={formData.colors}
               onColorsChange={(colors) => setFormData(prev => ({ ...prev, colors }))}
@@ -546,22 +605,64 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
             </div>
           </div>
 
+          {/* Индикатор прогресса */}
+          {!isEdit && (
+            <div className="bg-gray-700/30 rounded-lg p-3 sm:p-4 border border-gray-600/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-2">
+                <span className="text-xs sm:text-sm font-medium text-gray-300">
+                  Заполнено полей: {filledFields} из {totalRequiredFields}
+                </span>
+                <span className="text-xs text-gray-400 self-start sm:self-auto">
+                  {Math.round((filledFields / totalRequiredFields) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-600/50 rounded-full h-2 mb-2">
+                <div 
+                  className="bg-gradient-to-r from-indigo-500 to-indigo-400 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(filledFields / totalRequiredFields) * 100}%` }}
+                ></div>
+              </div>
+              {!isFormValid() && (
+                <p className="text-xs text-gray-400 leading-tight">
+                  <span className="hidden sm:inline">Заполните все обязательные поля для активации кнопки создания</span>
+                  <span className="sm:hidden">Заполните все поля со звездочкой (*)</span>
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Кнопки */}
-          <div className="flex space-x-4 pt-4 pb-4 sm:pb-0 border-t border-gray-700/50">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4 pb-4 sm:pb-0 border-t border-gray-700/50">
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 px-4 py-3 sm:py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-3 sm:py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium active:scale-95 touch-manipulation"
             >
               Отмена
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-3 sm:py-2 rounded-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50"
-            >
-              {loading ? 'Создание...' : 'Создать товар'}
-            </button>
+            <div className="flex-1 relative">
+              <button
+                type="submit"
+                disabled={loading || !isFormValid()}
+                className={`w-full px-4 py-3 sm:py-2 rounded-lg font-medium transition-all duration-200 ${
+                  loading || !isFormValid()
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60 select-none'
+                    : 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:from-indigo-700 hover:to-indigo-600 shadow-lg hover:shadow-indigo-500/25 active:scale-95 touch-manipulation'
+                }`}
+                title={!isFormValid() && !loading ? 'Заполните все обязательные поля' : ''}
+              >
+                {loading ? (isEdit ? 'Сохранение...' : 'Создание...') : (isEdit ? 'Сохранить' : 'Создать товар')}
+              </button>
+              
+              {/* Индикатор для мобильных под кнопкой */}
+              {!isEdit && !isFormValid() && !loading && (
+                <div className="sm:hidden mt-2 text-center">
+                  <span className="text-xs text-red-400 bg-red-900/20 px-2 py-1 rounded border border-red-700/30">
+                    Осталось заполнить: {totalRequiredFields - filledFields} полей
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </form>
         </div>

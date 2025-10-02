@@ -112,7 +112,19 @@ export async function DELETE(request: NextRequest) {
       Key: fileName,
     });
     
-    await s3Client.send(deleteCommand);
+    try {
+      await s3Client.send(deleteCommand);
+    } catch (deleteError: any) {
+      // Если файл не найден, считаем это успехом
+      if (deleteError.$metadata?.httpStatusCode === 404 || 
+          deleteError.name === 'NoSuchKey' ||
+          deleteError.message?.includes('NoSuchKey')) {
+        console.log('File not found, considering as successful deletion:', fileName);
+      } else {
+        // Для других ошибок логируем и продолжаем
+        console.warn('S3 delete warning (continuing anyway):', deleteError.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -132,13 +144,32 @@ export async function DELETE(request: NextRequest) {
 function extractFileNameFromUrl(fileUrl: string): string | null {
   try {
     const url = new URL(fileUrl);
-    const pathParts = url.pathname.split('/');
-    // Ожидаем формат: /bucket-name/products/filename.ext
-    if (pathParts.length >= 3 && pathParts[2] === 'products') {
-      return `products/${pathParts[3]}`;
+    const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+    
+    console.log('Extracting file name from URL:', fileUrl);
+    console.log('Path parts:', pathParts);
+    
+    // Ищем индекс bucket name
+    const bucketIndex = pathParts.findIndex(part => part === BUCKET_NAME);
+    if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+      // Возвращаем все части после bucket name
+      const fileName = pathParts.slice(bucketIndex + 1).join('/');
+      console.log('Extracted file name:', fileName);
+      return fileName;
     }
+    
+    // Альтернативный способ: ищем products/filename
+    const productsIndex = pathParts.findIndex(part => part === 'products');
+    if (productsIndex !== -1 && productsIndex < pathParts.length - 1) {
+      const fileName = pathParts.slice(productsIndex).join('/');
+      console.log('Extracted file name (alternative):', fileName);
+      return fileName;
+    }
+    
+    console.log('Could not extract file name from URL');
     return null;
-  } catch {
+  } catch (error) {
+    console.error('Error extracting file name:', error);
     return null;
   }
 }
