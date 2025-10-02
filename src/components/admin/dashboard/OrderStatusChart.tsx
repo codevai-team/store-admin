@@ -22,10 +22,8 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 export default function OrderStatusChart({ data }: OrderStatusChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(value);
+    }).format(value) + ' ⃀';
   };
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: OrderStatusData }> }) => {

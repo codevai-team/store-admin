@@ -248,10 +248,8 @@ export default function EditProductModal({
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(price) + ' ⃀';
   };
 
   if (!isOpen) return null;
@@ -426,11 +424,11 @@ export default function EditProductModal({
                                   <span className="text-gray-400">•</span>
                                   <span className="text-gray-400">{variant.quantity} шт</span>
                                   <span className="text-gray-400">•</span>
-                                  <span className="text-green-400 font-semibold">{variant.price} ₽</span>
+                                  <span className="text-green-400 font-semibold">{variant.price} ⃀</span>
                                   {variant.discountPrice && (
                                     <>
                                       <span className="text-gray-400">→</span>
-                                      <span className="text-orange-400 font-semibold">{variant.discountPrice} ₽</span>
+                                      <span className="text-orange-400 font-semibold">{variant.discountPrice} ⃀</span>
                                     </>
                                   )}
                                 </div>
@@ -553,7 +551,7 @@ export default function EditProductModal({
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                              Цена * ₽
+                              Цена * ⃀
                             </label>
                             <input
                               type="number"
@@ -582,7 +580,7 @@ export default function EditProductModal({
                           ) : (
                             <div>
                               <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                                Цена со скидкой ₽
+                                Цена со скидкой ⃀
                               </label>
                               <div className="flex space-x-2">
                                 <input

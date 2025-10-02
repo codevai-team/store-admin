@@ -31,11 +31,10 @@ function getIconComponent(iconName: string) {
 }
 
 // Компонент для отображения изображения с fallback на иконку
-function ItemImage({ src, alt, fallbackIcon, type }: { 
+function ItemImage({ src, alt, fallbackIcon }: { 
   src: string; 
   alt: string; 
   fallbackIcon: string;
-  type: string;
 }) {
   const [imageError, setImageError] = useState(false);
 
@@ -320,12 +319,11 @@ export default function GlobalSearch({
                   <div className="flex items-start space-x-3">
                     {/* Для товаров и категорий показываем изображение, для остальных - иконку */}
                     {(result.type === 'product' || result.type === 'category') && result.image ? (
-                      <ItemImage 
-                        src={result.image}
-                        alt={result.title}
-                        fallbackIcon={result.icon}
-                        type={result.type}
-                      />
+          <ItemImage 
+            src={result.image}
+            alt={result.title}
+            fallbackIcon={result.icon}
+          />
                     ) : (
                       (() => {
                         const IconComponent = getIconComponent(result.icon);
@@ -343,7 +341,7 @@ export default function GlobalSearch({
                         </h4>
                         {result.price && (
                           <span className="text-sm font-semibold text-green-400 ml-2">
-                            {result.price} ₽
+                            {result.price} ⃀
                           </span>
                         )}
                         {result.status && (

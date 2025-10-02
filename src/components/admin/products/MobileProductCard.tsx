@@ -57,10 +57,8 @@ export default function MobileProductCard({
   // Format price
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(price) + ' ⃀';
   };
 
   // Get status color and text

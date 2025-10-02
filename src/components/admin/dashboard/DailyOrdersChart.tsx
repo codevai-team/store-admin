@@ -20,10 +20,8 @@ interface DailyOrdersChartProps {
 export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(value);
+    }).format(value) + ' ⃀';
   };
 
   const maxOrders = Math.max(...data.map(d => d.orders));
@@ -122,7 +120,7 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
                 ></div>
                 <div className="text-xs text-gray-400 mt-2 transform -rotate-45 origin-center">{day.date}</div>
                 <div className="text-xs text-white font-medium mt-1">
-                  {formatCurrency(day.revenue).replace('₽', '₽').replace(/\s/g, '')}
+                  {formatCurrency(day.revenue).replace(/\s/g, ' ')}
                 </div>
               </div>
             ))}

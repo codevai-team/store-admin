@@ -7,11 +7,8 @@ import {
   TrashIcon,
   PhotoIcon,
   TagIcon,
-  SwatchIcon,
   CubeIcon,
-  CurrencyDollarIcon,
   PaintBrushIcon,
-  HashtagIcon,
   PercentBadgeIcon,
   DocumentTextIcon,
   AdjustmentsHorizontalIcon,
@@ -210,7 +207,7 @@ export default function AddProductModal({
       await onSubmit(formData);
       // Сначала закрываем модальное окно
       onClose();
-    } catch (error) {
+    } catch {
       onShowError?.('Ошибка создания', 'Не удалось создать товар. Попробуйте еще раз');
     }
   };
@@ -381,11 +378,11 @@ export default function AddProductModal({
                               <span className="text-gray-400">•</span>
                               <span className="text-gray-400">{variant.quantity} шт</span>
                               <span className="text-gray-400">•</span>
-                              <span className="text-green-400 font-semibold">{variant.price} ₽</span>
+                              <span className="text-green-400 font-semibold">{variant.price} ⃀</span>
                               {variant.discountPrice && (
                                 <>
                                   <span className="text-gray-400">→</span>
-                                  <span className="text-orange-400 font-semibold">{variant.discountPrice} ₽</span>
+                                  <span className="text-orange-400 font-semibold">{variant.discountPrice} ⃀</span>
                                 </>
                               )}
                             </div>
@@ -508,7 +505,7 @@ export default function AddProductModal({
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                          Цена * ₽
+                          Цена * ⃀
                         </label>
                         <input
                           type="number"
@@ -537,7 +534,7 @@ export default function AddProductModal({
                       ) : (
                         <div>
                           <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                            Цена со скидкой ₽
+                            Цена со скидкой ⃀
                           </label>
                           <div className="flex space-x-2">
                             <input

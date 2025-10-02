@@ -405,7 +405,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
                   min="0"
                   step="0.01"
                   className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg pl-10 pr-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  placeholder="Введите цену"
+                  placeholder="Введите цену в сомах"
                   required
                 />
               </div>

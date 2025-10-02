@@ -224,8 +224,8 @@ export default function AdminVerify() {
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 relative">
             <Image
-              src="/logo-bugu.svg"
-              alt="Bugu Store Logo"
+              src="/admin-store-logo.svg"
+              alt="Store Logo"
               fill
               className="object-contain"
               priority

@@ -3,7 +3,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
 import { navigation } from '@/lib/navigation';
 
 
@@ -84,7 +83,7 @@ function SidebarContent({ pathname }: { pathname: string }) {
         {/* Footer */}
         <div className="flex-shrink-0 p-4 border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-b-2xl">
           <div className="text-center">
-            <div className="text-xs text-gray-400 mb-1">© 2024 Bugu Store</div>
+            <div className="text-xs text-gray-400 mb-1">© 2025 Store</div>
             <div className="flex items-center justify-center space-x-1">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
               <span className="text-xs text-green-400 font-medium">Online</span>

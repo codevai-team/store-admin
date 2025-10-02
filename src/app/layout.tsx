@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bugu Store - Admin Panel",
-  description: "Система администрирования интернет-магазина Bugu Store",
+  title: "Store - Admin Panel",
+  description: "Система администрирования интернет-магазина",
   icons: {
-    icon: "/favicon-bugu.ico",
+    icon: "/admin-store-logo.ico",
   },
 };
 

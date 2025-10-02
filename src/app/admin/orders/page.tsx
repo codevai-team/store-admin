@@ -1014,10 +1014,8 @@ export default function OrdersPage() {
   // Форматирование цены
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(price) + ' ⃀';
   };
 
   // Форматирование даты
