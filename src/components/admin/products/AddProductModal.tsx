@@ -237,7 +237,7 @@ export default function AddProductModal({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(92vh-120px)]">
+        <div className="overflow-y-auto max-h-[calc(92vh-120px)] scrollbar-thin">
           <form onSubmit={handleSubmit} className="p-5 space-y-5">
             {/* Basic Information */}
             <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-xl p-4 border border-gray-700/30">
@@ -361,7 +361,7 @@ export default function AddProductModal({
 
               {/* Variants List */}
               {formData.variants.length > 0 && (
-                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
                   {formData.variants.map((variant, index) => (
                     <div key={variant.id} className="bg-gray-800/50 border border-gray-700/40 rounded-lg p-3 hover:bg-gray-800/70 transition-colors">
                       <div className="flex items-center justify-between">
@@ -603,7 +603,7 @@ export default function AddProductModal({
                     </div>
 
                     {currentVariant.attributes.length > 0 && (
-                      <div className="space-y-1 max-h-20 overflow-y-auto">
+                      <div className="space-y-1 max-h-20 overflow-y-auto scrollbar-thin">
                         {currentVariant.attributes.map((attr, index) => (
                           <div key={index} className="flex items-center justify-between bg-gray-800/40 rounded px-2 py-1.5 border border-gray-700/30">
                             <span className="text-xs text-gray-300">

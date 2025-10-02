@@ -102,7 +102,7 @@ export default function ImageViewer({
         <div className="flex items-center justify-between">
           {/* Thumbnails */}
           {images.length > 1 && (
-            <div className="flex space-x-2 max-w-md overflow-x-auto">
+            <div className="flex space-x-2 max-w-md overflow-x-auto scrollbar-thin">
               {images.map((image, index) => (
                 <button
                   key={index}

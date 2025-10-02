@@ -168,7 +168,7 @@ export default function EditUserModal({
         </div>
 
         {/* Content */}
-        <div className="max-h-[calc(92vh-80px)] overflow-y-auto">
+        <div className="max-h-[calc(92vh-80px)] overflow-y-auto scrollbar-thin">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* ФИО */}
             <div>

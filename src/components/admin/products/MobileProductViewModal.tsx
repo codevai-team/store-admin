@@ -155,7 +155,7 @@ export default function MobileProductViewModal({
           </div>
 
           {/* Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto bg-gray-900">
+          <div className="flex-1 overflow-y-auto bg-gray-900 scrollbar-thin">
             {/* Image Gallery */}
             <div className="p-4">
               <MobileImageGallery

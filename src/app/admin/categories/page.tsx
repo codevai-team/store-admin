@@ -1285,7 +1285,7 @@ export default function CategoriesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1385,7 +1385,7 @@ export default function CategoriesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
               <form onSubmit={handleUpdate} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1487,7 +1487,7 @@ export default function CategoriesPage() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <div className="mb-6">
                   {(deletingCategory.productsCount > 0 || deletingCategory.childrenCount > 0) ? (
                     <div className="space-y-4">
@@ -1616,7 +1616,7 @@ export default function CategoriesPage() {
               </div>
 
               {/* Content */}
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <div className="space-y-4 sm:space-y-6">
                   {/* Основная информация */}
                   <div className="bg-gray-700/30 rounded-xl p-4 sm:p-6">
@@ -1704,7 +1704,7 @@ export default function CategoriesPage() {
                       <h4 className="text-base sm:text-lg font-semibold text-white mb-3">
                         Подкатегории ({viewingCategory.children.length})
                       </h4>
-                      <div className="max-h-32 sm:max-h-48 overflow-y-auto space-y-2 pr-2">
+                      <div className="max-h-32 sm:max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin">
                         {viewingCategory.children.map((child) => (
                           <div key={child.id} className="flex items-center space-x-3 p-2 sm:p-3 bg-gray-600/30 rounded-lg">
                             <TagIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />

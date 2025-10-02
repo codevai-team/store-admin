@@ -403,7 +403,7 @@ export default function ImageUploadModal({
 
 
         {/* Content */}
-        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
           {/* Combined Upload Interface */}
           <div className="space-y-6">
             {/* Drag & Drop Area */}

@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <Sidebar />
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 lg:p-6 pb-20 lg:pb-6">
+        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 lg:p-6 pb-20 lg:pb-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

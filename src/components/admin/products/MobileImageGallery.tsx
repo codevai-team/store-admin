@@ -100,7 +100,7 @@ export default function MobileImageGallery({
          {/* Thumbnail Navigation */}
          {images.length > 1 && (
            <div className="mt-3">
-             <div className="flex space-x-1 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+             <div className="flex space-x-1 overflow-x-auto pb-2 scrollbar-thin">
                {images.map((image, index) => (
                  <button
                    key={index}

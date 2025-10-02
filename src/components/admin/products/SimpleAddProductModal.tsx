@@ -340,7 +340,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
           </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="overflow-y-auto max-h-[calc(90vh-80px)] scrollbar-thin">
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
           {/* Основная информация */}
           <div className="space-y-4">

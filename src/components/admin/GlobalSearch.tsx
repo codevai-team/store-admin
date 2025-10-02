@@ -249,23 +249,6 @@ export default function GlobalSearch({
 
   return (
     <div ref={searchRef} className={`relative ${className}`}>
-      {/* Стили скроллбара как в графике "Дневная статистика" */}
-      <style jsx>{`
-        .search-results::-webkit-scrollbar {
-          width: 6px;
-        }
-        .search-results::-webkit-scrollbar-track {
-          background-color: #172130 !important;
-          border-radius: 3px;
-        }
-        .search-results::-webkit-scrollbar-thumb {
-          background-color: #6b7280 !important;
-          border-radius: 3px;
-        }
-        .search-results::-webkit-scrollbar-thumb:hover {
-          background-color: #9ca3af !important;
-        }
-      `}</style>
       {/* Поле поиска */}
       <div className="relative group">
         <div className="absolute inset-y-0 left-0 pl-3 lg:pl-4 flex items-center pointer-events-none z-10">
@@ -314,10 +297,7 @@ export default function GlobalSearch({
 
       {/* Результаты поиска */}
       {isOpen && (
-        <div className={`search-results absolute top-full left-0 right-0 mt-2 bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 ${isMobile ? 'rounded-lg' : 'rounded-xl'} shadow-2xl z-50 max-h-96 overflow-y-auto`} style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6b7280 #172130'
-        }}>
+        <div className={`absolute top-full left-0 right-0 mt-2 bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 ${isMobile ? 'rounded-lg' : 'rounded-xl'} shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-thin`}>
           {isLoading ? (
             <div className="p-4 text-center text-gray-400">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400 mx-auto"></div>

@@ -960,7 +960,7 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1058,7 +1058,7 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <form onSubmit={handleUpdate} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1239,7 +1239,7 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <div className="mb-6">
                   <div className="space-y-4">
                     <div className="flex items-start space-x-3 sm:space-x-4 p-4 sm:p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
@@ -1310,7 +1310,7 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-80px)] scrollbar-thin">
                 <div className="space-y-4 sm:space-y-6">
                   <div className="bg-gray-700/30 rounded-xl p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-6">

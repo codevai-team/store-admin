@@ -27,7 +27,7 @@ function SidebarContent({ pathname }: { pathname: string }) {
       <div className="h-6"></div>
 
       {/* Navigation */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-y-auto scrollbar-thin">
         <nav className="flex-1 px-3 py-6 space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href;

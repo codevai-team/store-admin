@@ -276,7 +276,7 @@ export default function EditProductModal({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(92vh-120px)]">
+        <div className="overflow-y-auto max-h-[calc(92vh-120px)] scrollbar-thin">
           <form onSubmit={handleSubmit} className="p-5 space-y-5">
             {loadingProduct ? (
               <div className="flex items-center justify-center py-12">
@@ -406,7 +406,7 @@ export default function EditProductModal({
 
                   {/* Variants List */}
                   {formData.variants.length > 0 && (
-                    <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                    <div className="space-y-2 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
                       {formData.variants.map((variant, index) => (
                         <div key={variant.id} className="bg-gray-800/50 border border-gray-700/40 rounded-lg p-3 hover:bg-gray-800/70 transition-colors">
                           <div className="flex items-center justify-between">

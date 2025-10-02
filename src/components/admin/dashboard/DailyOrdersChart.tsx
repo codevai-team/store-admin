@@ -59,22 +59,6 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
 
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-      <style jsx>{`
-        .overflow-x-auto::-webkit-scrollbar {
-          height: 6px;
-        }
-        .overflow-x-auto::-webkit-scrollbar-track {
-          background-color: #172130 !important;
-          border-radius: 3px;
-        }
-        .overflow-x-auto::-webkit-scrollbar-thumb {
-          background-color: #6b7280 !important;
-          border-radius: 3px;
-        }
-        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-          background-color: #9ca3af !important;
-        }
-      `}</style>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Дневная статистика</h3>
@@ -98,10 +82,7 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
         <h4 className="text-white font-medium">Заказы ({data.length} дн.)</h4>
         <span className="text-gray-400 text-sm">{getPeriodDescription()}</span>
       </div>
-        <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-700 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400" style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6b7280 #172130'
-        }}>
+        <div className="overflow-x-auto scrollbar-thin">
           <div className="flex items-end space-x-2 h-32" style={{ minWidth: `${Math.max(data.length * 60, 400)}px` }}>
             {data.map((day) => (
               <div key={day.date} className="flex flex-col items-center" style={{ minWidth: '50px' }}>
@@ -127,10 +108,7 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
           <h4 className="text-white font-medium">Выручка ({data.length} дн.)</h4>
           <span className="text-gray-400 text-sm">{getPeriodDescription()}</span>
         </div>
-        <div className="overflow-x-auto scrollbar-thin scrollbar-track-gray-700 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400" style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6b7280 #172130'
-        }}>
+        <div className="overflow-x-auto scrollbar-thin">
           <div className="flex items-end space-x-2 h-32" style={{ minWidth: `${Math.max(data.length * 60, 400)}px` }}>
             {data.map((day) => (
               <div key={day.date} className="flex flex-col items-center" style={{ minWidth: '50px' }}>

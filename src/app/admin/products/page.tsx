@@ -1542,7 +1542,7 @@ export default function ProductsPage() {
               </div>
 
               {/* Content */}
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)] scrollbar-thin">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
                   {/* Images Section */}
                   <div className="space-y-4 flex flex-col">

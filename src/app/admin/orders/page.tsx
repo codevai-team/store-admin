@@ -144,6 +144,7 @@ export default function OrdersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
+  const [isOrderDetailsLoading, setIsOrderDetailsLoading] = useState(false);
   const [isCancelWarningModalOpen, setIsCancelWarningModalOpen] = useState(false);
   const [isCancelCommentModalOpen, setIsCancelCommentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -655,9 +656,24 @@ export default function OrdersPage() {
   }, []);
 
   // Обработчики модальных окон
-  const openViewModal = (order: Order) => {
+  const openViewModal = async (order: Order) => {
     setSelectedOrder(order);
     setIsViewModalOpen(true);
+    setIsOrderDetailsLoading(true);
+    
+    // Обновляем данные заказа при открытии модального окна
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}`);
+      if (response.ok) {
+        const updatedOrder = await response.json();
+        setSelectedOrder(updatedOrder);
+      }
+    } catch (error) {
+      console.error('Error updating order details:', error);
+      // Не показываем ошибку пользователю, так как у нас есть базовые данные
+    } finally {
+      setIsOrderDetailsLoading(false);
+    }
   };
 
 
@@ -790,6 +806,7 @@ export default function OrdersPage() {
     setIsCourierModalOpen(false);
     setIsCancelWarningModalOpen(false);
     setIsCancelCommentModalOpen(false);
+    setIsOrderDetailsLoading(false);
     setIsCourierEditModalOpen(false);
     setIsAdminCommentEditModalOpen(false);
     setSelectedOrder(null);
@@ -2091,8 +2108,15 @@ export default function OrdersPage() {
               </div>
 
               {/* Content - подстраивается под размер, но с ограничением по высоте */}
-              <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
                 <div className="p-5">
+                  {/* Индикатор загрузки обновления данных */}
+                  {isOrderDetailsLoading && (
+                    <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-center space-x-3">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                      <span className="text-blue-300 text-sm">Обновление данных заказа...</span>
+                    </div>
+                  )}
 
                   <div className="space-y-5">
                     {/* Order & Customer Info */}
@@ -2414,7 +2438,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Content */}
-              <div className="overflow-y-auto max-h-[calc(92vh-180px)]">
+              <div className="overflow-y-auto max-h-[calc(92vh-180px)] scrollbar-thin">
                 <div className="p-5 space-y-4">
 
                   {/* Предупреждения */}
