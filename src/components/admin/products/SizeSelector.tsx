@@ -123,39 +123,47 @@ export default function SizeSelector({ selectedSizes, onSizesChange }: SizeSelec
 
       {/* Форма добавления нового размера */}
       {showAddForm && (
-        <div className="flex space-x-2 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-          <input
-            type="text"
-            value={newSizeName}
-            onChange={(e) => setNewSizeName(e.target.value)}
-            placeholder="Название размера (S, M, L, XL, etc.)"
-            className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addSize();
-              }
-            }}
-            autoFocus
-          />
-          <button
-            type="button"
-            onClick={addSize}
-            disabled={adding || !newSizeName.trim()}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
-          >
-            {adding ? 'Добавляем...' : 'Добавить'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowAddForm(false);
-              setNewSizeName('');
-            }}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
-          >
-            Отмена
-          </button>
+        <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+          {/* Адаптивный layout: вертикальный на мобильных, горизонтальный на десктопе */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Поле ввода */}
+            <input
+              type="text"
+              value={newSizeName}
+              onChange={(e) => setNewSizeName(e.target.value)}
+              placeholder="Название размера (S, M, L, XL, etc.)"
+              className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addSize();
+                }
+              }}
+              autoFocus
+            />
+            
+            {/* Кнопки - параллельно на мобильных, в ряд на десктопе */}
+            <div className="flex gap-2 sm:gap-2">
+              <button
+                type="button"
+                onClick={addSize}
+                disabled={adding || !newSizeName.trim()}
+                className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
+              >
+                {adding ? 'Добавляем...' : 'Добавить'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewSizeName('');
+                }}
+                className="flex-1 sm:flex-none px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SwatchIcon, EyeDropperIcon } from '@heroicons/react/24/outline';
+import { SwatchIcon } from '@heroicons/react/24/outline';
 
 interface ColorPickerProps {
   selectedColor: string;

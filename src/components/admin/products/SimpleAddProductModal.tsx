@@ -5,11 +5,8 @@ import {
   XMarkIcon,
   PlusIcon,
   TrashIcon,
-  PhotoIcon,
   TagIcon,
   CurrencyDollarIcon,
-  DocumentTextIcon,
-  UserIcon,
 } from '@heroicons/react/24/outline';
 
 import CustomSelect from './CustomSelect';
@@ -31,7 +28,7 @@ interface ProductFormData {
   sellerId: string;
   status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   imageUrl: string[];
-  attributes: any;
+  attributes: Record<string, string>;
   sizes: string[];
   colors: string[];
 }
@@ -42,7 +39,6 @@ interface SimpleAddProductModalProps {
   onSubmit: (data: ProductFormData) => Promise<boolean>;
   categories: Category[];
   loading: boolean;
-  onShowWarning: (title: string, message: string) => void;
   onShowError: (title: string, message: string) => void;
   initialData?: ProductFormData | null;
   isEdit?: boolean;
@@ -58,7 +54,6 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
   onSubmit,
   categories,
   loading,
-  onShowWarning,
   onShowError,
   initialData = null,
   isEdit = false
@@ -101,14 +96,14 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
         fetchAdminId();
       }
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, formData.sellerId]);
 
   const fetchAdminId = async () => {
     try {
       const response = await fetch('/api/admin/sellers');
       if (response.ok) {
         const sellers = await response.json();
-        const admin = sellers.find((seller: any) => seller.role === 'ADMIN');
+        const admin = sellers.find((seller: { id: string; role: string }) => seller.role === 'ADMIN');
         if (admin) {
           setFormData(prev => ({
             ...prev,
@@ -301,7 +296,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
         acc[attr.key.trim()] = attr.value.trim();
       }
       return acc;
-    }, {} as any);
+    }, {} as Record<string, string>);
     
     setFormData(prev => ({ ...prev, attributes: attributesObject }));
   }, [attributes]);
@@ -354,9 +349,10 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value.slice(0, 25) }))}
                 className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                 placeholder="Введите название товара"
+                maxLength={25}
                 required
               />
             </div>
@@ -368,9 +364,10 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value.slice(0, 200) }))}
                 rows={3}
                 className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                maxLength={200}
                 placeholder="Описание товара"
               />
             </div>
@@ -506,25 +503,31 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
             
             <div className="space-y-3">
               {attributes.map((attr, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <input
-                    type="text"
-                    placeholder="Название атрибута"
-                    value={attr.key}
-                    onChange={(e) => updateAttribute(index, 'key', e.target.value)}
-                    className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Значение атрибута"
-                    value={attr.value}
-                    onChange={(e) => updateAttribute(index, 'value', e.target.value)}
-                    className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  />
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* Поля атрибутов - вертикально на мобильных, горизонтально на десктопе */}
+                  <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Название атрибута"
+                      value={attr.key}
+                      onChange={(e) => updateAttribute(index, 'key', e.target.value.slice(0, 15))}
+                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                      maxLength={15}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Значение атрибута"
+                      value={attr.value}
+                      onChange={(e) => updateAttribute(index, 'value', e.target.value.slice(0, 15))}
+                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                      maxLength={15}
+                    />
+                  </div>
+                  {/* Кнопка удаления */}
                   <button
                     type="button"
                     onClick={() => removeAttribute(index)}
-                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                    className="self-center sm:self-auto p-2 text-red-400 hover:text-red-300 transition-colors"
                     title="Удалить атрибут"
                   >
                     <TrashIcon className="h-5 w-5" />

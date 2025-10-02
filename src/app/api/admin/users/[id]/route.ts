@@ -77,7 +77,7 @@ export async function PUT(
     }
 
     // Валидация роли
-    if (role && ![UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+    if (role && !['SELLER', 'COURIER'].includes(role)) {
       return NextResponse.json(
         { error: 'Недопустимая роль. Доступны: SELLER, COURIER' },
         { status: 400 }
@@ -134,7 +134,13 @@ export async function PUT(
     }
 
     // Подготовка данных для обновления
-    const updateData: any = {
+    const updateData: {
+      fullname: string;
+      phoneNumber: string;
+      role: UserRole;
+      status?: UserStatus;
+      password?: string;
+    } = {
       fullname,
       phoneNumber,
       role: role as UserRole,

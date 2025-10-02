@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, UserRole, ProductStatus, UserStatus } from '@prisma/client';
+import { PrismaClient, UserRole, ProductStatus, UserStatus, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Построение условий поиска - только продавцы и курьеры
-    const where: any = {
+    const where: Prisma.UserWhereInput = {
       role: {
         in: [UserRole.SELLER, UserRole.COURIER]
       }
@@ -51,12 +51,12 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (role && [UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+    if (role && ['SELLER', 'COURIER'].includes(role)) {
       where.role = role as UserRole;
     }
 
     // Построение orderBy в зависимости от сортировки
-    let orderBy: any = { [sortBy]: sortOrder };
+    let orderBy: Record<string, string | { _count: string }> = { [sortBy]: sortOrder };
     
     if (sortBy === 'productsCount') {
       orderBy = {
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Валидация роли
-    if (![UserRole.SELLER, UserRole.COURIER].includes(role as UserRole)) {
+    if (!['SELLER', 'COURIER'].includes(role)) {
       return NextResponse.json(
         { error: 'Недопустимая роль. Доступны: SELLER, COURIER' },
         { status: 400 }

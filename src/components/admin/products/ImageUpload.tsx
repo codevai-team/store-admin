@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { 
   PhotoIcon, 
   XMarkIcon, 
@@ -63,7 +64,7 @@ export default function ImageUpload({
         return newState;
       });
     }
-  }, [images.length]); // Только при изменении количества изображений
+  }, [images]); // Зависимость от images
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -247,7 +248,7 @@ export default function ImageUpload({
   }, [images, originalImagesState]);
 
   // Функция для очистки всех изображений (используется при отмене)
-  const clearAllImages = async () => {
+  const clearAllImages = useCallback(async () => {
     for (const imageUrl of images) {
       try {
         await fetch(`/api/upload?fileUrl=${encodeURIComponent(imageUrl)}`, {
@@ -258,10 +259,10 @@ export default function ImageUpload({
       }
     }
     onImagesChange([]);
-  };
+  }, [images, onImagesChange]);
 
   // Экспортируем функцию очистки для использования в родительском компоненте
-  React.useImperativeHandle(onClearAll, () => clearAllImages, [images]);
+  React.useImperativeHandle(onClearAll, () => clearAllImages, [clearAllImages]);
 
   return (
     <div className="space-y-4">
@@ -337,9 +338,11 @@ export default function ImageUpload({
           {images.map((url, index) => (
             <div key={index} className="relative group">
               <div className="w-full h-24 bg-gray-700/30 rounded-lg border border-gray-600 overflow-hidden flex items-center justify-center">
-                <img
+                <Image
                   src={url}
                   alt={`Изображение ${index + 1}`}
+                  width={96}
+                  height={96}
                   className="max-w-full max-h-full object-contain"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;

@@ -160,7 +160,16 @@ export async function PUT(
 
     const result = await prisma.$transaction(async (tx) => {
       // Обновляем основные данные товара
-      const updateData: any = {
+      const updateData: {
+        name: string;
+        description?: string | null;
+        categoryId: string;
+        sellerId: string;
+        price: number;
+        imageUrl: string[];
+        attributes: Record<string, string>;
+        status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
+      } = {
         name: name.trim(),
         description: description?.trim() || null,
         categoryId,
@@ -175,7 +184,7 @@ export async function PUT(
         updateData.status = status as 'ACTIVE' | 'INACTIVE' | 'DELETED';
       }
 
-      const updatedProduct = await tx.product.update({
+      await tx.product.update({
         where: { id },
         data: updateData
       });
@@ -223,7 +232,10 @@ export async function PUT(
 
           if (!color) {
             color = await tx.color.create({
-              data: { name: colorName.trim() }
+              data: { 
+                name: colorName.trim(),
+                colorCode: '#000000' // Значение по умолчанию
+              }
             });
           }
 

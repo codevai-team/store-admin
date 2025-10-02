@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import Image from 'next/image';
 import {
   XMarkIcon,
   PhotoIcon,
   CloudArrowUpIcon,
   LinkIcon,
   FolderOpenIcon,
-  TrashIcon,
-  CheckIcon,
-  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { ToastContainer } from './Toast';
 import { useToast } from '@/hooks/useToast';
@@ -23,15 +21,6 @@ interface ImageUploadModalProps {
   currentImages: string[];
 }
 
-interface UploadFile {
-  id: string;
-  file: File;
-  preview: string;
-  uploading: boolean;
-  uploaded: boolean;
-  error?: string;
-  s3Url?: string;
-}
 
 interface ImageData {
   url: string;
@@ -54,7 +43,6 @@ export default function ImageUploadModal({
       originalUrl: url // Изначально оригинальный URL = текущий URL
     }))
   );
-  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [urlInput, setUrlInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -135,7 +123,7 @@ export default function ImageUploadModal({
         URL.revokeObjectURL(tempImages[index].url);
         
         return url;
-      } catch (error) {
+      } catch {
         // Удаляем изображение при ошибке
         setImages(prev => prev.filter(img => img.tempId !== tempId));
         URL.revokeObjectURL(tempImages[index].url);
@@ -208,7 +196,7 @@ export default function ImageUploadModal({
         }
         
         showSuccess('Файл удален', 'Изображение успешно удалено из хранилища');
-      } catch (error) {
+      } catch {
         showError('Ошибка удаления', 'Не удалось удалить файл из хранилища');
         return;
       }
@@ -248,7 +236,7 @@ export default function ImageUploadModal({
     }
     
     // Обновляем изображение на оригинальное
-    setImages(prev => prev.map((img, i) => 
+    setImages(prev => prev.map((img) => 
       img.url === processedUrl ? { ...img, url: originalUrl } : img
     ));
   };
@@ -260,7 +248,7 @@ export default function ImageUploadModal({
 
   // Обновляем оригинальные URL только для новых изображений
   React.useEffect(() => {
-    setImages(prev => prev.map((img, index) => {
+    setImages(prev => prev.map((img) => {
       // Если у изображения нет originalUrl, устанавливаем его
       if (!img.originalUrl) {
         return { ...img, originalUrl: img.url };
@@ -293,8 +281,6 @@ export default function ImageUploadModal({
   // Функция для очистки неиспользуемых изображений
   const cleanupUnusedImages = async (finalImageUrls: string[]) => {
     try {
-      const currentImageUrls = currentImages || [];
-      
       // Находим все изображения, которые были в модальном окне
       const allModalImages = images.map(img => img.url);
       
@@ -376,7 +362,6 @@ export default function ImageUploadModal({
       }
     }
     
-    setUploadFiles([]);
     setImages(currentImages.map((url) => ({ url }))); // Сбрасываем к исходному состоянию
     onClose();
   };
@@ -498,9 +483,11 @@ export default function ImageUploadModal({
                         image.uploading ? 'cursor-wait' : 'cursor-pointer hover:border-indigo-400'
                       }`}
                            onClick={() => !image.uploading && handleViewImage(index)}>
-                        <img
+                        <Image
                           src={image.url}
                           alt={`Изображение ${index + 1}`}
+                          width={200}
+                          height={200}
                           className={`w-full h-full object-contain bg-gray-800 transition-opacity ${
                             image.uploading ? 'opacity-60' : 'opacity-100'
                           }`}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import {
   PlusIcon,
   PencilIcon,
@@ -12,223 +13,17 @@ import {
   ChevronDownIcon,
   TagIcon,
   XMarkIcon,
-  ChevronUpDownIcon,
   ChevronLeftIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
-  ClockIcon,
   FireIcon,
   BarsArrowUpIcon,
   CubeIcon,
   CheckIcon,
-  CalendarDaysIcon,
   ArchiveBoxIcon,
-  BarsArrowDownIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  // Иконки для категорий
-  ShoppingBagIcon,
-  HomeIcon,
-  UserIcon,
-  HeartIcon,
-  StarIcon,
-  GiftIcon,
-  SparklesIcon,
-  AcademicCapIcon,
-  BeakerIcon,
-  BookOpenIcon,
-  BriefcaseIcon,
-  CameraIcon,
-  TruckIcon as CarIcon,
-  ComputerDesktopIcon,
-  DevicePhoneMobileIcon,
-  FaceSmileIcon,
-  CommandLineIcon,
-  GlobeAltIcon,
-  HandThumbUpIcon,
-  LightBulbIcon,
-  MusicalNoteIcon,
-  PaintBrushIcon,
-  PuzzlePieceIcon,
-  RocketLaunchIcon,
-  ScissorsIcon,
-  ShieldCheckIcon,
-  SunIcon,
-  TruckIcon,
-  WrenchScrewdriverIcon,
-  // Дополнительные иконки
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpRightIcon,
-  ArrowDownLeftIcon,
-  ArrowDownRightIcon,
-  ArrowUpLeftIcon,
-  ArrowPathIcon,
-  ArrowUturnLeftIcon,
-  ArrowUturnRightIcon,
-  ArrowUturnUpIcon,
-  ArrowUturnDownIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  ArrowTopRightOnSquareIcon,
-  ArrowDownTrayIcon,
-  ArrowUpTrayIcon,
-  ArrowRightOnRectangleIcon,
-  ArrowLeftOnRectangleIcon,
-  ArrowPathRoundedSquareIcon,
-  ArrowSmallUpIcon,
-  ArrowSmallDownIcon,
-  ArrowSmallLeftIcon,
-  ArrowSmallRightIcon,
-  AtSymbolIcon,
-  BackspaceIcon,
-  BanknotesIcon,
-  Bars3Icon,
-  Bars3BottomLeftIcon,
-  Bars3BottomRightIcon,
-  Bars4Icon,
-  BellIcon,
-  BellSlashIcon,
-  BoltIcon,
-  BookmarkIcon,
-  BookmarkSlashIcon,
-  BuildingOfficeIcon,
-  BuildingOffice2Icon,
-  BuildingStorefrontIcon,
-  CakeIcon,
-  CalculatorIcon,
-  CalendarIcon,
-  ChartBarIcon,
-  ChartBarSquareIcon,
-  ChartPieIcon,
-  ChatBubbleLeftIcon,
-  ChatBubbleLeftEllipsisIcon,
-  ChatBubbleOvalLeftIcon,
-  ChatBubbleOvalLeftEllipsisIcon,
-  CheckBadgeIcon,
-  CheckCircleIcon,
-  ClipboardIcon,
-  ClipboardDocumentIcon,
-  ClipboardDocumentCheckIcon,
-  ClipboardDocumentListIcon,
-  CloudIcon,
-  CloudArrowDownIcon,
-  CloudArrowUpIcon,
-  CodeBracketIcon,
-  CodeBracketSquareIcon,
-  CogIcon,
-  Cog6ToothIcon,
-  Cog8ToothIcon,
-  CpuChipIcon,
-  CreditCardIcon,
-  CubeTransparentIcon,
-  CurrencyDollarIcon,
-  CurrencyEuroIcon,
-  CurrencyPoundIcon,
-  CurrencyRupeeIcon,
-  CurrencyYenIcon,
-  CursorArrowRaysIcon,
-  CursorArrowRippleIcon,
-  DeviceTabletIcon,
-  DocumentIcon,
-  DocumentArrowDownIcon,
-  DocumentArrowUpIcon,
-  DocumentCheckIcon,
-  DocumentDuplicateIcon,
-  DocumentMagnifyingGlassIcon,
-  DocumentMinusIcon,
-  DocumentPlusIcon,
-  DocumentTextIcon,
-  EllipsisHorizontalIcon,
-  EllipsisVerticalIcon,
-  EnvelopeIcon,
-  EnvelopeOpenIcon,
-  ExclamationCircleIcon,
   ExclamationTriangleIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  FaceFrownIcon,
-  FilmIcon,
-  FingerPrintIcon,
-  FlagIcon,
-  FolderIcon,
-  FolderArrowDownIcon,
-  FolderMinusIcon,
-  FolderOpenIcon,
-  FolderPlusIcon,
-  GifIcon,
-  GlobeAmericasIcon,
-  GlobeAsiaAustraliaIcon,
-  GlobeEuropeAfricaIcon,
-  HandRaisedIcon,
-  HandThumbDownIcon,
-  HashtagIcon,
-  IdentificationIcon,
-  InboxIcon,
-  InformationCircleIcon,
-  KeyIcon,
-  LanguageIcon,
-  LifebuoyIcon,
-  LinkIcon,
-  ListBulletIcon,
-  LockClosedIcon,
-  LockOpenIcon,
-  MapIcon,
-  MapPinIcon,
-  MegaphoneIcon,
-  MicrophoneIcon,
-  MinusIcon,
-  MoonIcon,
-  NewspaperIcon,
-  NoSymbolIcon,
-  PaperAirplaneIcon,
-  PaperClipIcon,
-  PauseIcon,
-  PencilSquareIcon,
-  PhoneIcon,
-  PhotoIcon,
-  PlayIcon,
-  PlayPauseIcon,
-  PlusCircleIcon,
-  PowerIcon,
-  PresentationChartBarIcon,
-  PresentationChartLineIcon,
-  PrinterIcon,
-  QrCodeIcon,
-  QuestionMarkCircleIcon,
-  RadioIcon,
-  ReceiptPercentIcon,
-  RectangleGroupIcon,
-  RectangleStackIcon,
-  RssIcon,
-  ScaleIcon,
-  ServerIcon,
-  ServerStackIcon,
-  ShareIcon,
-  ShieldExclamationIcon,
-  SignalIcon,
-  SignalSlashIcon,
-  SpeakerWaveIcon,
-  SpeakerXMarkIcon,
-  Square2StackIcon,
-  Square3Stack3DIcon,
-  StopIcon,
-  StopCircleIcon,
-  SwatchIcon,
-  TicketIcon,
-  TrophyIcon,
-  TvIcon,
-  UserCircleIcon,
-  UserGroupIcon,
-  UserMinusIcon,
-  UserPlusIcon,
-  VideoCameraIcon,
-  VideoCameraSlashIcon,
-  ViewfinderCircleIcon,
-  WalletIcon,
-  WifiIcon,
-  WindowIcon,
-  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import IconUpload from '@/components/admin/categories/IconUpload';
@@ -259,12 +54,6 @@ interface CategoryFormData {
 type SortOption = 'popular' | 'alphabetical' | 'products';
 type SortOrder = 'asc' | 'desc';
 
-interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
-}
 
 // Функция для отображения иконки категории
 const renderCategoryIcon = (imageUrl: string | null) => {
@@ -275,9 +64,11 @@ const renderCategoryIcon = (imageUrl: string | null) => {
   // Если это URL изображения, показываем изображение
   if (imageUrl.startsWith('http') || imageUrl.startsWith('/')) {
     return (
-      <img 
+      <Image 
         src={imageUrl} 
         alt="Category icon" 
+        width={32}
+        height={32}
         className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0 object-contain rounded"
         onError={(e) => {
           // Если изображение не загружается, показываем дефолтную иконку
@@ -329,10 +120,9 @@ export default function CategoriesPage() {
   
   // Icon upload state
   const [uploadedIcons, setUploadedIcons] = useState<Set<string>>(new Set());
-  const [iconsToDelete, setIconsToDelete] = useState<Set<string>>(new Set());
 
   // Загрузка категорий
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         sortBy: sortBy,
@@ -349,11 +139,11 @@ export default function CategoriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, sortOrder]);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   // Auto-close mobile filters when screen size changes to desktop
   useEffect(() => {
@@ -385,7 +175,7 @@ export default function CategoriesPage() {
   // Перезагружаем категории при изменении сортировки
   useEffect(() => {
     fetchCategories();
-  }, [sortBy, sortOrder]);
+  }, [fetchCategories]);
 
   // Умный поиск - проверяет вхождение каждого слова
   const smartSearch = (text: string, searchQuery: string): boolean => {
@@ -495,7 +285,6 @@ export default function CategoriesPage() {
     setFormData({ name: '', description: '', imageUrl: '', parentId: null });
     // Очищаем состояние загруженных иконок при открытии модального окна
     setUploadedIcons(new Set());
-    setIconsToDelete(new Set());
     setIsCreateModalOpen(true);
   };
 
@@ -509,7 +298,6 @@ export default function CategoriesPage() {
     });
     // Очищаем состояние загруженных иконок при открытии модального окна
     setUploadedIcons(new Set());
-    setIconsToDelete(new Set());
     setIsEditModalOpen(true);
   };
 
@@ -530,8 +318,6 @@ export default function CategoriesPage() {
 
   const handleIconRemove = async (iconUrl: string) => {
     try {
-      // Добавляем в список для удаления
-      setIconsToDelete(prev => new Set([...prev, iconUrl]));
       
       // Удаляем из S3
       const response = await fetch(`/api/upload/delete?url=${encodeURIComponent(iconUrl)}`, {
@@ -558,7 +344,6 @@ export default function CategoriesPage() {
     
     // Очищаем состояние
     setUploadedIcons(new Set());
-    setIconsToDelete(new Set());
     
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
@@ -589,7 +374,6 @@ export default function CategoriesPage() {
         await fetchCategories();
         // Очищаем состояние после успешного сохранения
         setUploadedIcons(new Set());
-        setIconsToDelete(new Set());
         setIsCreateModalOpen(false);
         setFormData({ name: '', description: '', imageUrl: '', parentId: null });
       } else {
@@ -623,7 +407,6 @@ export default function CategoriesPage() {
         await fetchCategories();
         // Очищаем состояние после успешного сохранения
         setUploadedIcons(new Set());
-        setIconsToDelete(new Set());
         setIsEditModalOpen(false);
         setEditingCategory(null);
         setFormData({ name: '', description: '', imageUrl: '', parentId: null });
@@ -963,7 +746,7 @@ export default function CategoriesPage() {
 
             {/* Mobile Filters - Collapsible */}
             <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-visible relative z-20 ${
-              isMobileFiltersOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+              isMobileFiltersOpen ? 'max-h-[400px] opacity-100 pointer-events-auto' : 'max-h-0 opacity-0 pointer-events-none'
             }`}>
               <div className="space-y-4 pt-4 border-t border-gray-700/50">
                 {/* Mobile Sort Controls */}
@@ -1052,8 +835,8 @@ export default function CategoriesPage() {
                    <div className="flex items-center space-x-2 text-indigo-400">
                      <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
                      <span className="truncate">
-                       <span className="sm:hidden">"{searchTerm}"</span>
-                       <span className="hidden sm:inline">Поиск: "{searchTerm}"</span>
+                       <span className="sm:hidden">&quot;{searchTerm}&quot;</span>
+                       <span className="hidden sm:inline">Поиск: &quot;{searchTerm}&quot;</span>
                      </span>
                    </div>
                  )}
@@ -1294,8 +1077,9 @@ export default function CategoriesPage() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 20) })}
                     className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    maxLength={20}
                     placeholder="Введите название..."
                     required
                   />
@@ -1307,8 +1091,9 @@ export default function CategoriesPage() {
                   </label>
                   <textarea
                     value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 25) })}
                     className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    maxLength={25}
                     placeholder="Введите описание..."
                     rows={3}
                   />
@@ -1394,8 +1179,9 @@ export default function CategoriesPage() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 20) })}
                     className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    maxLength={20}
                     placeholder="Введите название..."
                     required
                   />
@@ -1407,8 +1193,9 @@ export default function CategoriesPage() {
                   </label>
                   <textarea
                     value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 25) })}
                     className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    maxLength={25}
                     placeholder="Введите описание..."
                     rows={3}
                   />
@@ -1503,7 +1290,7 @@ export default function CategoriesPage() {
                             Нельзя удалить категорию
                           </h3>
                           <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                            Категория <span className="font-semibold text-white">"{deletingCategory.name}"</span> содержит данные и не может быть удалена.
+                            Категория <span className="font-semibold text-white">&quot;{deletingCategory.name}&quot;</span> содержит данные и не может быть удалена.
                           </p>
                         </div>
                       </div>
@@ -1552,7 +1339,7 @@ export default function CategoriesPage() {
                             Подтверждение удаления
                           </h3>
                           <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                            Вы уверены, что хотите удалить категорию <span className="font-semibold text-white">"{deletingCategory.name}"</span>?
+                            Вы уверены, что хотите удалить категорию <span className="font-semibold text-white">&quot;{deletingCategory.name}&quot;</span>?
                           </p>
                         </div>
                       </div>
@@ -1624,9 +1411,11 @@ export default function CategoriesPage() {
                       <div className="flex-shrink-0 mx-auto sm:mx-0">
                         <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center bg-gray-600/30 rounded-lg">
                           {viewingCategory.imageUrl ? (
-                            <img 
+                            <Image 
                               src={viewingCategory.imageUrl} 
                               alt="Category icon" 
+                              width={64}
+                              height={64}
                               className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded"
                             />
                           ) : (

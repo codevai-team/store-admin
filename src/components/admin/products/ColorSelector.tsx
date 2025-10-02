@@ -147,7 +147,9 @@ export default function ColorSelector({ selectedColors, onColorsChange }: ColorS
       {/* Форма добавления нового цвета */}
       {showAddForm && (
         <div className="space-y-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-          <div className="flex space-x-2">
+          {/* Адаптивный layout: вертикальный на мобильных, горизонтальный на десктопе */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+            {/* Поле названия цвета */}
             <input
               type="text"
               value={newColorName}
@@ -155,7 +157,9 @@ export default function ColorSelector({ selectedColors, onColorsChange }: ColorS
               placeholder="Название цвета (Красный, Синий, etc.)"
               className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
-            <div className="flex items-center space-x-2">
+            
+            {/* Color picker и hex input - внизу на мобильных, справа на десктопе */}
+            <div className="flex items-center justify-left sm:justify-start space-x-2">
               <input
                 type="color"
                 value={newColorCode}
@@ -183,12 +187,13 @@ export default function ColorSelector({ selectedColors, onColorsChange }: ColorS
             </span>
           </div>
 
-          <div className="flex space-x-2">
+          {/* Кнопки - параллельно на мобильных и десктопе */}
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={addColor}
               disabled={adding || !newColorName.trim()}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
+              className="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm"
             >
               {adding ? 'Добавляем...' : 'Добавить'}
             </button>
@@ -199,7 +204,7 @@ export default function ColorSelector({ selectedColors, onColorsChange }: ColorS
                 setNewColorName('');
                 setNewColorCode('#000000');
               }}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+              className="flex-1 sm:flex-none px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
             >
               Отмена
             </button>
@@ -216,11 +221,3 @@ export default function ColorSelector({ selectedColors, onColorsChange }: ColorS
   );
 }
 
-// Функция для определения яркости цвета
-function getBrightness(hexColor: string): number {
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000;
-}

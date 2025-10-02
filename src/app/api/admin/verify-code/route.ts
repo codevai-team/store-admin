@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
       const { payload } = await jwtVerify(token, secret);
       decoded = payload;
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { message: 'Недействительный токен' },
         { status: 401 }

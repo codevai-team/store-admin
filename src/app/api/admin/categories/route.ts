@@ -59,23 +59,14 @@ export async function GET(request: Request) {
       
       switch (sortBy) {
         case 'alphabetical':
-          orderByClause = [
-            { categoryId: 'asc' }, // Родительские категории сначала
-            { name: sortOrder === 'desc' ? 'desc' : 'asc' }
-          ];
+          orderByClause = { name: sortOrder === 'desc' ? 'desc' as const : 'asc' as const };
           break;
         case 'products':
           // Для сортировки по количеству товаров нужно сначала загрузить, потом отсортировать
-          orderByClause = [
-            { categoryId: 'asc' },
-            { name: 'asc' }
-          ];
+          orderByClause = { name: 'asc' as const };
           break;
         default:
-          orderByClause = [
-            { categoryId: 'asc' },
-            { name: 'asc' }
-          ];
+          orderByClause = { name: 'asc' as const };
       }
 
       categories = await prisma.category.findMany({

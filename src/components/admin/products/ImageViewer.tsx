@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   TrashIcon,
-  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 interface ImageViewerProps {
@@ -89,9 +89,11 @@ export default function ImageViewer({
 
       {/* Main Image */}
       <div className="relative max-w-[90vw] max-h-[80vh] flex items-center justify-center p-4">
-        <img
+        <Image
           src={currentImage.url}
           alt={`Изображение ${activeIndex + 1}`}
+          width={800}
+          height={600}
           className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
           style={{ maxHeight: 'calc(80vh - 2rem)' }}
         />
@@ -113,9 +115,11 @@ export default function ImageViewer({
                       : 'border-transparent hover:border-gray-400'
                   }`}
                 >
-                  <img
+                  <Image
                     src={image.url}
                     alt={`Миниатюра ${index + 1}`}
+                    width={60}
+                    height={60}
                     className="w-full h-full object-contain bg-gray-800"
                   />
                 </button>

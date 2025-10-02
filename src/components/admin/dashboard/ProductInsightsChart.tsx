@@ -99,7 +99,7 @@ export default function ProductInsightsChart({ data }: ProductInsightsChartProps
       <div className="mb-6">
         <h4 className="text-white font-medium mb-3">Популярные цвета</h4>
         <div className="space-y-2">
-          {data.topSellingColors.map((item, index) => (
+          {data.topSellingColors.map((item) => (
             <div key={item.color} className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className={`w-4 h-4 rounded-full ${getColorForColor(item.color)}`}></div>
@@ -123,7 +123,7 @@ export default function ProductInsightsChart({ data }: ProductInsightsChartProps
       <div>
         <h4 className="text-white font-medium mb-3">Популярные размеры</h4>
         <div className="space-y-2">
-          {data.topSellingSizes.map((item, index) => (
+          {data.topSellingSizes.map((item) => (
             <div key={item.size} className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 bg-gray-600 rounded flex items-center justify-center">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -58,6 +58,13 @@ export default function Toast({ id, type, title, message, duration = 5000, onClo
   const config = toastConfig[type];
   const Icon = config.icon;
 
+  const handleClose = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose(id);
+    }, 300); // Время анимации выхода
+  }, [onClose, id]);
+
   useEffect(() => {
     // Показать тост
     setIsVisible(true);
@@ -68,14 +75,7 @@ export default function Toast({ id, type, title, message, duration = 5000, onClo
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration]);
-
-  const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => {
-      onClose(id);
-    }, 300); // Время анимации выхода
-  };
+  }, [duration, handleClose]);
 
   return (
     <div

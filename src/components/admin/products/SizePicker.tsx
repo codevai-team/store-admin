@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 interface SizePickerProps {
   selectedSize: string;
@@ -188,7 +188,7 @@ export default function SizePicker({ selectedSize, onSizeChange }: SizePickerPro
 
             {/* Size Range Helper */}
             <div className="text-xs text-gray-500">
-              💡 Примеры: "44-46", "S/M", "EU 42", "UK 10", "US 8", "One Size"
+              💡 Примеры: &quot;44-46&quot;, &quot;S/M&quot;, &quot;EU 42&quot;, &quot;UK 10&quot;, &quot;US 8&quot;, &quot;One Size&quot;
             </div>
           </div>
         )}

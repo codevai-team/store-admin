@@ -99,7 +99,7 @@ export default function DeleteConfirmModal({
               </h3>
               <p className="text-gray-300 mb-4">
                 Вы уверены, что хотите удалить {isStore ? 'филиал' : 'сотрудника'}{' '}
-                <span className="font-medium text-white">"{name}"</span>?
+                <span className="font-medium text-white">&quot;{name}&quot;</span>?
               </p>
 
               {/* Warnings */}

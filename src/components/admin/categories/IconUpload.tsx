@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import {
   CloudArrowUpIcon,
   PhotoIcon,
-  XMarkIcon,
   CheckIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -130,13 +130,6 @@ export default function IconUpload({
     }
   };
 
-  // Удаление иконки
-  const handleRemove = async () => {
-    if (currentIconUrl) {
-      await onIconRemove(currentIconUrl);
-      onIconChange(null);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -169,9 +162,11 @@ export default function IconUpload({
         ) : currentIconUrl ? (
           <div className="flex flex-col items-center space-y-3">
             <div className="relative">
-              <img
+              <Image
                 src={currentIconUrl}
                 alt="Category icon"
+                width={96}
+                height={96}
                 className="h-24 w-24 object-contain rounded-lg border-2 border-gray-600 bg-gray-800/50"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   PlusIcon,
@@ -11,11 +11,8 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon,
   XMarkIcon,
-  ChevronUpDownIcon,
   BarsArrowUpIcon,
-  BarsArrowDownIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   UsersIcon,
@@ -24,7 +21,6 @@ import {
   PhoneIcon,
   CalendarDaysIcon,
   CubeIcon,
-  CheckIcon,
   ExclamationTriangleIcon,
   ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
@@ -55,12 +51,6 @@ interface UserFormData {
 type SortOption = 'fullname' | 'role' | 'createdAt' | 'productsCount' | 'deliveredOrdersCount';
 type SortOrder = 'asc' | 'desc';
 
-interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
-}
 
 export default function StaffPage() {
   const searchParams = useSearchParams();
@@ -98,7 +88,7 @@ export default function StaffPage() {
   const [formLoading, setFormLoading] = useState(false);
 
   // Загрузка пользователей
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -126,11 +116,11 @@ export default function StaffPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, searchTerm, sortBy, sortOrder, roleFilter, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, searchTerm, sortBy, sortOrder, roleFilter, statusFilter]);
+  }, [fetchUsers]);
 
   // Auto-close mobile filters when screen size changes to desktop
   useEffect(() => {
@@ -175,7 +165,7 @@ export default function StaffPage() {
   }, [searchParams, users]);
 
   // Получение доступных опций сортировки в зависимости от фильтра
-  const getSortOptions = () => {
+  const getSortOptions = useCallback(() => {
     const baseOptions = [
       { value: 'fullname', label: 'По имени' },
       { value: 'role', label: 'По роли' },
@@ -189,7 +179,7 @@ export default function StaffPage() {
     }
 
     return baseOptions;
-  };
+  }, [roleFilter]);
 
   // Сброс сортировки на базовую при изменении фильтра роли
   useEffect(() => {
@@ -199,7 +189,7 @@ export default function StaffPage() {
     if (!currentSortExists) {
       setSortBy('createdAt');
     }
-  }, [roleFilter]);
+  }, [getSortOptions, sortBy]);
 
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
@@ -729,7 +719,7 @@ export default function StaffPage() {
 
             {/* Mobile Filters - Collapsible */}
             <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-visible relative z-20 ${
-              isMobileFiltersOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+              isMobileFiltersOpen ? 'max-h-[400px] opacity-100 pointer-events-auto' : 'max-h-0 opacity-0 pointer-events-none'
             }`}>
               <div className="space-y-4 pt-4 border-t border-gray-700/50">
                 {/* Mobile Sort Controls */}
@@ -805,8 +795,8 @@ export default function StaffPage() {
                   <div className="flex items-center space-x-2 text-indigo-400">
                     <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">
-                      <span className="sm:hidden">"{searchTerm}"</span>
-                      <span className="hidden sm:inline">Поиск: "{searchTerm}"</span>
+                      <span className="sm:hidden">&quot;{searchTerm}&quot;</span>
+                      <span className="hidden sm:inline">Поиск: &quot;{searchTerm}&quot;</span>
                     </span>
                   </div>
                 )}
@@ -969,11 +959,15 @@ export default function StaffPage() {
                     <input
                       type="text"
                       value={formData.fullname}
-                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value.slice(0, 25) })}
                       className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Введите ФИО..."
+                      maxLength={25}
                       required
                     />
+                    <div className="text-xs text-gray-500 text-right mt-1">
+                      {formData.fullname.length}/25 символов
+                    </div>
                   </div>
 
                   <div>
@@ -1067,11 +1061,15 @@ export default function StaffPage() {
                     <input
                       type="text"
                       value={formData.fullname}
-                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, fullname: e.target.value.slice(0, 25) })}
                       className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Введите ФИО..."
+                      maxLength={25}
                       required
                     />
+                    <div className="text-xs text-gray-500 text-right mt-1">
+                      {formData.fullname.length}/25 символов
+                    </div>
                   </div>
 
                   <div>
@@ -1253,7 +1251,7 @@ export default function StaffPage() {
                           Подтверждение удаления
                         </h3>
                         <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
-                          Вы уверены, что хотите удалить сотрудника <span className="font-semibold text-white">"{deletingUser.fullname}"</span>?
+                          Вы уверены, что хотите удалить сотрудника <span className="font-semibold text-white">&quot;{deletingUser.fullname}&quot;</span>?
                         </p>
                       </div>
                     </div>

@@ -4,7 +4,6 @@ import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs';
-import { promisify } from 'util';
 
 // Инициализация S3 клиента
 const s3Client = new S3Client({
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
         processedUrl: processedUrl,
         message: 'Обработанное изображение уже существует'
       });
-    } catch (error) {
+    } catch {
       // Файл не существует, продолжаем обработку
     }
 
@@ -148,7 +147,7 @@ export async function POST(request: NextRequest) {
       let result;
       try {
         result = JSON.parse(stdout);
-      } catch (parseError) {
+      } catch {
         console.error('Failed to parse Python output:', stdout);
         return NextResponse.json(
           { error: 'Ошибка парсинга результата обработки' },

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -50,9 +51,11 @@ export default function MobileImageGallery({
           className="h-52 bg-gray-700/30 rounded-xl overflow-hidden relative cursor-pointer group"
           onClick={() => setIsFullscreen(true)}
         >
-          <img 
+          <Image 
             src={images[currentIndex]} 
             alt={`${productName} - изображение ${currentIndex + 1}`}
+            width={400}
+            height={300}
             className="w-full h-full object-contain bg-gray-800 group-hover:scale-105 transition-transform duration-200"
           />
           
@@ -111,9 +114,11 @@ export default function MobileImageGallery({
                        : 'hover:bg-gray-600/50 hover:scale-105'
                    }`}
                  >
-                   <img 
+                   <Image 
                      src={image} 
                      alt={`${productName} - миниатюра ${index + 1}`}
+                     width={60}
+                     height={60}
                      className="w-full h-full object-cover"
                    />
                    {index === currentIndex && (
@@ -139,9 +144,11 @@ export default function MobileImageGallery({
             </button>
             
             {/* Image */}
-            <img 
+            <Image 
               src={images[currentIndex]} 
               alt={`${productName} - изображение ${currentIndex + 1}`}
+              width={800}
+              height={600}
               className="max-w-full max-h-full object-contain"
             />
             

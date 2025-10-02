@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import {
   XMarkIcon,
   PencilIcon,
@@ -32,8 +33,8 @@ interface Product {
     fullname: string;
   };
   mainImage: string | null;
-  imageUrl: any[];
-  attributes: any;
+  imageUrl: string[];
+  attributes: Record<string, string>;
   createdAt: string;
   updatedAt: string;
   sizes?: string[];
@@ -119,9 +120,11 @@ export default function MobileProductViewModal({
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gray-700/50 rounded-lg overflow-hidden flex-shrink-0">
                   {product.mainImage ? (
-                    <img 
+                    <Image 
                       src={product.mainImage} 
                       alt={product.name}
+                      width={40}
+                      height={40}
                       className="w-full h-full object-cover"
                     />
                   ) : (

@@ -179,11 +179,12 @@ export default function EditUserModal({
                 type="text"
                 id="fullname"
                 value={formData.fullname}
-                onChange={(e) => handleInputChange('fullname', e.target.value)}
+                onChange={(e) => handleInputChange('fullname', e.target.value.slice(0, 25))}
                 className={`w-full px-3 py-2 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
                   errors.fullname ? 'border-red-500' : 'border-gray-600/50'
                 }`}
                 placeholder="Иванов Иван Иванович"
+                maxLength={25}
               />
               {errors.fullname && (
                 <p className="mt-1 text-sm text-red-400">{errors.fullname}</p>

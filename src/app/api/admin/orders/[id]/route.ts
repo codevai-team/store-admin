@@ -1,23 +1,22 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { headers } from 'next/headers';
 
 const prisma = new PrismaClient();
 
-// Функция для получения информации о клиенте
-async function getClientInfo(request: Request) {
-  const headersList = await headers();
-  const forwarded = headersList.get('x-forwarded-for');
-  const realIp = headersList.get('x-real-ip');
-  const userAgent = headersList.get('user-agent');
-  
-  const ipAddress = forwarded?.split(',')[0] || realIp || 'unknown';
-  
-  return {
-    ipAddress,
-    userAgent: userAgent || 'unknown'
-  };
-}
+// Функция для получения информации о клиенте (пока не используется)
+// async function getClientInfo() {
+//   const headersList = await headers();
+//   const forwarded = headersList.get('x-forwarded-for');
+//   const realIp = headersList.get('x-real-ip');
+//   const userAgent = headersList.get('user-agent');
+//   
+//   const ipAddress = forwarded?.split(',')[0] || realIp || 'unknown';
+//   
+//   return {
+//     ipAddress,
+//     userAgent: userAgent || 'unknown'
+//   };
+// }
 
 
 // GET - получить заказ по ID
@@ -103,7 +102,7 @@ export async function GET(
   } catch (error) {
     console.error('Order GET error:', error);
     return NextResponse.json(
-      { error: 'Ошибка получения заказа', details: error?.message || 'Unknown error' },
+      { error: 'Ошибка получения заказа', details: (error as Error)?.message || 'Unknown error' },
       { status: 500 }
     );
   } finally {
@@ -128,7 +127,8 @@ export async function PUT(
       comment 
     } = body;
 
-    const clientInfo = await getClientInfo(request);
+    // Получаем информацию о клиенте (пока не используется)
+    // const clientInfo = await getClientInfo();
 
     // Проверяем существование заказа
     const existingOrder = await prisma.order.findUnique({
@@ -165,14 +165,14 @@ export async function PUT(
     // БЕЗОПАСНОЕ РЕДАКТИРОВАНИЕ: Проверяем ограничения
     
     // 1. Нельзя редактировать завершенные заказы (кроме статуса на CANCELLED)
-    if (existingOrder.status === 'COMPLETED') {
-      if (status && status !== 'CANCELLED') {
+    if (existingOrder.status === 'DELIVERED') {
+      if (status && status !== 'CANCELED') {
         return NextResponse.json(
           { error: 'Завершенный заказ можно только отменить' },
           { status: 400 }
         );
       }
-      // Для завершенных заказов можно изменить только статус на CANCELLED
+      // Для завершенных заказов можно изменить только статус на CANCELED
       if (customerName || customerPhone || customerAddress || adminComment) {
         return NextResponse.json(
           { error: 'Нельзя изменять данные завершенного заказа' },
@@ -182,7 +182,7 @@ export async function PUT(
     }
 
     // 2. Нельзя редактировать отмененные заказы
-    if (existingOrder.status === 'CANCELLED') {
+    if (existingOrder.status === 'CANCELED') {
       return NextResponse.json(
         { error: 'Нельзя изменять отмененный заказ' },
         { status: 400 }
@@ -206,7 +206,7 @@ export async function PUT(
     }
 
     // Обновляем заказ в транзакции с записью аудита
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const changes: Array<{field: string, oldValue: string, newValue: string}> = [];
 
       // Отслеживаем изменения
@@ -350,7 +350,7 @@ export async function PUT(
   } catch (error) {
     console.error('Order PUT error:', error);
     return NextResponse.json(
-      { error: 'Ошибка обновления заказа', details: error?.message || 'Unknown error' },
+      { error: 'Ошибка обновления заказа', details: (error as Error)?.message || 'Unknown error' },
       { status: 500 }
     );
   } finally {

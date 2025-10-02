@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   XMarkIcon,
   PlusIcon,
@@ -253,9 +254,10 @@ export default function AddProductModal({
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 25) })}
                     className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     placeholder="Введите название товара"
+                    maxLength={25}
                     required
                   />
                 </div>
@@ -291,9 +293,10 @@ export default function AddProductModal({
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 200) })}
                     className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none"
                     placeholder="Введите описание товара"
+                    maxLength={200}
                     rows={2}
                   />
                 </div>
@@ -582,20 +585,22 @@ export default function AddProductModal({
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={newAttribute.name}
-                        onChange={(e) => setNewAttribute({ ...newAttribute, name: e.target.value })}
+                        onChange={(e) => setNewAttribute({ ...newAttribute, name: e.target.value.slice(0, 15) })}
                         className="px-2 py-1.5 bg-gray-800/60 border border-gray-600/50 rounded text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                         placeholder="Название"
+                        maxLength={15}
                       />
                       <input
                         type="text"
                         value={newAttribute.value}
-                        onChange={(e) => setNewAttribute({ ...newAttribute, value: e.target.value })}
+                        onChange={(e) => setNewAttribute({ ...newAttribute, value: e.target.value.slice(0, 15) })}
                         className="px-2 py-1.5 bg-gray-800/60 border border-gray-600/50 rounded text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                         placeholder="Значение"
+                        maxLength={15}
                       />
                     </div>
 
@@ -640,10 +645,12 @@ export default function AddProductModal({
                         {currentVariant.images.map((image, index) => (
                           <div key={index} className="relative group">
                             <div className="w-full h-12 rounded border border-gray-600/50 overflow-hidden bg-gray-700">
-                              <img
+                              <Image
                                 src={image}
                                 alt={`Фото ${index + 1}`}
                                 className="w-full h-full object-cover"
+                                width={48}
+                                height={48}
                               />
                             </div>
                             <button

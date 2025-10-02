@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import {
   PlusIcon,
   PencilIcon,
@@ -14,12 +15,10 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   ClockIcon,
-  FireIcon,
   BarsArrowUpIcon,
   CheckIcon,
   CalendarDaysIcon,
   ArchiveBoxIcon,
-  BarsArrowDownIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   TagIcon,
@@ -55,8 +54,8 @@ interface Product {
     fullname: string;
   };
   mainImage: string | null;
-  imageUrl: any[];
-  attributes: any;
+  imageUrl: string[];
+  attributes: Record<string, string>;
   createdAt: string;
   updatedAt: string;
   sizes?: string[];
@@ -71,17 +70,6 @@ interface Product {
   images: number;
 }
 
-interface ProductVariant {
-  id: string;
-  size: string;
-  color: string;
-  sku: string;
-  quantity: number;
-  price: number;
-  discountPrice?: number;
-  attributes: { name: string; value: string }[];
-  images: string[];
-}
 
 interface ProductFormData {
   name: string;
@@ -91,7 +79,7 @@ interface ProductFormData {
   sellerId: string;
   status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   imageUrl: string[];
-  attributes: any;
+  attributes: Record<string, string>;
   sizes: string[];
   colors: string[];
 }
@@ -100,7 +88,7 @@ type SortOption = 'newest' | 'name' | 'price' | 'quantity' | 'category' | 'statu
 type SortOrder = 'asc' | 'desc';
 
 export default function ProductsPage() {
-  const { toasts, removeToast, showSuccess, showError, showWarning } = useToast();
+  const { toasts, removeToast, showSuccess, showError } = useToast();
   const searchParams = useSearchParams();
   
   // Ref для модального окна редактирования
@@ -108,7 +96,6 @@ export default function ProductsPage() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [availableColors, setAvailableColors] = useState<string[]>([]);
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<{name: string, colorCode: string}[]>([]);
   const [sellers, setSellers] = useState<{id: string, fullname: string, role: string}[]>([]);
@@ -192,8 +179,6 @@ export default function ProductsPage() {
       if (response.ok) {
         const colorsData = await response.json();
         setColorOptions(colorsData);
-        // Устанавливаем доступные цвета из API
-        setAvailableColors(colorsData.map((color: any) => color.name).sort());
       }
     } catch (error) {
       console.error('Error fetching colors:', error);
@@ -206,7 +191,7 @@ export default function ProductsPage() {
       if (response.ok) {
         const sizesData = await response.json();
         // Устанавливаем доступные размеры из API
-        setAvailableSizes(sizesData.map((size: any) => size.name).sort());
+        setAvailableSizes(sizesData.map((size: { name: string }) => size.name).sort());
       }
     } catch (error) {
       console.error('Error fetching sizes:', error);
@@ -219,7 +204,7 @@ export default function ProductsPage() {
       if (response.ok) {
         const sellersData = await response.json();
         // Фильтруем только админов и продавцов
-        const filteredSellers = sellersData.filter((seller: any) => 
+        const filteredSellers = sellersData.filter((seller: { role: string }) => 
           seller.role === 'ADMIN' || seller.role === 'SELLER'
         );
         setSellers(filteredSellers);
@@ -740,7 +725,7 @@ export default function ProductsPage() {
                   onChange={(value) => setColorFilter(value)}
                   options={[
                     { value: '', label: 'Все цвета' },
-                    ...colorOptions.map((colorOption, index) => ({
+                    ...colorOptions.map((colorOption) => ({
                       value: colorOption.name,
                       label: colorOption.name,
                       icon: (
@@ -764,7 +749,7 @@ export default function ProductsPage() {
                   onChange={(value) => setSizeFilter(value)}
                   options={[
                     { value: '', label: 'Все размеры' },
-                    ...availableSizes.map((size, index) => ({
+                    ...availableSizes.map((size) => ({
                       value: size,
                       label: size
                     }))
@@ -813,7 +798,7 @@ export default function ProductsPage() {
 
             {/* Mobile Filters - Collapsible */}
             <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-visible relative z-20 ${
-              isMobileFiltersOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+              isMobileFiltersOpen ? 'max-h-[800px] opacity-100 pointer-events-auto' : 'max-h-0 opacity-0 pointer-events-none'
             }`}>
               <div className="space-y-4 pt-4 border-t border-gray-700/50">
                 {/* Mobile Sort Controls */}
@@ -897,7 +882,7 @@ export default function ProductsPage() {
                         onChange={(value) => setColorFilter(value)}
                         options={[
                           { value: '', label: 'Все цвета' },
-                          ...colorOptions.map((colorOption, index) => ({
+                          ...colorOptions.map((colorOption) => ({
                             value: colorOption.name,
                             label: colorOption.name,
                             icon: (
@@ -921,7 +906,7 @@ export default function ProductsPage() {
                         onChange={(value) => setSizeFilter(value)}
                         options={[
                           { value: '', label: 'Все размеры' },
-                          ...availableSizes.map((size, index) => ({
+                          ...availableSizes.map((size) => ({
                             value: size,
                             label: size
                           }))
@@ -992,8 +977,8 @@ export default function ProductsPage() {
                   <div className="flex items-center space-x-2 text-indigo-400">
                     <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">
-                      <span className="sm:hidden">"{searchTerm}"</span>
-                      <span className="hidden sm:inline">Поиск: "{searchTerm}"</span>
+                      <span className="sm:hidden">&quot;{searchTerm}&quot;</span>
+                      <span className="hidden sm:inline">Поиск: &quot;{searchTerm}&quot;</span>
                     </span>
                   </div>
                 )}
@@ -1048,9 +1033,11 @@ export default function ProductsPage() {
                     {/* Product Image */}
                       <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg overflow-hidden">
                       {product.mainImage ? (
-                        <img 
+                        <Image 
                           src={product.mainImage} 
                           alt={product.name}
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -1398,7 +1385,6 @@ export default function ProductsPage() {
           onSubmit={handleCreateProduct}
           categories={categories}
           loading={formLoading}
-          onShowWarning={(title, message) => showWarning(title, message)}
           onShowError={(title, message) => showError(title, message)}
         />
 
@@ -1411,7 +1397,6 @@ export default function ProductsPage() {
             onSubmit={handleUpdateProduct}
             categories={categories}
             loading={formLoading}
-            onShowWarning={(title, message) => showWarning(title, message)}
             onShowError={(title, message) => showError(title, message)}
             initialData={formData}
             isEdit={true}
@@ -1449,7 +1434,7 @@ export default function ProductsPage() {
                       Подтверждение удаления
                     </h3>
                     <p className="text-gray-300 text-sm leading-relaxed">
-                      Вы уверены, что хотите удалить товар <strong className="text-white font-medium">"{deletingProduct.name}"</strong>?
+                      Вы уверены, что хотите удалить товар <strong className="text-white font-medium">&quot;{deletingProduct.name}&quot;</strong>?
                     </p>
                   </div>
                 </div>
@@ -1563,9 +1548,11 @@ export default function ProductsPage() {
                           const currentImage = allImages[currentImageIndex];
                           
                           return currentImage ? (
-                            <img 
+                            <Image 
                               src={currentImage} 
                               alt={viewingProduct.name}
+                              width={600}
+                              height={400}
                               className="w-full h-full object-contain bg-gray-800"
                             />
                           ) : (
@@ -1668,9 +1655,11 @@ export default function ProductsPage() {
                                       : 'hover:bg-gray-600/50'
                                   }`}
                                 >
-                                  <img 
+                                  <Image 
                                     src={image} 
                                     alt={`${viewingProduct.name} - изображение ${index + 1}`}
+                                    width={80}
+                                    height={80}
                                     className="w-full h-full object-contain bg-gray-800"
                                   />
                                 </button>

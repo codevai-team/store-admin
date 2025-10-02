@@ -1,38 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-type ProductWithIncludes = {
-  id: string;
-  name: string;
-  description: string | null;
-  price: any;
-  categoryId: string;
-  sellerId: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
-  imageUrl: any;
-  attributes: any;
-  createdAt: Date;
-  updatedAt: Date;
-  category: {
-    id: string;
-    name: string;
-  };
-  seller: {
-    id: string;
-    fullname: string;
-  };
-  productSizes: Array<{
-    size: {
-      name: string;
-    };
-  }>;
-  productColors: Array<{
-    color: {
-      name: string;
-      colorCode: string;
-    };
-  }>;
-};
 
 const prisma = new PrismaClient();
 
@@ -75,7 +43,7 @@ export async function GET() {
     });
 
     // Преобразуем данные для фронтенда в соответствии с новой схемой
-    const transformedProducts = products.map((product: any) => {
+    const transformedProducts = products.map((product) => {
       // Получаем главное изображение из JSON поля
       let mainImage = null;
       if (product.imageUrl && Array.isArray(product.imageUrl)) {
@@ -189,7 +157,7 @@ export async function POST(request: Request) {
     }
 
     // Создаем товар в транзакции с увеличенным таймаутом
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Создаем товар
       const product = await tx.product.create({
         data: {
@@ -211,29 +179,31 @@ export async function POST(request: Request) {
         // Находим существующие размеры одним запросом
         const existingSizes = await tx.size.findMany({
           where: { 
-            name: { in: uniqueSizes }
+            name: { in: uniqueSizes as string[] }
           }
         });
 
-        const existingSizeNames = existingSizes.map((s: any) => s.name);
-        const sizesToCreate = uniqueSizes.filter(name => !existingSizeNames.includes(name));
+        const existingSizeNames = existingSizes.map((s: { name: string }) => s.name);
+        const sizesToCreate = uniqueSizes.filter((name): name is string => 
+          typeof name === 'string' && !existingSizeNames.includes(name)
+        );
 
         // Создаем недостающие размеры одним запросом
         if (sizesToCreate.length > 0) {
           await tx.size.createMany({
-            data: sizesToCreate.map(name => ({ name })),
+            data: sizesToCreate.map(name => ({ name: name as string })),
             skipDuplicates: true
           });
         }
 
         // Получаем все размеры (включая только что созданные)
         const allSizes = await tx.size.findMany({
-          where: { name: { in: uniqueSizes } }
+          where: { name: { in: uniqueSizes as string[] } }
         });
 
         // Создаем связи одним запросом
         await tx.productSize.createMany({
-          data: allSizes.map((size: any) => ({
+          data: allSizes.map((size: { id: string }) => ({
             productId: product.id,
             sizeId: size.id
           })),
@@ -248,29 +218,34 @@ export async function POST(request: Request) {
         // Находим существующие цвета одним запросом
         const existingColors = await tx.color.findMany({
           where: { 
-            name: { in: uniqueColors }
+            name: { in: uniqueColors as string[] }
           }
         });
 
-        const existingColorNames = existingColors.map((c: any) => c.name);
-        const colorsToCreate = uniqueColors.filter(name => !existingColorNames.includes(name));
+        const existingColorNames = existingColors.map((c: { name: string }) => c.name);
+        const colorsToCreate = uniqueColors.filter((name): name is string => 
+          typeof name === 'string' && !existingColorNames.includes(name)
+        );
 
         // Создаем недостающие цвета одним запросом
         if (colorsToCreate.length > 0) {
           await tx.color.createMany({
-            data: colorsToCreate.map(name => ({ name })),
+            data: colorsToCreate.map(name => ({ 
+              name: name as string,
+              colorCode: '#000000' // Значение по умолчанию
+            })),
             skipDuplicates: true
           });
         }
 
         // Получаем все цвета (включая только что созданные)
         const allColors = await tx.color.findMany({
-          where: { name: { in: uniqueColors } }
+          where: { name: { in: uniqueColors as string[] } }
         });
 
         // Создаем связи одним запросом
         await tx.productColor.createMany({
-          data: allColors.map((color: any) => ({
+          data: allColors.map((color: { id: string }) => ({
             productId: product.id,
             colorId: color.id
           })),

@@ -24,7 +24,7 @@ interface Store {
 interface EditStoreModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (storeData: any) => void;
+  onSubmit: (storeData: StoreFormData) => void;
   store: Store | null;
   loading?: boolean;
 }

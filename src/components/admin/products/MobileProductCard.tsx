@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import {
   PhotoIcon,
   CurrencyDollarIcon,
@@ -28,8 +29,8 @@ interface Product {
     fullname: string;
   };
   mainImage: string | null;
-  imageUrl: any[];
-  attributes: any;
+  imageUrl: string[];
+  attributes: Record<string, string>;
   createdAt: string;
   updatedAt: string;
   sizes?: string[];
@@ -88,9 +89,11 @@ export default function MobileProductCard({
           {/* Product Image */}
           <div className="flex-shrink-0 w-16 h-16 bg-gray-700/50 rounded-lg overflow-hidden">
             {product.mainImage ? (
-              <img 
+              <Image 
                 src={product.mainImage} 
                 alt={product.name}
+                width={64}
+                height={64}
                 className="w-full h-full object-cover"
               />
             ) : (

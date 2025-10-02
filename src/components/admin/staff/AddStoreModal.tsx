@@ -9,7 +9,7 @@ import {
 interface AddStoreModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (storeData: any) => void;
+  onSubmit: (storeData: StoreFormData) => void;
   loading?: boolean;
 }
 

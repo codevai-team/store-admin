@@ -1,24 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
   XMarkIcon,
   PlusIcon,
-  PencilIcon,
   TrashIcon,
   PhotoIcon,
   TagIcon,
-  SwatchIcon,
   CubeIcon,
-  CurrencyDollarIcon,
   PaintBrushIcon,
-  HashtagIcon,
   PercentBadgeIcon,
   DocumentTextIcon,
   AdjustmentsHorizontalIcon,
   ChevronUpDownIcon,
-  EyeIcon,
-  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import ColorPicker from './ColorPicker';
 import SizePicker from './SizePicker';
@@ -98,13 +93,6 @@ export default function EditProductModal({
   const [newAttribute, setNewAttribute] = useState({ name: '', value: '' });
   const [loadingProduct, setLoadingProduct] = useState(false);
 
-  // Загрузка данных товара при открытии модального окна
-  useEffect(() => {
-    if (isOpen && productId) {
-      loadProduct();
-    }
-  }, [isOpen, productId]);
-
   // Сброс формы при закрытии
   useEffect(() => {
     if (!isOpen) {
@@ -132,7 +120,7 @@ export default function EditProductModal({
     }
   }, [isOpen]);
 
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async () => {
     setLoadingProduct(true);
     try {
       const response = await fetch(`/api/admin/products/${productId}`);
@@ -155,7 +143,14 @@ export default function EditProductModal({
     } finally {
       setLoadingProduct(false);
     }
-  };
+  }, [productId, onShowError]);
+
+  // Загрузка данных товара при открытии модального окна
+  useEffect(() => {
+    if (isOpen && productId) {
+      loadProduct();
+    }
+  }, [isOpen, productId, loadProduct]);
 
   const handleVariantSave = () => {
     if (!currentVariant.size.trim() || !currentVariant.color.trim() || !currentVariant.price) {
@@ -246,11 +241,6 @@ export default function EditProductModal({
     await onSubmit(formData);
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      minimumFractionDigits: 0,
-    }).format(price) + ' с.';
-  };
 
   if (!isOpen) return null;
 
@@ -299,9 +289,10 @@ export default function EditProductModal({
                       <input
                         type="text"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 25) })}
                         className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                         placeholder="Введите название товара"
+                        maxLength={25}
                         required
                       />
                     </div>
@@ -337,9 +328,10 @@ export default function EditProductModal({
                       </label>
                       <textarea
                         value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 200) })}
                         className="w-full px-3 py-2.5 bg-gray-800/60 border border-gray-600/50 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none"
                         placeholder="Введите описание товара"
+                        maxLength={200}
                         rows={2}
                       />
                     </div>
@@ -628,20 +620,22 @@ export default function EditProductModal({
                           </button>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                           <input
                             type="text"
                             value={newAttribute.name}
-                            onChange={(e) => setNewAttribute({ ...newAttribute, name: e.target.value })}
+                            onChange={(e) => setNewAttribute({ ...newAttribute, name: e.target.value.slice(0, 15) })}
                             className="px-2 py-1.5 bg-gray-800/60 border border-gray-600/50 rounded text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                             placeholder="Название"
+                            maxLength={15}
                           />
                           <input
                             type="text"
                             value={newAttribute.value}
-                            onChange={(e) => setNewAttribute({ ...newAttribute, value: e.target.value })}
+                            onChange={(e) => setNewAttribute({ ...newAttribute, value: e.target.value.slice(0, 15) })}
                             className="px-2 py-1.5 bg-gray-800/60 border border-gray-600/50 rounded text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                             placeholder="Значение"
+                            maxLength={15}
                           />
                         </div>
 
@@ -683,9 +677,11 @@ export default function EditProductModal({
                           <div className="grid grid-cols-6 gap-1">
                             {currentVariant.images.slice(0, 6).map((image, index) => (
                               <div key={index} className="relative group">
-                                <img
+                                <Image
                                   src={image}
                                   alt={`${index + 1}`}
+                                  width={32}
+                                  height={32}
                                   className="w-full h-8 object-cover rounded border border-gray-600/50"
                                 />
                                 <button
