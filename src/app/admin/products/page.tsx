@@ -585,7 +585,7 @@ export default function ProductsPage() {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(price) + ' ⃀';
+    }).format(price) + ' с.';
   };
 
   if (loading) {

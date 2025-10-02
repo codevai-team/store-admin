@@ -21,7 +21,7 @@ export default function DailyOrdersChart({ data, periodLabel }: DailyOrdersChart
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   const maxOrders = Math.max(...data.map(d => d.orders));

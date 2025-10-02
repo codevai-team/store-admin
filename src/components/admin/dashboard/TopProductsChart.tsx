@@ -16,7 +16,7 @@ export default function TopProductsChart({ data }: TopProductsChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   // Обрезаем длинные названия

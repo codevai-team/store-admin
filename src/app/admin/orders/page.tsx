@@ -1015,7 +1015,7 @@ export default function OrdersPage() {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(price) + ' ⃀';
+    }).format(price) + ' с.';
   };
 
   // Форматирование даты

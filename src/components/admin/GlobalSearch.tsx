@@ -341,7 +341,7 @@ export default function GlobalSearch({
                         </h4>
                         {result.price && (
                           <span className="text-sm font-semibold text-green-400 ml-2">
-                            {result.price} ⃀
+                            {result.price} с.
                           </span>
                         )}
                         {result.status && (

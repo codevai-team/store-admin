@@ -23,7 +23,7 @@ export default function OrderStatusChart({ data }: OrderStatusChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: OrderStatusData }> }) => {

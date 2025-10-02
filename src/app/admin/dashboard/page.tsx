@@ -144,7 +144,7 @@ export default function Dashboard() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   if (loading) {

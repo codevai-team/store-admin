@@ -17,7 +17,7 @@ export default function TopCategoriesChart({ data }: TopCategoriesChartProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   return (

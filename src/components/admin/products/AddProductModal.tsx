@@ -378,11 +378,11 @@ export default function AddProductModal({
                               <span className="text-gray-400">•</span>
                               <span className="text-gray-400">{variant.quantity} шт</span>
                               <span className="text-gray-400">•</span>
-                              <span className="text-green-400 font-semibold">{variant.price} ⃀</span>
+                              <span className="text-green-400 font-semibold">{variant.price} с.</span>
                               {variant.discountPrice && (
                                 <>
                                   <span className="text-gray-400">→</span>
-                                  <span className="text-orange-400 font-semibold">{variant.discountPrice} ⃀</span>
+                                  <span className="text-orange-400 font-semibold">{variant.discountPrice} с.</span>
                                 </>
                               )}
                             </div>
@@ -505,7 +505,7 @@ export default function AddProductModal({
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                          Цена * ⃀
+                          Цена * с.
                         </label>
                         <input
                           type="number"
@@ -534,7 +534,7 @@ export default function AddProductModal({
                       ) : (
                         <div>
                           <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                            Цена со скидкой ⃀
+                            Цена со скидкой с.
                           </label>
                           <div className="flex space-x-2">
                             <input

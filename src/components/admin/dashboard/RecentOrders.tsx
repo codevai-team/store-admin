@@ -27,7 +27,7 @@ export default function RecentOrders({ orders }: RecentOrdersProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ru-RU', {
       minimumFractionDigits: 0,
-    }).format(value) + ' ⃀';
+    }).format(value) + ' с.';
   };
 
   const formatDate = (dateString: string) => {
