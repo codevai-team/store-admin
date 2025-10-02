@@ -37,7 +37,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, currentPassword, newLogin, newPassword, telegramBotToken, telegramChatId } = body;
+    const { type, currentPassword, newLogin, newPassword, telegramBotToken, telegramChatId, banners } = body;
 
     if (type === 'verify_password') {
       // Проверяем текущий пароль
@@ -127,6 +127,43 @@ export async function PUT(request: NextRequest) {
       await Promise.all(updates);
 
       return NextResponse.json({ success: true, message: 'Telegram settings updated successfully' });
+    }
+
+    if (type === 'banners') {
+      // Обновляем баннеры
+      if (!Array.isArray(banners)) {
+        return NextResponse.json(
+          { error: 'Banners must be an array' },
+          { status: 400 }
+        );
+      }
+
+      // Валидируем URLs
+      for (const banner of banners) {
+        if (typeof banner !== 'string' || !banner.trim()) {
+          return NextResponse.json(
+            { error: 'All banners must be valid URLs' },
+            { status: 400 }
+          );
+        }
+        
+        try {
+          new URL(banner);
+        } catch {
+          return NextResponse.json(
+            { error: `Invalid URL: ${banner}` },
+            { status: 400 }
+          );
+        }
+      }
+
+      await prisma.setting.upsert({
+        where: { key: 'add_banners' },
+        update: { value: JSON.stringify(banners) },
+        create: { key: 'add_banners', value: JSON.stringify(banners) }
+      });
+
+      return NextResponse.json({ success: true, message: 'Banners updated successfully' });
     }
 
     return NextResponse.json(

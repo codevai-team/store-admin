@@ -9,11 +9,13 @@ import {
   EyeSlashIcon,
   ShieldCheckIcon,
   BellIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { ToastContainer } from '@/components/admin/products/Toast';
 import { useToast } from '@/hooks/useToast';
+import BannerManager from '@/components/admin/settings/BannerManager';
 
 interface Settings {
   admin_login?: string;
@@ -288,7 +290,19 @@ export default function Settings() {
           </div>
         </div>
 
-
+        {/* Banner Management Section */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <PhotoIcon className="h-6 w-6 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Рекламные баннеры</h2>
+              <p className="text-sm text-gray-400">Управление баннерами для отображения в приложении</p>
+            </div>
+          </div>
+          <BannerManager />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Auth Settings */}
