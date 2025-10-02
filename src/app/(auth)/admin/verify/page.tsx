@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
-export default function AdminVerify() {
+function AdminVerifyContent() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -327,5 +327,20 @@ export default function AdminVerify() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminVerify() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Загрузка...</p>
+        </div>
+      </div>
+    }>
+      <AdminVerifyContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -83,7 +83,7 @@ const renderCategoryIcon = (imageUrl: string | null) => {
   return <TagIcon className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-400 flex-shrink-0" />;
 };
 
-export default function CategoriesPage() {
+function CategoriesPageContent() {
   const searchParams = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1511,5 +1511,19 @@ export default function CategoriesPage() {
 
       </div>
     </AdminLayout>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <Suspense fallback={
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+        </div>
+      </AdminLayout>
+    }>
+      <CategoriesPageContent />
+    </Suspense>
   );
 }

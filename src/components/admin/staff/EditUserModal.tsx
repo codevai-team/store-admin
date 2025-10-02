@@ -7,7 +7,6 @@ import {
   ShoppingBagIcon,
   TruckIcon,
   CalendarDaysIcon,
-  CubeIcon,
 } from '@heroicons/react/24/outline';
 
 interface User {
@@ -26,7 +25,7 @@ interface User {
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userData: any) => void;
+  onSubmit: (userData: UserFormData) => void;
   user: User | null;
   loading?: boolean;
 }
@@ -124,16 +123,6 @@ export default function EditUserModal({
     });
   };
 
-  const formatRole = (role: string) => {
-    switch (role) {
-      case 'SELLER':
-        return 'Продавец';
-      case 'COURIER':
-        return 'Курьер';
-      default:
-        return role;
-    }
-  };
 
   const getRoleIcon = (role: string) => {
     switch (role) {

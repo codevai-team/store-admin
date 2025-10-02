@@ -119,6 +119,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-// Экспортируем функцию для использования в верификации
-export { verificationCodes };
