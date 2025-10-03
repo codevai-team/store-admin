@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNavigation from './BottomNavigation';
+import PWAInstallPrompt from './PWAInstallPrompt';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       
       {/* Bottom Navigation - только для мобильных */}
       <BottomNavigation />
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }
