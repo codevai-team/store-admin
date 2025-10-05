@@ -23,12 +23,6 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Продакшн зависимости
-FROM base AS prod-deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
-
 # Продакшн этап с nginx
 FROM nginx:alpine AS runner
 WORKDIR /app
@@ -43,8 +37,8 @@ COPY --from=builder /app/.next/static ./.next/static
 # Копируем public папку из исходного кода
 COPY public/ ./public/
 
-# Копируем продакшн зависимости
-COPY --from=prod-deps /app/node_modules ./node_modules
+# Копируем все зависимости (включая Tailwind CSS)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Копируем Prisma схему и генерируем клиент
 COPY --from=builder /app/prisma ./prisma
