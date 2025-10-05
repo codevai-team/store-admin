@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { saveAuthToken } from '@/lib/auth';
 
 function AdminVerifyContent() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -170,8 +171,13 @@ function AdminVerifyContent() {
         return;
       }
 
-      // Успешная верификация - перенаправляем в дашборд
-      console.log('Верификация успешна, перенаправляем на дашборд');
+      // Успешная верификация - сохраняем токен и перенаправляем в дашборд
+      console.log('Верификация успешна, сохраняем токен и перенаправляем на дашборд');
+      
+      // Сохраняем финальный токен в localStorage для автоматического входа в будущем
+      if (data.token) {
+        saveAuthToken(data.token, 24); // Сохраняем на 24 часа
+      }
       
       // Даем время для установки куки, затем перенаправляем
       setTimeout(() => {

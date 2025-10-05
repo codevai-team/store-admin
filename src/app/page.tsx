@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { attemptAutoLogin } from '@/lib/auth';
 
 export default function Home() {
   const router = useRouter();
@@ -11,23 +12,13 @@ export default function Home() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        // Проверяем, есть ли токен в cookies
-        const token = document.cookie
-          .split(';')
-          .find(cookie => cookie.trim().startsWith('admin_token='));
-
-        if (token) {
-          // Если токен есть, проверяем его валидность через API
-          const response = await fetch('/api/admin/verify-token', {
-            method: 'GET',
-            credentials: 'include'
-          });
-
-          if (response.ok) {
-            // Пользователь авторизован - перенаправляем на дашборд
-            router.replace('/admin/dashboard');
-            return;
-          }
+        // Пытаемся выполнить автоматический вход
+        const autoLoginSuccess = await attemptAutoLogin();
+        
+        if (autoLoginSuccess) {
+          // Пользователь авторизован - перенаправляем на дашборд
+          router.replace('/admin/dashboard');
+          return;
         }
 
         // Пользователь не авторизован - перенаправляем на страницу входа

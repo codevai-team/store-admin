@@ -1,12 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { removeAuthToken } from '@/lib/auth';
 
 export default function LogoutButton() {
   const router = useRouter();
 
   const handleLogout = async () => {
     try {
+      // Удаляем токен из localStorage
+      removeAuthToken();
+      
       // Удаляем куки через API
       await fetch('/api/admin/logout', {
         method: 'POST',
