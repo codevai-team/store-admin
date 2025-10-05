@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { attemptAutoLogin } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 export default function Home() {
   const router = useRouter();
@@ -12,19 +13,24 @@ export default function Home() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        // Пытаемся выполнить автоматический вход
-        const autoLoginSuccess = await attemptAutoLogin();
-        
-        if (autoLoginSuccess) {
-          // Пользователь авторизован - перенаправляем на дашборд
-          console.log('Автоматический вход успешен, перенаправляем на дашборд');
-          window.location.href = '/admin/dashboard';
+        // Проверяем, есть ли токен в localStorage
+        const token = getAuthToken();
+        if (!token) {
+          console.log('Токен не найден в localStorage, перенаправляем на логин');
+          window.location.href = '/admin/login';
           return;
         }
 
-        // Пользователь не авторизован - перенаправляем на страницу входа
-        console.log('Автоматический вход не удался, перенаправляем на логин');
-        window.location.href = '/admin/login';
+        // Проверяем токен через API
+        const response = await fetchWithAuth('/api/admin/verify-token');
+        
+        if (response.ok) {
+          console.log('Автоматический вход успешен, перенаправляем на дашборд');
+          window.location.href = '/admin/dashboard';
+        } else {
+          console.log('Токен недействителен, перенаправляем на логин');
+          window.location.href = '/admin/login';
+        }
       } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         // В случае ошибки перенаправляем на страницу входа

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { attemptAutoLogin } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -15,13 +16,23 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     const checkAuth = async () => {
       try {
         console.log('AuthGuard: Проверяем аутентификацию...');
-        const autoLoginSuccess = await attemptAutoLogin();
         
-        if (autoLoginSuccess) {
+        // Сначала проверяем, есть ли токен в localStorage
+        const token = getAuthToken();
+        if (!token) {
+          console.log('AuthGuard: Токен не найден в localStorage');
+          window.location.href = '/admin/login';
+          return;
+        }
+
+        // Проверяем токен через API
+        const response = await fetchWithAuth('/api/admin/verify-token');
+        
+        if (response.ok) {
           console.log('AuthGuard: Пользователь аутентифицирован');
           setIsAuthenticated(true);
         } else {
-          console.log('AuthGuard: Пользователь не аутентифицирован, перенаправляем на логин');
+          console.log('AuthGuard: Токен недействителен, перенаправляем на логин');
           window.location.href = '/admin/login';
         }
       } catch (error) {

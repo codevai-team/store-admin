@@ -68,12 +68,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/admin/dashboard/:path*',
-    '/admin/categories/:path*', 
-    '/admin/orders/:path*',
-    '/admin/products/:path*',
-    '/admin/settings/:path*',
-    '/admin/staff/:path*'
-  ],
+  matcher: [], // Отключаем middleware для админ страниц
 };
