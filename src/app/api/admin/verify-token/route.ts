@@ -3,27 +3,34 @@ import { jwtVerify } from 'jose';
 
 export async function GET(request: Request) {
   try {
-    // Извлекаем токен из cookies
-    const cookieHeader = request.headers.get('cookie');
-    if (!cookieHeader) {
+    let token: string | null = null;
+
+    // Сначала пытаемся получить токен из заголовка Authorization
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+
+    // Если токен не найден в заголовке, пытаемся получить из cookies
+    if (!token) {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const tokenCookie = cookieHeader
+          .split(';')
+          .find(cookie => cookie.trim().startsWith('admin_token='));
+
+        if (tokenCookie) {
+          token = tokenCookie.split('=')[1];
+        }
+      }
+    }
+
+    if (!token) {
       return NextResponse.json(
         { message: 'Токен не найден' },
         { status: 401 }
       );
     }
-
-    const tokenCookie = cookieHeader
-      .split(';')
-      .find(cookie => cookie.trim().startsWith('admin_token='));
-
-    if (!tokenCookie) {
-      return NextResponse.json(
-        { message: 'Токен не найден' },
-        { status: 401 }
-      );
-    }
-
-    const token = tokenCookie.split('=')[1];
 
     // Проверяем валидность токена
     try {

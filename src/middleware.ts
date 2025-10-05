@@ -7,7 +7,18 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/admin')) {
     console.log('Middleware: Проверка пути:', request.nextUrl.pathname);
     
-    const token = request.cookies.get('admin_token');
+    let token = request.cookies.get('admin_token');
+    
+    // Если токен не найден в cookies, пытаемся получить из заголовка Authorization
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const tokenValue = authHeader.substring(7);
+        // Создаем временный объект cookie для совместимости
+        token = { value: tokenValue } as any;
+      }
+    }
+    
     console.log('Middleware: Токен найден:', !!token);
 
     // Если токен есть, проверяем его валидность

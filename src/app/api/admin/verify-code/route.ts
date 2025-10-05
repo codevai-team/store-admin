@@ -102,13 +102,14 @@ export async function POST(request: Request) {
     const response = NextResponse.json(
       { 
         success: true,
-        message: 'Аутентификация завершена успешно' 
+        message: 'Аутентификация завершена успешно',
+        token: finalToken // Возвращаем токен для сохранения в localStorage
       },
       { status: 200 }
     );
     
     response.cookies.set('admin_token', finalToken, {
-      httpOnly: true,
+      httpOnly: false, // Позволяем JavaScript читать cookie
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 60 * 60 * 24, // 1 день
