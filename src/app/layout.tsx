@@ -27,10 +27,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/admin-store-logo.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "/logo-for-pwa.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "//admin-store-logo.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "//logo-for-pwa.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
   appleWebApp: {

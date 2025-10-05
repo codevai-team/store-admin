@@ -1,5 +1,5 @@
 {
-  "name": "Store Admin Panel",
+  "name": "Store Admin",
   "short_name": "Store Admin",
   "description": "Система администрирования интернет-магазина",
   "start_url": "/admin/dashboard",
