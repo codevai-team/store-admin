@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNavigation from './BottomNavigation';
 import PWAInstallPrompt from './PWAInstallPrompt';
+import AuthGuard from './AuthGuard';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -22,28 +23,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      {/* Header - во всю ширину экрана */}
-      <Header />
-      
-      {/* Content area with sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
+    <AuthGuard>
+      <div className="h-screen flex flex-col bg-gray-900">
+        {/* Header - во всю ширину экрана */}
+        <Header />
+        
+        {/* Content area with sidebar */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <Sidebar />
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-gray-900 p-4 lg:p-6 pb-20 lg:pb-6 scrollbar-thin">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+          {/* Main content */}
+          <main className="flex-1 overflow-y-auto bg-gray-900 p-4 lg:p-6 pb-20 lg:pb-6 scrollbar-thin">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
+        
+        {/* Bottom Navigation - только для мобильных */}
+        <BottomNavigation />
+        
+        {/* PWA Install Prompt */}
+        <PWAInstallPrompt />
       </div>
-      
-      {/* Bottom Navigation - только для мобильных */}
-      <BottomNavigation />
-      
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
-    </div>
+    </AuthGuard>
   );
 }

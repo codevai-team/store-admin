@@ -17,16 +17,18 @@ export default function Home() {
         
         if (autoLoginSuccess) {
           // Пользователь авторизован - перенаправляем на дашборд
-          router.replace('/admin/dashboard');
+          console.log('Автоматический вход успешен, перенаправляем на дашборд');
+          window.location.href = '/admin/dashboard';
           return;
         }
 
         // Пользователь не авторизован - перенаправляем на страницу входа
-        router.replace('/admin/login');
+        console.log('Автоматический вход не удался, перенаправляем на логин');
+        window.location.href = '/admin/login';
       } catch (error) {
         console.error('Ошибка проверки авторизации:', error);
         // В случае ошибки перенаправляем на страницу входа
-        router.replace('/admin/login');
+        window.location.href = '/admin/login';
       } finally {
         setIsChecking(false);
       }
