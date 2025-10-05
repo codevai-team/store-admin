@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const tokenValue = authHeader.substring(7);
         // Создаем временный объект cookie для совместимости
-        token = { value: tokenValue } as any;
+        token = { name: 'admin_token', value: tokenValue };
       }
     }
     
