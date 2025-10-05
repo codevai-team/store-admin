@@ -8,14 +8,12 @@ import {
   CloudArrowUpIcon,
   ExclamationTriangleIcon 
 } from '@heroicons/react/24/outline';
-import BackgroundRemoveButton from './BackgroundRemoveButton';
 
 interface ImageUploadProps {
   images: string[];
   onImagesChange: (images: string[]) => void;
   maxImages?: number;
   onClearAll?: () => void;
-  originalImages?: string[]; // Для отслеживания оригинальных изображений
   resetState?: boolean; // Флаг для сброса состояния
 }
 
@@ -24,47 +22,19 @@ export default function ImageUpload({
   onImagesChange, 
   maxImages = 5,
   onClearAll,
-  originalImages = [],
   resetState = false
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [originalImagesState, setOriginalImagesState] = useState<string[]>([]);
-  const [processedImages, setProcessedImages] = useState<Set<number>>(new Set()); // Отслеживаем обработанные изображения
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Инициализируем состояние оригинальных изображений только один раз
-  React.useEffect(() => {
-    if (originalImages.length > 0) {
-      setOriginalImagesState(originalImages);
-    }
-  }, [originalImages]);
 
   // Сброс состояния при изменении флага resetState
   React.useEffect(() => {
     if (resetState) {
-      setOriginalImagesState([]);
-      setProcessedImages(new Set());
       setUploadError(null);
     }
   }, [resetState]);
-
-  // Обновляем оригинальные изображения только при добавлении новых
-  React.useEffect(() => {
-    if (images.length > 0) {
-      setOriginalImagesState(prev => {
-        const newState = [...prev];
-        // Добавляем только новые изображения, не перезаписывая существующие
-        for (let i = 0; i < images.length; i++) {
-          if (!newState[i]) {
-            newState[i] = images[i];
-          }
-        }
-        return newState;
-      });
-    }
-  }, [images]); // Зависимость от images
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -160,23 +130,6 @@ export default function ImageUpload({
 
     // Удаляем изображение из списка
     const newImages = images.filter((_, i) => i !== index);
-    
-    // Обновляем индексы в processedImages
-    setProcessedImages(prev => {
-      const newSet = new Set<number>();
-      prev.forEach(processedIndex => {
-        if (processedIndex < index) {
-          // Индексы до удаленного остаются без изменений
-          newSet.add(processedIndex);
-        } else if (processedIndex > index) {
-          // Индексы после удаленного сдвигаются на -1
-          newSet.add(processedIndex - 1);
-        }
-        // processedIndex === index не добавляем (удаляем)
-      });
-      return newSet;
-    });
-    
     onImagesChange(newImages);
   };
 
@@ -184,68 +137,7 @@ export default function ImageUpload({
     fileInputRef.current?.click();
   };
 
-  // Обработка удаления фона
-  const handleBackgroundRemove = (index: number, newUrl: string) => {
-    const newImages = [...images];
-    newImages[index] = newUrl;
-    
-    // Сохраняем оригинальный URL перед заменой
-    const newOriginalImages = [...originalImagesState];
-    if (!newOriginalImages[index]) {
-      newOriginalImages[index] = images[index];
-    }
-    setOriginalImagesState(newOriginalImages);
-    
-    // Отмечаем изображение как обработанное
-    setProcessedImages(prev => new Set([...prev, index]));
-    
-    onImagesChange(newImages);
-  };
 
-  // Обработка возврата к оригиналу
-  const handleRevertToOriginal = async (originalUrl: string, processedUrl: string) => {
-    // Удаляем обработанное изображение из S3
-    try {
-      await fetch(`/api/upload?fileUrl=${encodeURIComponent(processedUrl)}`, {
-        method: 'DELETE',
-      });
-    } catch (error) {
-      console.error('Error deleting processed image:', error);
-    }
-    
-    // Обновляем изображение на оригинальное
-    const newImages = [...images];
-    const index = newImages.findIndex(img => img === processedUrl);
-    if (index !== -1) {
-      newImages[index] = originalUrl;
-      
-      // Убираем изображение из списка обработанных
-      setProcessedImages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(index);
-        return newSet;
-      });
-      
-      onImagesChange(newImages);
-    }
-  };
-
-  // Проверка, является ли изображение обработанным
-  const isImageProcessed = (index: number) => {
-    return processedImages.has(index);
-  };
-
-  // Обновляем оригинальные изображения при изменении текущих
-  React.useEffect(() => {
-    if (images.length > originalImagesState.length) {
-      // Добавились новые изображения
-      const newOriginalImages = [...originalImagesState];
-      for (let i = originalImagesState.length; i < images.length; i++) {
-        newOriginalImages[i] = images[i];
-      }
-      setOriginalImagesState(newOriginalImages);
-    }
-  }, [images, originalImagesState]);
 
   // Функция для очистки всех изображений (используется при отмене)
   const clearAllImages = useCallback(async () => {
@@ -351,18 +243,6 @@ export default function ImageUpload({
                 />
               </div>
               
-              {/* Кнопка удаления фона/возврата в правом верхнем углу */}
-              <div className="absolute top-1 right-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                <div className="bg-black/50 rounded-full p-0.5">
-                  <BackgroundRemoveButton
-                    imageUrl={url}
-                    onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
-                    onRevert={handleRevertToOriginal}
-                    isProcessed={isImageProcessed(index)}
-                    originalUrl={originalImagesState[index]}
-                  />
-                </div>
-              </div>
 
               {/* Кнопка удаления в левом верхнем углу */}
               <button

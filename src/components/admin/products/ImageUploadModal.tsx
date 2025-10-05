@@ -12,7 +12,6 @@ import {
 import { ToastContainer } from './Toast';
 import { useToast } from '@/hooks/useToast';
 import ImageViewer from './ImageViewer';
-import BackgroundRemoveButton from './BackgroundRemoveButton';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
@@ -27,7 +26,6 @@ interface ImageData {
   uploading?: boolean;
   file?: File;
   tempId?: string;
-  originalUrl?: string; // Для отслеживания оригинального URL
 }
 
 export default function ImageUploadModal({
@@ -38,10 +36,7 @@ export default function ImageUploadModal({
 }: ImageUploadModalProps) {
   const { toasts, removeToast, showSuccess, showError } = useToast();
   const [images, setImages] = useState<ImageData[]>(
-    (currentImages || []).map((url) => ({ 
-      url, 
-      originalUrl: url // Изначально оригинальный URL = текущий URL
-    }))
+    (currentImages || []).map((url) => ({ url }))
   );
   const [urlInput, setUrlInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -53,10 +48,7 @@ export default function ImageUploadModal({
   // Обновляем images только при первом открытии модального окна
   useEffect(() => {
     if (isOpen && currentImages) {
-      setImages((currentImages || []).map((url) => ({ 
-        url, 
-        originalUrl: url
-      })));
+      setImages((currentImages || []).map((url) => ({ url })));
     }
   }, [isOpen, currentImages]);
 
@@ -212,50 +204,7 @@ export default function ImageUploadModal({
     setViewerOpen(true);
   };
 
-  // Обработка удаления фона
-  const handleBackgroundRemove = (index: number, newUrl: string) => {
-    setImages(prev => prev.map((img, i) => {
-      if (i === index) {
-        // Сохраняем оригинальный URL перед заменой
-        const originalUrl = img.originalUrl || img.url;
-        return { ...img, url: newUrl, originalUrl };
-      }
-      return img;
-    }));
-  };
 
-  // Обработка возврата к оригиналу
-  const handleRevertToOriginal = async (originalUrl: string, processedUrl: string) => {
-    // Удаляем обработанное изображение из S3
-    try {
-      await fetch(`/api/upload?fileUrl=${encodeURIComponent(processedUrl)}`, {
-        method: 'DELETE',
-      });
-    } catch (error) {
-      console.error('Error deleting processed image:', error);
-    }
-    
-    // Обновляем изображение на оригинальное
-    setImages(prev => prev.map((img) => 
-      img.url === processedUrl ? { ...img, url: originalUrl } : img
-    ));
-  };
-
-  // Проверка, является ли изображение обработанным
-  const isImageProcessed = (index: number) => {
-    return !!(images[index].originalUrl && images[index].originalUrl !== images[index].url);
-  };
-
-  // Обновляем оригинальные URL только для новых изображений
-  React.useEffect(() => {
-    setImages(prev => prev.map((img) => {
-      // Если у изображения нет originalUrl, устанавливаем его
-      if (!img.originalUrl) {
-        return { ...img, originalUrl: img.url };
-      }
-      return img;
-    }));
-  }, [images.length]); // Только при изменении количества изображений
 
 
 
@@ -284,26 +233,11 @@ export default function ImageUploadModal({
       // Находим все изображения, которые были в модальном окне
       const allModalImages = images.map(img => img.url);
       
-      // Находим обработанные изображения (с _no_bg)
-      const processedImages = allModalImages.filter(url => url.includes('_no_bg'));
-      const originalImages = allModalImages.filter(url => !url.includes('_no_bg'));
+      // Удаляем неиспользуемые изображения
+      const unusedImages = allModalImages.filter(url => !finalImageUrls.includes(url));
       
-      // Определяем, какие оригинальные изображения используются в финальном результате
-      const usedOriginalImages = finalImageUrls.filter(url => !url.includes('_no_bg'));
-      
-      // Определяем, какие обработанные изображения используются в финальном результате
-      const usedProcessedImages = finalImageUrls.filter(url => url.includes('_no_bg'));
-      
-      // Удаляем неиспользуемые обработанные изображения
-      const unusedProcessedImages = processedImages.filter(url => !usedProcessedImages.includes(url));
-      
-      // Удаляем неиспользуемые оригинальные изображения
-      const unusedOriginalImages = originalImages.filter(url => !usedOriginalImages.includes(url));
-      
-      const urlsToDelete = [...unusedProcessedImages, ...unusedOriginalImages];
-      
-      if (urlsToDelete.length > 0) {
-        console.log('Deleting unused images from ImageUploadModal:', urlsToDelete);
+      if (unusedImages.length > 0) {
+        console.log('Deleting unused images from ImageUploadModal:', unusedImages);
         await fetch('/api/upload/cleanup', {
           method: 'POST',
           headers: {
@@ -311,7 +245,7 @@ export default function ImageUploadModal({
           },
           body: JSON.stringify({
             urlsToKeep: finalImageUrls,
-            urlsToDelete: urlsToDelete
+            urlsToDelete: unusedImages
           }),
         });
       }
@@ -332,25 +266,12 @@ export default function ImageUploadModal({
     const currentImageUrls = currentImages || [];
     
     // Находим изображения, которые были добавлены во время редактирования
-    // Это изображения, которых не было в currentImages при открытии модального окна
     const newImages = images
       .filter(img => {
         if (img.uploading) return false;
-        
-        // Проверяем, есть ли это изображение в исходном списке
-        const isInCurrentImages = currentImageUrls.includes(img.url);
-        
-        // Также проверяем, есть ли оригинальная версия этого изображения в currentImages
-        // (для случая, когда изображение было обработано)
-        const isOriginalInCurrentImages = img.originalUrl && currentImageUrls.includes(img.originalUrl);
-        
-        return !isInCurrentImages && !isOriginalInCurrentImages;
+        return !currentImageUrls.includes(img.url);
       })
       .map(img => img.url);
-
-    console.log('Current images:', currentImageUrls);
-    console.log('Modal images:', images.map(img => ({ url: img.url, originalUrl: img.originalUrl })));
-    console.log('New images to delete:', newImages);
 
     for (const imageUrl of newImages) {
       try {
@@ -511,20 +432,6 @@ export default function ImageUploadModal({
                         </div>
                       </div>
 
-                      {/* Actions - скрываем во время загрузки */}
-                      {!image.uploading && (
-                        <div className="absolute -top-1 -right-1 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Кнопка удаления фона/возврата */}
-                          <BackgroundRemoveButton
-                            imageUrl={image.url}
-                            onImageChange={(newUrl) => handleBackgroundRemove(index, newUrl)}
-                            onRevert={handleRevertToOriginal}
-                            isProcessed={isImageProcessed(index)}
-                            originalUrl={image.originalUrl}
-                            className="w-5 h-5"
-                          />
-                        </div>
-                      )}
 
 
                       {/* Кнопка удаления - в левом нижнем углу */}

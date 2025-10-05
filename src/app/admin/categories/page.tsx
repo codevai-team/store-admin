@@ -1083,6 +1083,11 @@ function CategoriesPageContent() {
                     placeholder="Введите название..."
                     required
                   />
+                  <div className="flex justify-end mt-1">
+                    <span className="text-xs text-gray-500">
+                      {formData.name.length}/20 символов
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1097,6 +1102,11 @@ function CategoriesPageContent() {
                     placeholder="Введите описание..."
                     rows={3}
                   />
+                  <div className="flex justify-end mt-1">
+                    <span className="text-xs text-gray-500">
+                      {(formData.description || '').length}/25 символов
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1185,6 +1195,11 @@ function CategoriesPageContent() {
                     placeholder="Введите название..."
                     required
                   />
+                  <div className="flex justify-end mt-1">
+                    <span className="text-xs text-gray-500">
+                      {formData.name.length}/20 символов
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1199,6 +1214,11 @@ function CategoriesPageContent() {
                     placeholder="Введите описание..."
                     rows={3}
                   />
+                  <div className="flex justify-end mt-1">
+                    <span className="text-xs text-gray-500">
+                      {(formData.description || '').length}/25 символов
+                    </span>
+                  </div>
                 </div>
 
                 <div>

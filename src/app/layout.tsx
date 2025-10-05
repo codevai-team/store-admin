@@ -18,7 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#4f39f6",
+  themeColor: "#121a2a",
 };
 
 export const metadata: Metadata = {
@@ -27,15 +27,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/icon-48x48.png", sizes: "48x48", type: "image/png" },
-      { url: "/icon-72x72.png", sizes: "72x72", type: "image/png" },
-      { url: "/icon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/icon-144x144.png", sizes: "144x144", type: "image/png" },
-      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/admin-store-logo.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "//admin-store-logo.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
   appleWebApp: {
@@ -48,7 +43,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "Store Admin Panel",
+    siteName: "Store Admin",
     title: "Store - Admin Panel",
     description: "Система администрирования интернет-магазина",
   },
@@ -58,7 +53,7 @@ export const metadata: Metadata = {
     "application-name": "Store Admin",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": "Store Admin",
-    "msapplication-TileColor": "#4f39f6",
+    "msapplication-TileColor": "#121a2a",
     "msapplication-tap-highlight": "no",
   },
 };

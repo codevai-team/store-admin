@@ -216,30 +216,15 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
   // Функция для очистки неиспользуемых изображений
   const cleanupUnusedImages = async () => {
     try {
-      // Собираем все URL, которые были загружены или обработаны
+      // Собираем все URL, которые были загружены
       const allUploadedUrls: string[] = [...new Set([...uploadedImages, ...originalImages])];
       const finalImageUrls = formData.imageUrl;
       
-      // Находим все обработанные изображения (с _no_bg), которые не используются в финальном товаре
-      const processedImages = allUploadedUrls.filter((url: string) => url.includes('_no_bg'));
-      const originalImagesList = allUploadedUrls.filter((url: string) => !url.includes('_no_bg'));
+      // Удаляем неиспользуемые изображения
+      const unusedImages = allUploadedUrls.filter((url: string) => !finalImageUrls.includes(url));
       
-      // Определяем, какие оригинальные изображения используются
-      const usedOriginalImages = finalImageUrls.filter((url: string) => !url.includes('_no_bg'));
-      
-      // Определяем, какие обработанные изображения используются
-      const usedProcessedImages = finalImageUrls.filter((url: string) => url.includes('_no_bg'));
-      
-      // Удаляем неиспользуемые обработанные изображения
-      const unusedProcessedImages = processedImages.filter((url: string) => !usedProcessedImages.includes(url));
-      
-      // Удаляем неиспользуемые оригинальные изображения
-      const unusedOriginalImages = originalImagesList.filter((url: string) => !usedOriginalImages.includes(url));
-      
-      const urlsToDelete = [...unusedProcessedImages, ...unusedOriginalImages];
-      
-      if (urlsToDelete.length > 0) {
-        console.log('Deleting unused images:', urlsToDelete);
+      if (unusedImages.length > 0) {
+        console.log('Deleting unused images:', unusedImages);
         await fetch('/api/upload/cleanup', {
           method: 'POST',
           headers: {
@@ -247,7 +232,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
           },
           body: JSON.stringify({
             urlsToKeep: finalImageUrls,
-            urlsToDelete: urlsToDelete
+            urlsToDelete: unusedImages
           }),
         });
       }
@@ -413,6 +398,11 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
                 maxLength={25}
                 required
               />
+              <div className="flex justify-end mt-1">
+                <span className="text-xs text-gray-500">
+                  {formData.name.length}/25 символов
+                </span>
+              </div>
             </div>
 
             {/* Описание */}
@@ -429,6 +419,11 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
                 placeholder="Описание товара"
                 required
               />
+              <div className="flex justify-end mt-1">
+                <span className="text-xs text-gray-500">
+                  {formData.description.length}/200 символов
+                </span>
+              </div>
             </div>
 
             {/* Цена */}
@@ -533,7 +528,6 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
               images={formData.imageUrl}
               onImagesChange={handleImagesChange}
               maxImages={5}
-              originalImages={originalImages}
               resetState={resetImageState}
             />
           </div>
@@ -565,22 +559,36 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
                 <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-3">
                   {/* Поля атрибутов - вертикально на мобильных, горизонтально на десктопе */}
                   <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                    <input
-                      type="text"
-                      placeholder="Название атрибута"
-                      value={attr.key}
-                      onChange={(e) => updateAttribute(index, 'key', e.target.value.slice(0, 15))}
-                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                      maxLength={15}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Значение атрибута"
-                      value={attr.value}
-                      onChange={(e) => updateAttribute(index, 'value', e.target.value.slice(0, 15))}
-                      className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                      maxLength={15}
-                    />
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        placeholder="Название атрибута"
+                        value={attr.key}
+                        onChange={(e) => updateAttribute(index, 'key', e.target.value.slice(0, 15))}
+                        className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        maxLength={15}
+                      />
+                      <div className="flex justify-end mt-1">
+                        <span className="text-xs text-gray-500">
+                          {attr.key.length}/15 символов
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        placeholder="Значение атрибута"
+                        value={attr.value}
+                        onChange={(e) => updateAttribute(index, 'value', e.target.value.slice(0, 15))}
+                        className="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        maxLength={15}
+                      />
+                      <div className="flex justify-end mt-1">
+                        <span className="text-xs text-gray-500">
+                          {attr.value.length}/15 символов
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   {/* Кнопка удаления */}
                   <button
