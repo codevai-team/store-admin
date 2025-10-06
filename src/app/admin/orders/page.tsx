@@ -602,10 +602,8 @@ function OrdersPageContent() {
 
   // Сброс на первую страницу при изменении фильтров
   useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder, currentPage]);
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, sortBy, sortOrder]);
 
 
   // Автоматическое обновление заказов каждые 5 секунд (новые + измененные)
@@ -1106,9 +1104,15 @@ function OrdersPageContent() {
     return `${date}T${timeWithSeconds}`;
   };
 
+  // Утилита для форматирования даты в локальном времени
+  const formatLocalDate = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   const setQuickDateRange = (range: 'today' | 'yesterday' | 'week' | 'month') => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    // Используем локальную дату вместо UTC
+    const today = formatLocalDate(now);
     
     switch (range) {
       case 'today':
@@ -1118,23 +1122,44 @@ function OrdersPageContent() {
         setTimeToFilter('23:59');
         break;
       case 'yesterday':
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const yesterday = formatLocalDate(yesterdayDate);
         setDateFromFilter(yesterday);
         setDateToFilter(yesterday);
         setTimeFromFilter('00:00');
         setTimeToFilter('23:59');
         break;
       case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        setDateFromFilter(weekAgo);
-        setDateToFilter(today);
+        // Получаем понедельник текущей недели
+        const currentDay = now.getDay();
+        const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Если воскресенье, то -6, иначе 1 - currentDay
+        const monday = new Date(now.getTime() + mondayOffset * 24 * 60 * 60 * 1000);
+        const mondayStr = formatLocalDate(monday);
+        
+        // Получаем воскресенье текущей недели
+        const sundayOffset = currentDay === 0 ? 0 : 7 - currentDay; // Если воскресенье, то 0, иначе 7 - currentDay
+        const sunday = new Date(now.getTime() + sundayOffset * 24 * 60 * 60 * 1000);
+        const sundayStr = formatLocalDate(sunday);
+        
+        setDateFromFilter(mondayStr);
+        setDateToFilter(sundayStr);
         setTimeFromFilter('00:00');
         setTimeToFilter('23:59');
         break;
       case 'month':
-        const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString().split('T')[0];
-        setDateFromFilter(monthAgo);
-        setDateToFilter(today);
+        // Получаем первый день текущего месяца (1-е число)
+        const year = now.getFullYear();
+        const month = now.getMonth(); // 0-11
+        const firstDayStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        
+        // Получаем последний день текущего месяца
+        // Используем 0-й день следующего месяца (стандартный способ)
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const lastDay = lastDayOfMonth.getDate();
+        const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        
+        setDateFromFilter(firstDayStr);
+        setDateToFilter(lastDayStr);
         setTimeFromFilter('00:00');
         setTimeToFilter('23:59');
         break;
@@ -2046,7 +2071,7 @@ function OrdersPageContent() {
                 {/* First Page */}
                 <button
                   onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || listLoading}
                   className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Первая страница"
                 >
@@ -2056,7 +2081,7 @@ function OrdersPageContent() {
                 {/* Previous Page */}
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || listLoading}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Предыдущая"
                 >
@@ -2084,7 +2109,8 @@ function OrdersPageContent() {
                       <button
                         key={pageNumber}
                         onClick={() => setCurrentPage(pageNumber)}
-                        className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 min-w-[36px] ${
+                        disabled={listLoading}
+                        className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 min-w-[36px] disabled:opacity-50 disabled:cursor-not-allowed ${
                           isActive
                             ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg'
                             : 'text-gray-400 hover:text-white hover:bg-gray-700'
@@ -2099,7 +2125,7 @@ function OrdersPageContent() {
                 {/* Next Page */}
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || listLoading}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Следующая"
                 >
@@ -2109,7 +2135,7 @@ function OrdersPageContent() {
                 {/* Last Page */}
                 <button
                   onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || listLoading}
                   className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Последняя страница"
                 >

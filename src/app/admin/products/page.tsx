@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -100,6 +100,7 @@ function ProductsPageContent() {
   const [colorOptions, setColorOptions] = useState<{name: string, colorCode: string}[]>([]);
   const [sellers, setSellers] = useState<{id: string, fullname: string, role: string}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paginationLoading, setPaginationLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [colorFilter, setColorFilter] = useState<string>('');
@@ -109,6 +110,8 @@ function ProductsPageContent() {
   
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const itemsPerPage = 50;
@@ -145,20 +148,46 @@ function ProductsPageContent() {
   });
   const [formLoading, setFormLoading] = useState(false);
 
-  // Загрузка товаров
-  const fetchProducts = async () => {
+  // Загрузка товаров с пагинацией
+  const fetchProducts = useCallback(async (page: number = currentPage, filters: Record<string, string> = {}) => {
     try {
-      const response = await fetch('/api/admin/products');
+      if (page === currentPage) {
+        setLoading(true);
+      } else {
+        setPaginationLoading(true);
+      }
+      
+      // Строим URL с параметрами
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: itemsPerPage.toString(),
+        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy,
+        sortOrder: sortOrder,
+        ...(searchTerm && { search: searchTerm }),
+        ...(categoryFilter && { categoryId: categoryFilter }),
+        ...(colorFilter && { color: colorFilter }),
+        ...(sizeFilter && { size: sizeFilter }),
+        ...(sellerFilter && { sellerId: sellerFilter }),
+        ...(statusFilter && { status: statusFilter }),
+        ...filters
+      });
+      
+      const response = await fetch(`/api/admin/products?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(data);
+        setProducts(data.products);
+        
+        // Обновляем информацию о пагинации
+        setTotalPages(data.pagination.totalPages);
+        setTotalItems(data.pagination.totalCount);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
+      setPaginationLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage, sortBy, sortOrder, searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter]);
 
   // Загрузка категорий
   const fetchCategories = async () => {
@@ -215,12 +244,21 @@ function ProductsPageContent() {
   };
 
   useEffect(() => {
-    fetchProducts();
     fetchCategories();
     fetchColorsData();
     fetchSizesData();
     fetchSellersData();
   }, []);
+
+  // Сбрасываем на первую страницу при изменении фильтров или сортировки
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
+
+  // Загружаем товары при изменении страницы
+  useEffect(() => {
+    fetchProducts(currentPage);
+  }, [currentPage, fetchProducts]);
 
   // Auto-close mobile filters when screen size changes to desktop
   useEffect(() => {
@@ -234,117 +272,7 @@ function ProductsPageContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Умный поиск
-  const smartSearch = (text: string, searchQuery: string): boolean => {
-    if (!searchQuery.trim()) return true;
-    
-    const textWords = text.toLowerCase().split(/\s+/);
-    const searchWords = searchQuery.toLowerCase().split(/\s+/);
-    
-    return searchWords.every(searchWord => 
-      textWords.some(textWord => textWord.includes(searchWord))
-    );
-  };
 
-  // Получить все ID подкатегорий для выбранной категории (рекурсивно)
-  const getAllSubcategoryIds = (categoryId: string, categoriesList: Category[]): string[] => {
-    const subcategoryIds: string[] = [categoryId]; // Включаем саму категорию
-    
-    const findChildren = (parentId: string) => {
-      const children = categoriesList.filter(cat => cat.parentId === parentId);
-      children.forEach(child => {
-        subcategoryIds.push(child.id);
-        findChildren(child.id); // Рекурсивно ищем подкатегории
-      });
-    };
-    
-    findChildren(categoryId);
-    return subcategoryIds;
-  };
-
-  // Фильтрация товаров
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = smartSearch(product.name + ' ' + product.description, searchTerm);
-    
-    // Фильтрация по категории с учетом подкатегорий
-    let matchesCategory = true;
-    if (categoryFilter) {
-      const allowedCategoryIds = getAllSubcategoryIds(categoryFilter, categories);
-      matchesCategory = allowedCategoryIds.includes(product.categoryId);
-    }
-    
-    // Фильтрация по цвету
-    let matchesColor = true;
-    if (colorFilter) {
-      matchesColor = product.colors?.some(color => 
-        typeof color === 'object' && color.name === colorFilter
-      ) || false;
-    }
-    
-    // Фильтрация по размеру
-    let matchesSize = true;
-    if (sizeFilter) {
-      matchesSize = product.sizes?.includes(sizeFilter) || false;
-    }
-    
-    // Фильтрация по продавцу
-    let matchesSeller = true;
-    if (sellerFilter) {
-      matchesSeller = product.seller?.id === sellerFilter;
-    }
-    
-    // Фильтрация по статусу
-    let matchesStatus = true;
-    if (statusFilter) {
-      matchesStatus = product.status === statusFilter;
-    }
-    
-    return matchesSearch && matchesCategory && matchesColor && matchesSize && matchesSeller && matchesStatus;
-  });
-
-  // Сортировка товаров
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case 'newest':
-        comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        break;
-      case 'name':
-        comparison = a.name.localeCompare(b.name, 'ru');
-        break;
-      case 'price':
-        comparison = (a.price || a.minPrice) - (b.price || b.minPrice);
-        break;
-      case 'quantity':
-        comparison = (b.totalQuantity || 1) - (a.totalQuantity || 1);
-        break;
-      case 'category':
-        comparison = a.category.name.localeCompare(b.category.name, 'ru');
-        break;
-      case 'status':
-        // Порядок сортировки: ACTIVE -> INACTIVE -> DELETED
-        const statusOrder = { 'ACTIVE': 0, 'INACTIVE': 1, 'DELETED': 2 };
-        comparison = statusOrder[a.status] - statusOrder[b.status];
-        break;
-      default:
-        return 0;
-    }
-    
-    return sortOrder === 'asc' ? -comparison : comparison;
-  });
-
-  // Пагинация
-  const totalItems = sortedProducts.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
-
-  // Сброс на первую страницу при изменении фильтров
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
 
   // Обработка URL параметров для автоматического открытия продукта
   useEffect(() => {
@@ -468,7 +396,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts();
+        await fetchProducts(currentPage);
         closeModals();
         // Показываем уведомление после закрытия модального окна
         setTimeout(() => {
@@ -504,7 +432,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts();
+        await fetchProducts(currentPage);
         closeModals();
         // Показываем уведомление после закрытия модального окна
         setTimeout(() => {
@@ -551,7 +479,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts();
+        await fetchProducts(currentPage);
         closeModals();
         showSuccess('Товар удален', 'Товар был помечен как удаленный');
       } else {
@@ -965,10 +893,10 @@ function ProductsPageContent() {
                   <ArchiveBoxIcon className="h-4 w-4 flex-shrink-0" />
                   <span className="truncate">
                     <span className="sm:hidden">
-                      {startIndex + 1}-{Math.min(endIndex, totalItems)} из {totalItems}
+                      {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} из {totalItems}
                     </span>
                     <span className="hidden sm:inline">
-                      Показано {startIndex + 1}-{Math.min(endIndex, totalItems)} из {totalItems}
+                      Показано {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} из {totalItems}
                     </span>
                   </span>
                 </div>
@@ -989,7 +917,13 @@ function ProductsPageContent() {
 
         {/* Products Grid */}
         <div className="space-y-3">
-          {paginatedProducts.length === 0 ? (
+          {paginationLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              <span className="ml-3 text-gray-400">Загрузка товаров...</span>
+            </div>
+          )}
+          {!paginationLoading && products.length === 0 ? (
             <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700/50">
               <CubeIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
@@ -1010,9 +944,9 @@ function ProductsPageContent() {
                 </button>
               )}
             </div>
-          ) : (
+          ) : !paginationLoading ? (
             <div className="space-y-3">
-              {paginatedProducts.map(product => (
+              {products.map(product => (
                 <div key={product.id}>
                   {/* Mobile Layout */}
                   <div className="lg:hidden">
@@ -1161,7 +1095,7 @@ function ProductsPageContent() {
               </div>
             ))}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Pagination with Sort Indicator */}
@@ -1259,7 +1193,7 @@ function ProductsPageContent() {
                 {/* First Page - Hide on mobile */}
                 <button
                   onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || paginationLoading}
                   className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Первая страница"
                 >
@@ -1269,7 +1203,7 @@ function ProductsPageContent() {
                 {/* Previous Page */}
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || paginationLoading}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Предыдущая"
                 >
@@ -1299,6 +1233,7 @@ function ProductsPageContent() {
                         <button
                           key={pageNumber}
                           onClick={() => setCurrentPage(pageNumber)}
+                          disabled={paginationLoading}
                           className={`px-2 py-2 text-xs rounded-lg transition-all duration-200 min-w-[32px] ${
                             isActive
                               ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg'
@@ -1332,6 +1267,7 @@ function ProductsPageContent() {
                         <button
                           key={pageNumber}
                           onClick={() => setCurrentPage(pageNumber)}
+                          disabled={paginationLoading}
                           className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 min-w-[36px] ${
                             isActive
                               ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg'
@@ -1348,7 +1284,7 @@ function ProductsPageContent() {
                 {/* Next Page */}
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || paginationLoading}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Следующая"
                 >
@@ -1358,7 +1294,7 @@ function ProductsPageContent() {
                 {/* Last Page - Hide on mobile */}
                 <button
                   onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || paginationLoading}
                   className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Последняя страница"
                 >

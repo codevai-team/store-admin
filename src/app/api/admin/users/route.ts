@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Построение условий поиска - только продавцы и курьеры
+    // Построение условий поиска - продавцы, курьеры и админы
     const where: Prisma.UserWhereInput = {
       role: {
-        in: [UserRole.SELLER, UserRole.COURIER]
+        in: [UserRole.SELLER, UserRole.COURIER, UserRole.ADMIN]
       }
     };
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (role && ['SELLER', 'COURIER'].includes(role)) {
+    if (role && ['SELLER', 'COURIER', 'ADMIN'].includes(role)) {
       where.role = role as UserRole;
     }
 
@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Валидация роли
-    if (!['SELLER', 'COURIER'].includes(role)) {
+    if (!['SELLER', 'COURIER', 'ADMIN'].includes(role)) {
       return NextResponse.json(
-        { error: 'Недопустимая роль. Доступны: SELLER, COURIER' },
+        { error: 'Недопустимая роль. Доступны: SELLER, COURIER, ADMIN' },
         { status: 400 }
       );
     }

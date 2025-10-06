@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import GlobalSearch from './GlobalSearch';
 
@@ -173,6 +174,18 @@ export default function Header() {
                 
                 {/* Menu Items */}
                 <div className="py-2">
+                  {/* Статистика - только на мобильных устройствах */}
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      router.push('/admin/statistics');
+                    }}
+                    className="sm:hidden flex items-center w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition-all duration-200 group"
+                  >
+                    <ChartBarIcon className="h-4 w-4 mr-3 text-orange-400 group-hover:text-orange-300 transition-colors duration-200" />
+                    <span>Статистика</span>
+                  </button>
+                  
                   {/* Настройки - только на мобильных устройствах */}
                   <button
                     onClick={() => {

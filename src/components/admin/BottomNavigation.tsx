@@ -12,7 +12,7 @@ export default function BottomNavigation() {
       {/* Градиентный фон как в sidebar */}
       <div className="bg-gradient-to-t from-gray-900 to-gray-800 backdrop-blur-sm border-t border-gray-700/50 shadow-2xl">
         <div className="flex items-center justify-around px-2 py-3">
-          {navigation.filter(item => item.href !== '/admin/settings').map((item) => {
+          {navigation.filter(item => item.href !== '/admin/settings' && item.name !== 'Статистика').map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             

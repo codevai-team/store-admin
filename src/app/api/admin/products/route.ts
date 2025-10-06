@@ -4,10 +4,103 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET - получить все товары
-export async function GET() {
+// GET - получить товары с пагинацией
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    
+    // Параметры пагинации
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = (page - 1) * limit;
+    
+    // Параметры фильтрации
+    const search = searchParams.get('search') || '';
+    const categoryId = searchParams.get('categoryId') || '';
+    const color = searchParams.get('color') || '';
+    const size = searchParams.get('size') || '';
+    const sellerId = searchParams.get('sellerId') || '';
+    const status = searchParams.get('status') || '';
+    
+    // Параметры сортировки
+    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    
+    // Строим условия фильтрации
+    const where: Record<string, unknown> = {};
+    
+    // Поиск по названию и описанию
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    // Фильтр по категории
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+    
+    // Фильтр по статусу
+    if (status) {
+      where.status = status;
+    }
+    
+    // Фильтр по продавцу
+    if (sellerId) {
+      where.sellerId = sellerId;
+    }
+    
+    // Фильтр по размеру
+    if (size) {
+      where.productSizes = {
+        some: {
+          size: {
+            name: size
+          }
+        }
+      };
+    }
+    
+    // Фильтр по цвету
+    if (color) {
+      where.productColors = {
+        some: {
+          color: {
+            name: color
+          }
+        }
+      };
+    }
+    
+    // Строим параметры сортировки
+    const orderBy: Record<string, unknown> = {};
+    switch (sortBy) {
+      case 'name':
+        orderBy.name = sortOrder;
+        break;
+      case 'price':
+        orderBy.price = sortOrder;
+        break;
+      case 'category':
+        orderBy.category = { name: sortOrder };
+        break;
+      case 'status':
+        orderBy.status = sortOrder;
+        break;
+      case 'createdAt':
+      default:
+        orderBy.createdAt = sortOrder;
+        break;
+    }
+    
+    // Получаем общее количество товаров для пагинации
+    const totalCount = await prisma.product.count({ where });
+    
+    // Получаем товары с пагинацией
     const products = await prisma.product.findMany({
+      where,
       include: {
         category: {
           select: {
@@ -37,9 +130,9 @@ export async function GET() {
           }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy,
+      skip,
+      take: limit
     });
 
     // Преобразуем данные для фронтенда в соответствии с новой схемой
@@ -86,7 +179,22 @@ export async function GET() {
       };
     });
     
-    return NextResponse.json(transformedProducts);
+    // Вычисляем информацию о пагинации
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+    
+    return NextResponse.json({
+      products: transformedProducts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
   } catch (error) {
     console.error('Products GET error:', error);
     return NextResponse.json(
