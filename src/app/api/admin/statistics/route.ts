@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, Prisma, OrderStatus } from '@prisma/client';
 
+interface OrderItem {
+  orderId: string;
+  orderDate: Date;
+  items: unknown[];
+  total: number;
+  status: OrderStatus;
+}
+
 const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
@@ -28,8 +36,9 @@ export async function GET(request: Request) {
 
     // Фильтр по дате
     if (dateFrom) {
+      const existingUpdatedAt = where.updatedAt as Prisma.DateTimeFilter || {};
       where.updatedAt = {
-        ...where.updatedAt,
+        ...existingUpdatedAt,
         gte: new Date(dateFrom)
       };
     }
@@ -39,8 +48,9 @@ export async function GET(request: Request) {
       const endDate = new Date(dateTo);
       endDate.setHours(23, 59, 59, 999);
       
+      const existingUpdatedAt = where.updatedAt as Prisma.DateTimeFilter || {};
       where.updatedAt = {
-        ...where.updatedAt,
+        ...existingUpdatedAt,
         lte: endDate
       };
     }
@@ -165,7 +175,7 @@ export async function GET(request: Request) {
           
           // Для продавца считаем количество заказов, в которых есть его товары
           // Но не увеличиваем счетчик, если этот заказ уже был учтен для этого продавца
-          const existingOrder = sellerStat.orders.find(o => o.orderId === order.id);
+          const existingOrder = sellerStat.orders.find((o: OrderItem) => o.orderId === order.id);
           if (!existingOrder) {
             sellerStat.totalOrders += 1;
             sellerStat.orders.push({
