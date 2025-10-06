@@ -50,6 +50,12 @@ export async function GET(
                     id: true,
                     name: true
                   }
+                },
+                seller: {
+                  select: {
+                    id: true,
+                    fullname: true
+                  }
                 }
               }
             },
@@ -299,6 +305,12 @@ export async function PUT(
                   select: {
                     id: true,
                     name: true
+                  }
+                },
+                seller: {
+                  select: {
+                    id: true,
+                    fullname: true
                   }
                 }
               }

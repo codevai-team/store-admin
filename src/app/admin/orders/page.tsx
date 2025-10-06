@@ -2328,20 +2328,20 @@ function OrdersPageContent() {
                     {/* Payment info removed - not in current schema */}
 
                     {/* Order Items */}
-                    <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <ArchiveBoxIcon className="h-5 w-5 text-indigo-400" />
-                        <h3 className="font-semibold text-white">Товары в заказе</h3>
-                        <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full">
+                    <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-3 sm:p-4">
+                      <div className="flex items-center space-x-2 mb-3 sm:mb-4">
+                        <ArchiveBoxIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400" />
+                        <h3 className="font-semibold text-white text-sm sm:text-base">Товары в заказе</h3>
+                        <span className="text-xs text-gray-400 bg-gray-700/50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                           {selectedOrder.productsCount} позиций
                         </span>
                       </div>
                       <div className="space-y-3">
                         {selectedOrder.orderItems && selectedOrder.orderItems.length > 0 ? selectedOrder.orderItems.map((item, index) => (
-                          <div key={item.id} className={`flex items-center space-x-4 p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 ${
+                          <div key={item.id} className={`flex items-center space-x-2 sm:space-x-4 p-2 sm:p-3 bg-gray-700/20 rounded-xl border border-gray-600/20 ${
                             index !== (selectedOrder.orderItems?.length || 0) - 1 ? 'border-b border-gray-700/30' : ''
                           }`}>
-                            <div className="flex-shrink-0 w-14 h-14 bg-gray-700/50 rounded-xl overflow-hidden">
+                            <div className="flex-shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-gray-700/50 rounded-xl overflow-hidden">
                               {item.product?.imageUrl && Array.isArray(item.product.imageUrl) && item.product.imageUrl.length > 0 ? (
                                 <Image 
                                   src={item.product.imageUrl[0]} 
@@ -2352,38 +2352,33 @@ function OrdersPageContent() {
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <ShoppingBagIcon className="h-6 w-6 text-gray-500" />
+                                  <ShoppingBagIcon className="h-4 w-4 sm:h-6 sm:w-6 text-gray-500" />
                                 </div>
                               )}
                             </div>
                             
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-white text-sm truncate">{item.product?.name || 'Товар не найден'}</h4>
-                              <p className="text-xs text-gray-400 mb-1">{item.product?.category?.name || 'Категория не указана'}</p>
-                              <div className="flex items-center space-x-3 text-xs">
+                              <h4 className="font-medium text-white text-xs sm:text-sm truncate mb-1">{item.product?.name || 'Товар не найден'}</h4>
+                              <div className="flex items-center space-x-2 sm:space-x-3 text-xs mb-1">
                                 {item.size && (
-                                  <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
+                                  <span className="text-gray-400 bg-gray-600/30 px-1.5 sm:px-2 py-0.5 rounded text-xs">
                                     {item.size.name}
                                   </span>
                                 )}
                                 {item.color && (
-                                  <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded flex items-center space-x-1">
-                                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color.colorCode}}></div>
+                                  <span className="text-gray-400 bg-gray-600/30 px-1.5 sm:px-2 py-0.5 rounded flex items-center space-x-1 text-xs">
+                                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full" style={{backgroundColor: item.color.colorCode}}></div>
                                     <span>{item.color.name}</span>
                                   </span>
                                 )}
-                                <span className="text-gray-400 bg-gray-600/30 px-2 py-0.5 rounded">
+                              </div>
+                              <div className="text-xs mb-1">
+                                <span className="text-gray-400 bg-gray-600/30 px-1.5 sm:px-2 py-0.5 rounded text-xs">
                                   Продавец: {item.product.seller?.fullname || 'Не указан'}
                                 </span>
                               </div>
-                            </div>
-                            
-                            <div className="text-right flex-shrink-0">
-                              <div className="text-white font-medium text-sm">
-                                {formatPrice(item.price)} × {item.amount}
-                              </div>
                               <div className="text-xs text-gray-400">
-                                = {formatPrice(item.price * item.amount)}
+                                {formatPrice(item.price)} × {item.amount} = {formatPrice(item.price * item.amount)}
                               </div>
                             </div>
                           </div>
@@ -2395,10 +2390,10 @@ function OrdersPageContent() {
                         )}
                         
                         {/* Total */}
-                        <div className="border-t border-gray-700/30 pt-3 mt-3">
+                        <div className="border-t border-gray-700/30 pt-2 sm:pt-3 mt-2 sm:mt-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-300 font-medium">Итого:</span>
-                            <span className="text-white font-bold text-lg">{formatPrice(selectedOrder.totalPrice)}</span>
+                            <span className="text-gray-300 font-medium text-sm sm:text-base">Итого:</span>
+                            <span className="text-white font-bold text-base sm:text-lg">{formatPrice(selectedOrder.totalPrice)}</span>
                           </div>
                         </div>
                       </div>
