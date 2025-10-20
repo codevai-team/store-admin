@@ -92,11 +92,33 @@ interface Statistics {
   }>;
 }
 
+interface SellerDebt {
+  sellerId: string;
+  sellerName: string;
+  totalDebt: number;
+  totalRevenue: number;
+  adminProfit: number;
+  commissionRate: number;
+  ordersCount: number;
+}
+
+interface SellerDebtsData {
+  sellerDebts: SellerDebt[];
+  summary: {
+    totalDebt: number;
+    totalRevenue: number;
+    totalAdminProfit: number;
+    sellersCount: number;
+    ordersCount: number;
+  };
+}
+
 function StatisticsPageContent() {
   const { showError } = useToast();
   
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [sellerDebts, setSellerDebts] = useState<SellerDebtsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(false);
   
@@ -133,6 +155,9 @@ function StatisticsPageContent() {
 
   // Mobile filters state
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  
+  // Состояние для отображения долгов продавцам
+  const [showSellerDebts, setShowSellerDebts] = useState(false);
 
   // Функции для работы с датами (как на странице заказов)
   const formatDateInput = (input: string, previousValue: string = '') => {
@@ -587,10 +612,45 @@ function StatisticsPageContent() {
     }
   }, [selectedUser, selectedRole, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, showError, itemsPerPage]);
 
+  // Загрузка долгов продавцам
+  const fetchSellerDebts = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (dateFromFilter) {
+        const dateFromString = getDateTimeString(dateFromFilter, timeFromFilter);
+        params.append('dateFrom', dateFromString);
+      }
+      if (dateToFilter) {
+        const dateToString = getDateTimeString(dateToFilter, timeToFilter);
+        params.append('dateTo', dateToString);
+      }
+      // Добавляем фильтр по продавцу, если выбран конкретный продавец
+      if (selectedUser && selectedRole === 'SELLER') {
+        params.append('sellerId', selectedUser);
+      }
+      
+      const response = await fetch(`/api/admin/seller-debts?${params}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch seller debts');
+      }
+      
+      const data = await response.json();
+      setSellerDebts(data);
+    } catch (error) {
+      console.error('Error fetching seller debts:', error);
+      showError('Ошибка', 'Ошибка при загрузке долгов продавцам');
+    }
+  }, [dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, selectedUser, selectedRole, showError]);
+
   // Загружаем статистику при первой загрузке и при изменении фильтров
   useEffect(() => {
     fetchStatistics();
-  }, [fetchStatistics, selectedUser, selectedRole, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter]);
+    // Загружаем долги только если они должны отображаться
+    if (showSellerDebts) {
+      fetchSellerDebts();
+    }
+  }, [fetchStatistics, fetchSellerDebts, selectedUser, selectedRole, dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, showSellerDebts]);
 
   // Загружаем заказы при изменении фильтров
   useEffect(() => {
@@ -603,6 +663,13 @@ function StatisticsPageContent() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Перезагружаем долги при изменении выбранного пользователя, если долги отображаются
+  useEffect(() => {
+    if (showSellerDebts && selectedRole === 'SELLER') {
+      fetchSellerDebts();
+    }
+  }, [selectedUser, showSellerDebts, selectedRole, fetchSellerDebts]);
 
   // Auto-close mobile filters when screen size changes to desktop
   useEffect(() => {
@@ -1525,6 +1592,170 @@ function StatisticsPageContent() {
           </div>
         )}
 
+        {/* Кнопка для отображения долгов продавцам */}
+        {selectedRole === 'SELLER' && !showSellerDebts && (
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                  <CurrencyDollarIcon className="h-5 w-5 mr-2 text-green-400" />
+                  Долги продавцам
+                </h3>
+                <p className="text-gray-400 text-sm">Нажмите кнопку, чтобы посмотреть детальную информацию о долгах продавцам</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSellerDebts(true);
+                  fetchSellerDebts();
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 flex items-center space-x-2"
+              >
+                <CurrencyDollarIcon className="h-4 w-4" />
+                <span>Показать долги</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Долги продавцам */}
+        {sellerDebts && showSellerDebts && selectedRole === 'SELLER' && (
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center">
+                <CurrencyDollarIcon className="h-5 w-5 mr-2 text-green-400" />
+                {selectedUser && selectedRole === 'SELLER' 
+                  ? `Долги продавцу: ${users.find(u => u.id === selectedUser)?.fullname || 'Неизвестный'}`
+                  : 'Долги продавцам (к выплате)'
+                }
+              </h3>
+              <button
+                onClick={() => setShowSellerDebts(false)}
+                className="px-3 py-1 bg-gray-600/50 text-gray-300 rounded-lg hover:bg-gray-600/70 transition-all duration-200 text-sm"
+              >
+                Скрыть
+              </button>
+            </div>
+            
+            {/* Сводка */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Общая сумма к выплате</p>
+                <p className="text-green-400 font-bold text-lg">{formatCurrency(sellerDebts.summary.totalDebt)}</p>
+              </div>
+              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Общая выручка</p>
+                <p className="text-blue-400 font-bold text-lg">{formatCurrency(sellerDebts.summary.totalRevenue)}</p>
+              </div>
+              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Прибыль админа</p>
+                <p className="text-purple-400 font-bold text-lg">{formatCurrency(sellerDebts.summary.totalAdminProfit)}</p>
+              </div>
+              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Продавцов</p>
+                <p className="text-yellow-400 font-bold text-lg">{sellerDebts.summary.sellersCount}</p>
+              </div>
+            </div>
+
+            {/* Список продавцов */}
+            <div className="space-y-3">
+              {sellerDebts.sellerDebts.map((debt) => (
+                <div key={debt.sellerId}>
+                  {/* Mobile Layout */}
+                  <div className="lg:hidden">
+                    <div className="border border-gray-700/50 rounded-lg p-3 hover:bg-gray-800/70 transition-all duration-200">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start space-x-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <UserIcon className="h-5 w-5 text-white" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col gap-1">
+                              <h3 className="font-medium text-white text-sm truncate">{debt.sellerName}</h3>
+                              <div className="flex flex-wrap gap-1">
+                                <span className="text-xs text-gray-400 bg-gray-600 px-2 py-1 rounded inline-block w-fit">
+                                  {debt.commissionRate}%
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col gap-1 mt-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-400">К выплате:</span>
+                                <span className="text-green-400 font-bold">{formatCurrency(debt.totalDebt)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-400">Выручка:</span>
+                                <span className="text-blue-400 font-medium">{formatCurrency(debt.totalRevenue)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-400">Прибыль админа:</span>
+                                <span className="text-purple-400 font-medium">{formatCurrency(debt.adminProfit)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-400">Заказов:</span>
+                                <span className="text-yellow-400 font-medium">{debt.ordersCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden lg:block">
+                    <div className="border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-all duration-200">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <UserIcon className="h-6 w-6 text-white" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-row items-center gap-3 mb-1">
+                              <h3 className="font-medium text-white text-base truncate">{debt.sellerName}</h3>
+                              <div className="flex gap-2">
+                                <span className="text-xs text-gray-400 bg-gray-600 px-2 py-1 rounded">
+                                  {debt.commissionRate}%
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-6">
+                              <div className="flex items-center space-x-1 text-sm text-gray-400">
+                                <CurrencyDollarIcon className="h-4 w-4 flex-shrink-0 text-green-400" />
+                                <span>К выплате: </span>
+                                <span className="text-green-400 font-bold">{formatCurrency(debt.totalDebt)}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-sm text-gray-400">
+                                <ChartBarIcon className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                                <span>Выручка: </span>
+                                <span className="text-blue-400 font-medium">{formatCurrency(debt.totalRevenue)}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-sm text-gray-400">
+                                <CurrencyDollarIcon className="h-4 w-4 flex-shrink-0 text-purple-400" />
+                                <span>Прибыль админа: </span>
+                                <span className="text-purple-400 font-medium">{formatCurrency(debt.adminProfit)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                          <div className="text-right">
+                            <div className="text-sm text-gray-400">Заказов</div>
+                            <div className="text-lg font-bold text-yellow-400">{debt.ordersCount}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Список заказов выбранного продавца или всех продавцов */}
         {selectedRole === 'SELLER' && (selectedUser ? getSellerOrders().length > 0 : orders.length > 0) && (

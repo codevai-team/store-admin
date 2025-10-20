@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ChevronDownIcon, CalendarDaysIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
 
 export interface DateRange {
   startDate: Date;
@@ -16,144 +16,291 @@ interface DateRangePickerProps {
   compact?: boolean;
 }
 
-// Функция для создания даты без учета часового пояса
-const createLocalDate = (year: number, month: number, day: number, hours = 0, minutes = 0, seconds = 0, ms = 0) => {
-  return new Date(year, month, day, hours, minutes, seconds, ms);
-};
-
-const presetRanges = [
-  {
-    key: 'today',
-    label: 'Сегодня',
-    getValue: () => {
-      const today = new Date();
-      const startDate = createLocalDate(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-      const endDate = createLocalDate(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-      return { startDate, endDate };
-    }
-  },
-  {
-    key: 'yesterday',
-    label: 'Вчера',
-    getValue: () => {
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      const startDate = createLocalDate(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0);
-      const endDate = createLocalDate(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999);
-      return { startDate, endDate };
-    }
-  },
-  {
-    key: 'week',
-    label: 'Последняя неделя',
-    getValue: () => {
-      const today = new Date();
-      const currentDay = today.getDay(); // 0 = воскресенье, 1 = понедельник, ..., 6 = суббота
-      const daysToMonday = currentDay === 0 ? 6 : currentDay - 1; // Если воскресенье, то 6 дней назад был понедельник
-      
-      const mondayDate = new Date(today);
-      mondayDate.setDate(today.getDate() - daysToMonday);
-      
-      const sundayDate = new Date(mondayDate);
-      sundayDate.setDate(mondayDate.getDate() + 6);
-      
-      const startDate = createLocalDate(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate(), 0, 0, 0, 0);
-      const endDate = createLocalDate(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate(), 23, 59, 59, 999);
-      
-      return { startDate, endDate };
-    }
-  },
-  {
-    key: 'month',
-    label: 'Последний месяц',
-    getValue: () => {
-      const today = new Date();
-      const startDate = createLocalDate(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
-      
-      // Последний день месяца
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const endDate = createLocalDate(today.getFullYear(), today.getMonth(), lastDay, 23, 59, 59, 999);
-      
-      return { startDate, endDate };
-    }
-  },
-  {
-    key: 'year',
-    label: 'Последний год',
-    getValue: () => {
-      const today = new Date();
-      const startDate = createLocalDate(today.getFullYear(), 0, 1, 0, 0, 0, 0);
-      const endDate = createLocalDate(today.getFullYear(), 11, 31, 23, 59, 59, 999);
-      
-      return { startDate, endDate };
-    }
-  }
-];
-
 export default function DateRangePicker({ selectedRange, onRangeChange, compact = false }: DateRangePickerProps) {
   const [showCustomPicker, setShowCustomPicker] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  
+  // Состояния для фильтров (как на странице статистики)
+  const [dateFromFilter, setDateFromFilter] = useState<string>('');
+  const [dateToFilter, setDateToFilter] = useState<string>('');
+  const [timeFromFilter, setTimeFromFilter] = useState<string>('00:00');
+  const [timeToFilter, setTimeToFilter] = useState<string>('23:59');
+  
+  // Состояния для редактирования дат
+  const [isEditingDateFrom, setIsEditingDateFrom] = useState(false);
+  const [isEditingDateTo, setIsEditingDateTo] = useState(false);
+  const [tempDateFrom, setTempDateFrom] = useState('');
+  const [tempDateTo, setTempDateTo] = useState('');
 
-  // Функция для форматирования диапазона дат
-  const formatDateRange = (startDate: Date, endDate: Date) => {
-    const formatDateTime = (date: Date) => {
-      return date.toLocaleDateString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }) + ' ' + date.toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
-
-    return `${formatDateTime(startDate)} - ${formatDateTime(endDate)}`;
+  // Функции для работы с датами (точно как на странице статистики)
+  const formatDateInput = (input: string, previousValue: string = '') => {
+    const digits = input.replace(/\D/g, '');
+    const previousDigits = previousValue.replace(/\D/g, '');
+    const limitedDigits = digits.slice(0, 8);
+    const isDeleting = limitedDigits.length < previousDigits.length;
+    
+    if (limitedDigits.length < 2) {
+      return limitedDigits;
+    } else if (limitedDigits.length === 2) {
+      return isDeleting ? limitedDigits : `${limitedDigits}.`;
+    } else if (limitedDigits.length < 4) {
+      return isDeleting ? limitedDigits : `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2)}`;
+    } else if (limitedDigits.length === 4) {
+      return isDeleting ? limitedDigits : `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2)}.`;
+    } else {
+      return `${limitedDigits.slice(0, 2)}.${limitedDigits.slice(2, 4)}.${limitedDigits.slice(4)}`;
+    }
   };
 
-  const handlePresetClick = (preset: typeof presetRanges[0]) => {
-    const { startDate, endDate } = preset.getValue();
-    onRangeChange({
-      startDate,
-      endDate,
-      label: preset.label,
-      type: 'preset'
-    });
+  const validateDateInput = (dateString: string) => {
+    if (!dateString) return { isValid: true, error: '' };
+    
+    if (!dateString.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
+      return { isValid: false, error: 'Неверный формат. Используйте ДД.ММ.ГГГГ' };
+    }
+    
+    const [day, month, year] = dateString.split('.').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    if (isNaN(date.getTime()) || 
+        date.getDate() !== day || 
+        date.getMonth() !== month - 1 || 
+        date.getFullYear() !== year) {
+      return { isValid: false, error: 'Неверная дата' };
+    }
+    
+    return { isValid: true, error: '' };
+  };
+
+  const convertToISOFormat = (dateString: string) => {
+    if (!dateString.match(/^\d{2}\.\d{2}\.\d{4}$/)) return '';
+    const [day, month, year] = dateString.split('.').map(Number);
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  };
+
+  const convertFromISOFormat = (dateString: string) => {
+    if (!dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return '';
+    const [year, month, day] = dateString.split('-').map(Number);
+    return `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}.${year}`;
+  };
+
+  const formatDateTimeForDisplay = (date: string, time: string) => {
+    if (!date) return '';
+    const displayDate = convertFromISOFormat(date);
+    return `${displayDate} ${time.substring(0, 5)}`;
+  };
+
+  const getDateTimeString = (date: string, time: string) => {
+    if (!date) return '';
+    const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+    return `${date}T${timeWithSeconds}`;
+  };
+
+  const formatLocalDate = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  // Функция для быстрого выбора периода (точно как на странице статистики)
+  const setQuickDateRange = (range: 'today' | 'yesterday' | 'week' | 'month') => {
+       const now = new Date();
+    const today = formatLocalDate(now);
+    
+    switch (range) {
+      case 'today':
+        setDateFromFilter(today);
+        setDateToFilter(today);
+        setTimeFromFilter('00:00');
+        setTimeToFilter('23:59');
+        
+        // Обновляем selectedRange для родительского компонента
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        onRangeChange({
+          startDate: todayStart,
+          endDate: todayEnd,
+          label: 'Сегодня',
+          type: 'preset'
+        });
+        break;
+        
+      case 'yesterday':
+        const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const yesterday = formatLocalDate(yesterdayDate);
+        setDateFromFilter(yesterday);
+        setDateToFilter(yesterday);
+        setTimeFromFilter('00:00');
+        setTimeToFilter('23:59');
+        
+        const yesterdayStart = new Date(yesterdayDate.getFullYear(), yesterdayDate.getMonth(), yesterdayDate.getDate(), 0, 0, 0, 0);
+        const yesterdayEnd = new Date(yesterdayDate.getFullYear(), yesterdayDate.getMonth(), yesterdayDate.getDate(), 23, 59, 59, 999);
+        onRangeChange({
+          startDate: yesterdayStart,
+          endDate: yesterdayEnd,
+    label: 'Вчера',
+          type: 'preset'
+        });
+        break;
+        
+      case 'week':
+        // Получаем понедельник текущей недели
+        const currentDay = now.getDay();
+        const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+        const monday = new Date(now.getTime() + mondayOffset * 24 * 60 * 60 * 1000);
+        const mondayStr = formatLocalDate(monday);
+        
+        // Получаем воскресенье текущей недели
+        const sundayOffset = currentDay === 0 ? 0 : 7 - currentDay;
+        const sunday = new Date(now.getTime() + sundayOffset * 24 * 60 * 60 * 1000);
+        const sundayStr = formatLocalDate(sunday);
+        
+        setDateFromFilter(mondayStr);
+        setDateToFilter(sundayStr);
+        setTimeFromFilter('00:00');
+        setTimeToFilter('23:59');
+        
+        const weekStart = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0, 0);
+        const weekEnd = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate(), 23, 59, 59, 999);
+        onRangeChange({
+          startDate: weekStart,
+          endDate: weekEnd,
+          label: 'Неделя',
+          type: 'preset'
+        });
+        break;
+        
+      case 'month':
+        // Получаем первый день текущего месяца
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const firstDayStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        
+        // Получаем последний день текущего месяца
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const lastDay = lastDayOfMonth.getDate();
+        const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        
+        setDateFromFilter(firstDayStr);
+        setDateToFilter(lastDayStr);
+        setTimeFromFilter('00:00');
+        setTimeToFilter('23:59');
+        
+        const monthStart = new Date(year, month, 1, 0, 0, 0, 0);
+        const monthEnd = new Date(year, month, lastDay, 23, 59, 59, 999);
+        onRangeChange({
+          startDate: monthStart,
+          endDate: monthEnd,
+          label: 'Месяц',
+          type: 'preset'
+        });
+        break;
+    }
     setShowCustomPicker(false);
   };
 
-  const handleCustomRangeApply = () => {
-    if (!customStartDate || !customEndDate) return;
+  // Обработчики для редактирования дат
+  const handleDateFromEdit = () => {
+    setIsEditingDateFrom(true);
+    setTempDateFrom(convertFromISOFormat(dateFromFilter));
+  };
+
+  const handleDateToEdit = () => {
+    setIsEditingDateTo(true);
+    setTempDateTo(convertFromISOFormat(dateToFilter));
+  };
+
+  const handleDateFromChange = (value: string) => {
+    const formatted = formatDateInput(value, tempDateFrom);
+    setTempDateFrom(formatted);
     
-    // Создаем даты и устанавливаем правильное время
-    const startDate = new Date(customStartDate + 'T00:00:00');
-    const endDate = new Date(customEndDate + 'T23:59:59.999');
+    if (!formatted || formatted.length === 0) {
+      setDateFromFilter('');
+      setTimeFromFilter('00:00');
+      return;
+    }
+    
+    const validation = validateDateInput(formatted);
+    if (validation.isValid && formatted.length === 10) {
+      const isoFormat = convertToISOFormat(formatted);
+      setDateFromFilter(isoFormat);
+      setTimeFromFilter('00:00');
+      setIsEditingDateFrom(false);
+    }
+  };
+
+  const handleDateToChange = (value: string) => {
+    const formatted = formatDateInput(value, tempDateTo);
+    setTempDateTo(formatted);
+    
+    if (!formatted || formatted.length === 0) {
+      setDateToFilter('');
+      setTimeToFilter('23:59');
+      return;
+    }
+    
+    const validation = validateDateInput(formatted);
+    if (validation.isValid && formatted.length === 10) {
+      const isoFormat = convertToISOFormat(formatted);
+      setDateToFilter(isoFormat);
+      setTimeToFilter('23:59');
+      setIsEditingDateTo(false);
+    }
+  };
+
+  const handleDateFromBlur = () => {
+    if (!tempDateFrom || tempDateFrom.length === 0) {
+      setDateFromFilter('');
+      setTimeFromFilter('00:00');
+      setIsEditingDateFrom(false);
+      return;
+    }
+    
+    const validation = validateDateInput(tempDateFrom);
+    if (validation.isValid && tempDateFrom.length === 10) {
+      const isoFormat = convertToISOFormat(tempDateFrom);
+      setDateFromFilter(isoFormat);
+      setTimeFromFilter('00:00');
+    } else {
+      setTempDateFrom('');
+    }
+    setIsEditingDateFrom(false);
+  };
+
+  const handleDateToBlur = () => {
+    if (!tempDateTo || tempDateTo.length === 0) {
+      setDateToFilter('');
+      setTimeToFilter('23:59');
+      setIsEditingDateTo(false);
+      return;
+    }
+    
+    const validation = validateDateInput(tempDateTo);
+    if (validation.isValid && tempDateTo.length === 10) {
+      const isoFormat = convertToISOFormat(tempDateTo);
+      setDateToFilter(isoFormat);
+      setTimeToFilter('23:59');
+    } else {
+      setTempDateTo('');
+    }
+    setIsEditingDateTo(false);
+  };
+
+  const handleCustomRangeApply = () => {
+    if (!dateFromFilter || !dateToFilter) return;
+    
+    const startDate = new Date(getDateTimeString(dateFromFilter, timeFromFilter));
+    const endDate = new Date(getDateTimeString(dateToFilter, timeToFilter));
     
     if (startDate > endDate) {
       alert('Дата начала не может быть позже даты окончания');
       return;
     }
 
-    const formatDate = (date: Date) => {
-      return date.toLocaleDateString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
-    };
-
     onRangeChange({
       startDate,
       endDate,
-      label: `${formatDate(startDate)} - ${formatDate(endDate)}`,
+      label: `${convertFromISOFormat(dateFromFilter)} - ${convertFromISOFormat(dateToFilter)}`,
       type: 'custom'
     });
     setShowCustomPicker(false);
-  };
-
-  const isPresetSelected = (preset: typeof presetRanges[0]) => {
-    return selectedRange.type === 'preset' && selectedRange.label === preset.label;
   };
 
   if (compact) {
@@ -164,25 +311,34 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
           <span className="text-sm font-medium text-white">Период анализа</span>
         </div>
 
-        {/* Compact Preset Tags */}
+        {/* Quick Date Range Buttons */}
         <div className="flex flex-wrap gap-2 mb-3">
-          {presetRanges.map((preset) => (
+          <button
+            onClick={() => setQuickDateRange('today')}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+          >
+            Сегодня
+          </button>
+          <button
+            onClick={() => setQuickDateRange('yesterday')}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20"
+          >
+            Вчера
+          </button>
+          <button
+            onClick={() => setQuickDateRange('week')}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-green-500/10 border border-green-500/20 text-green-300 hover:bg-green-500/20"
+          >
+            Неделя
+          </button>
             <button
-              key={preset.key}
-              onClick={() => handlePresetClick(preset)}
-              className={`
-                px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200
-                ${isPresetSelected(preset)
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                  : 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
-                }
-              `}
-            >
-              {preset.label}
+            onClick={() => setQuickDateRange('month')}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20"
+          >
+            Месяц
             </button>
-          ))}
           
-          {/* Compact Custom Range Button */}
+          {/* Custom Range Button */}
           <button
             onClick={() => setShowCustomPicker(!showCustomPicker)}
             className={`
@@ -200,7 +356,7 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
           </button>
         </div>
 
-        {/* Compact Custom Date Picker */}
+        {/* Custom Date Picker */}
         {showCustomPicker && (
           <div className="bg-gray-800/40 rounded-md p-3 border border-gray-600/20 animate-in slide-in-from-top-2 duration-200">
             <div className="grid grid-cols-2 gap-3 mb-3">
@@ -208,23 +364,77 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
                 <label className="block text-xs font-medium text-gray-400 mb-1">
                   От
                 </label>
+                <div className="relative">
+                  {!isEditingDateFrom ? (
+                    <button
+                      type="button"
+                      onClick={handleDateFromEdit}
+                      className={`w-full flex items-center space-x-2 bg-gray-700/50 border border-gray-600/50 rounded px-2 py-1.5 hover:bg-gray-700/70 transition-all duration-200 cursor-pointer ${
+                        dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                      }`}
+                    >
+                      <CalendarDaysIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                      <span className="text-white text-xs flex-1 text-left">
+                        {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
+                      </span>
+                      <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                    </button>
+                  ) : (
                 <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
+                      type="text"
+                      value={tempDateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      onBlur={handleDateFromBlur}
+                      placeholder="ДД.ММ.ГГГГ"
                   className="w-full px-2 py-1.5 bg-gray-700/50 border border-gray-600/50 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
-                />
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTempDateFrom('');
+                          setIsEditingDateFrom(false);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">
                   До
                 </label>
+                <div className="relative">
+                  {!isEditingDateTo ? (
+                    <button
+                      type="button"
+                      onClick={handleDateToEdit}
+                      className={`w-full flex items-center space-x-2 bg-gray-700/50 border border-gray-600/50 rounded px-2 py-1.5 hover:bg-gray-700/70 transition-all duration-200 cursor-pointer ${
+                        dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                      }`}
+                    >
+                      <CalendarDaysIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                      <span className="text-white text-xs flex-1 text-left">
+                        {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
+                      </span>
+                      <ChevronUpDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                    </button>
+                  ) : (
                 <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
+                      type="text"
+                      value={tempDateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      onBlur={handleDateToBlur}
+                      placeholder="ДД.ММ.ГГГГ"
                   className="w-full px-2 py-1.5 bg-gray-700/50 border border-gray-600/50 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
-                />
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTempDateTo('');
+                          setIsEditingDateTo(false);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
             
@@ -237,7 +447,7 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
               </button>
               <button
                 onClick={handleCustomRangeApply}
-                disabled={!customStartDate || !customEndDate}
+                disabled={!dateFromFilter || !dateToFilter}
                 className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-medium rounded hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 Применить
@@ -246,11 +456,11 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
           </div>
         )}
 
-        {/* Compact Selected Range Display */}
+        {/* Selected Range Display */}
         <div className="text-xs text-gray-400 flex items-center justify-between">
           <span>Период:</span>
           <span className="text-white font-medium bg-gray-600/20 px-2 py-1 rounded">
-            {selectedRange.label} ({formatDateRange(selectedRange.startDate, selectedRange.endDate)})
+            {selectedRange.startDate.toLocaleDateString('ru-RU')} - {selectedRange.endDate.toLocaleDateString('ru-RU')}
           </span>
         </div>
       </div>
@@ -269,23 +479,32 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
         </div>
       </div>
 
-      {/* Preset Tags */}
+      {/* Quick Date Range Buttons */}
       <div className="flex flex-wrap gap-3 mb-4">
-        {presetRanges.map((preset) => (
+        <button
+          onClick={() => setQuickDateRange('today')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+        >
+          Сегодня
+        </button>
+        <button
+          onClick={() => setQuickDateRange('yesterday')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20"
+        >
+          Вчера
+        </button>
+        <button
+          onClick={() => setQuickDateRange('week')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 bg-green-500/10 border border-green-500/20 text-green-300 hover:bg-green-500/20"
+        >
+          Неделя
+        </button>
           <button
-            key={preset.key}
-            onClick={() => handlePresetClick(preset)}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105
-              ${isPresetSelected(preset)
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25'
-                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white border border-gray-600/50'
-              }
-            `}
-          >
-            {preset.label}
+          onClick={() => setQuickDateRange('month')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20"
+        >
+          Месяц
           </button>
-        ))}
         
         {/* Custom Range Button */}
         <button
@@ -313,23 +532,77 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Дата начала
               </label>
+              <div className="relative">
+                {!isEditingDateFrom ? (
+                  <button
+                    type="button"
+                    onClick={handleDateFromEdit}
+                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                      dateFromFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                    }`}
+                  >
+                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    <span className="text-white text-sm font-medium flex-1 text-left">
+                      {dateFromFilter ? formatDateTimeForDisplay(dateFromFilter, timeFromFilter) : 'От даты'}
+                    </span>
+                    <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  </button>
+                ) : (
               <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
+                    type="text"
+                    value={tempDateFrom}
+                    onChange={(e) => handleDateFromChange(e.target.value)}
+                    onBlur={handleDateFromBlur}
+                    placeholder="ДД.ММ.ГГГГ"
                 className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
-              />
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setTempDateFrom('');
+                        setIsEditingDateFrom(false);
+                      }
+                    }}
+                  />
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Дата окончания
               </label>
+              <div className="relative">
+                {!isEditingDateTo ? (
+                  <button
+                    type="button"
+                    onClick={handleDateToEdit}
+                    className={`w-full flex items-center space-x-3 bg-gray-700/30 border border-gray-600/50 rounded-lg px-4 py-3 hover:bg-gray-700/40 transition-all duration-200 cursor-pointer ${
+                      dateToFilter ? 'ring-1 ring-indigo-500/50 border-indigo-500/50' : ''
+                    }`}
+                  >
+                    <CalendarDaysIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    <span className="text-white text-sm font-medium flex-1 text-left">
+                      {dateToFilter ? formatDateTimeForDisplay(dateToFilter, timeToFilter) : 'До даты'}
+                    </span>
+                    <ChevronUpDownIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  </button>
+                ) : (
               <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
+                    type="text"
+                    value={tempDateTo}
+                    onChange={(e) => handleDateToChange(e.target.value)}
+                    onBlur={handleDateToBlur}
+                    placeholder="ДД.ММ.ГГГГ"
                 className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
-              />
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setTempDateTo('');
+                        setIsEditingDateTo(false);
+                      }
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
           
@@ -342,7 +615,7 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
             </button>
             <button
               onClick={handleCustomRangeApply}
-              disabled={!customStartDate || !customEndDate}
+              disabled={!dateFromFilter || !dateToFilter}
               className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
             >
               Применить
@@ -358,7 +631,7 @@ export default function DateRangePicker({ selectedRange, onRangeChange, compact 
             Выбранный период:
           </div>
           <div className="text-sm font-medium text-white bg-gray-600/30 px-3 py-1 rounded-full">
-            {selectedRange.label}
+            {selectedRange.startDate.toLocaleDateString('ru-RU')} - {selectedRange.endDate.toLocaleDateString('ru-RU')}
           </div>
         </div>
       </div>

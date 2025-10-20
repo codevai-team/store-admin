@@ -38,6 +38,15 @@ export async function GET(
             deliveredOrders: true,
           },
         },
+        commissions: {
+          select: {
+            rate: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
       },
     });
 
@@ -66,7 +75,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { fullname, phoneNumber, role, password, status } = body;
+    const { fullname, phoneNumber, role, password, status, commissionRate } = body;
 
     // Валидация
     if (!fullname || !phoneNumber) {
@@ -93,7 +102,7 @@ export async function PUT(
     }
 
     // Валидация телефона
-    const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+    const phoneRegex = /^\+?[\d\s\-()]+$/;
     if (!phoneRegex.test(phoneNumber)) {
       return NextResponse.json(
         { error: 'Неверный формат номера телефона' },
@@ -156,27 +165,62 @@ export async function PUT(
       updateData.password = await bcrypt.hash(password, 12);
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        fullname: true,
-        phoneNumber: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        _count: {
-          select: {
-            products: {
-              where: {
-                status: ProductStatus.ACTIVE
-              }
+    // Обновление пользователя и комиссии в транзакции
+    const user = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          fullname: true,
+          phoneNumber: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          _count: {
+            select: {
+              products: {
+                where: {
+                  status: ProductStatus.ACTIVE
+                }
+              },
+              deliveredOrders: true,
             },
-            deliveredOrders: true,
+          },
+          commissions: {
+            select: {
+              rate: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
           },
         },
-      },
+      });
+
+      // Если это продавец и указан процент комиссии, обновляем или создаем запись комиссии
+      if (role === 'SELLER' && commissionRate !== undefined && commissionRate !== null) {
+        // Удаляем старые записи комиссии
+        await tx.sellerCommission.deleteMany({
+          where: { sellerId: id },
+        });
+
+        // Создаем новую запись комиссии
+        await tx.sellerCommission.create({
+          data: {
+            sellerId: id,
+            rate: commissionRate,
+          },
+        });
+      } else if (role !== 'SELLER') {
+        // Если роль изменилась с продавца на курьера, удаляем записи комиссии
+        await tx.sellerCommission.deleteMany({
+          where: { sellerId: id },
+        });
+      }
+
+      return updatedUser;
     });
 
     return NextResponse.json(user);

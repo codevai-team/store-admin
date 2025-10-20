@@ -74,8 +74,8 @@ export default function Header() {
         {/* Logo - скрывается при фокусе на мобильном поиске */}
         <div className={`w-9 h-9 relative sm:mr-4 transition-all duration-300 ${isMobileSearchFocused ? 'sm:block hidden' : ''}`}>
           <Image
-            src="/admin-store-logo.svg"
-            alt="Store"
+            src="/unimark-logo.svg"
+            alt="Unimark"
             fill
             className="object-contain"
           />
@@ -84,10 +84,10 @@ export default function Header() {
         {/* Brand text - только desktop */}
         <div className="hidden sm:block ml-0">
           <h1 className="text-xl font-bold bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent drop-shadow-sm">
-            Store
+          Unimark
           </h1>
           <div className="flex items-center space-x-1 -mt-1">
-            <p className="text-xs text-indigo-300 font-medium">Admin Panel</p>
+            <p className="text-xs text-indigo-300 font-medium">Unimark Panel</p>
           </div>
         </div>
         

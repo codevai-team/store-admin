@@ -33,6 +33,10 @@ import MobileProductCard from '@/components/admin/products/MobileProductCard';
 import CustomSelect from '@/components/admin/products/CustomSelect';
 import { ToastContainer } from '@/components/admin/products/Toast';
 import { useToast } from '@/hooks/useToast';
+import { useProductsData } from '@/hooks/useProductsData';
+import ProductCardSkeleton, { MobileProductCardSkeleton } from '@/components/admin/products/ProductCardSkeleton';
+import FiltersSkeleton from '@/components/admin/products/FiltersSkeleton';
+import LazyChartWrapper from '@/components/admin/dashboard/LazyChartWrapper';
 
 interface Category {
   id: string;
@@ -94,13 +98,22 @@ function ProductsPageContent() {
   // Ref для модального окна редактирования
   const editModalRef = useRef<SimpleAddProductModalRef>(null);
   
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
-  const [colorOptions, setColorOptions] = useState<{name: string, colorCode: string}[]>([]);
-  const [sellers, setSellers] = useState<{id: string, fullname: string, role: string}[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [paginationLoading, setPaginationLoading] = useState(false);
+  // Используем новый хук для управления данными продуктов
+  const {
+    products,
+    totalPages,
+    totalItems,
+    categories,
+    availableSizes,
+    colorOptions,
+    sellers,
+    loading,
+    paginationLoading,
+    error: productsError,
+    fetchProducts,
+    loadSupportData,
+  } = useProductsData();
+  // Локальные состояния фильтров
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [colorFilter, setColorFilter] = useState<string>('');
@@ -110,8 +123,6 @@ function ProductsPageContent() {
   
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const itemsPerPage = 50;
@@ -148,117 +159,39 @@ function ProductsPageContent() {
   });
   const [formLoading, setFormLoading] = useState(false);
 
-  // Загрузка товаров с пагинацией
-  const fetchProducts = useCallback(async (page: number = currentPage, filters: Record<string, string> = {}) => {
-    try {
-      if (page === currentPage) {
-        setLoading(true);
-      } else {
-        setPaginationLoading(true);
-      }
-      
-      // Строим URL с параметрами
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: itemsPerPage.toString(),
-        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy,
-        sortOrder: sortOrder,
-        ...(searchTerm && { search: searchTerm }),
-        ...(categoryFilter && { categoryId: categoryFilter }),
-        ...(colorFilter && { color: colorFilter }),
-        ...(sizeFilter && { size: sizeFilter }),
-        ...(sellerFilter && { sellerId: sellerFilter }),
-        ...(statusFilter && { status: statusFilter }),
-        ...filters
-      });
-      
-      const response = await fetch(`/api/admin/products?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products);
-        
-        // Обновляем информацию о пагинации
-        setTotalPages(data.pagination.totalPages);
-        setTotalItems(data.pagination.totalCount);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-      setPaginationLoading(false);
-    }
-  }, [currentPage, itemsPerPage, sortBy, sortOrder, searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter]);
+  // Обертка для загрузки товаров с текущими фильтрами
+  const loadProducts = useCallback((page: number = currentPage) => {
+    const filters = {
+      searchTerm,
+      categoryFilter,
+      colorFilter,
+      sizeFilter,
+      sellerFilter,
+      statusFilter,
+      sortBy,
+      sortOrder,
+      currentPage: page,
+    };
+    fetchProducts(filters);
+  }, [fetchProducts, currentPage, searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
 
-  // Загрузка категорий
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/admin/categories');
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchColorsData = async () => {
-    try {
-      const response = await fetch('/api/admin/colors');
-      if (response.ok) {
-        const colorsData = await response.json();
-        setColorOptions(colorsData);
-      }
-    } catch (error) {
-      console.error('Error fetching colors:', error);
-    }
-  };
-
-  const fetchSizesData = async () => {
-    try {
-      const response = await fetch('/api/admin/sizes');
-      if (response.ok) {
-        const sizesData = await response.json();
-        // Устанавливаем доступные размеры из API
-        setAvailableSizes(sizesData.map((size: { name: string }) => size.name).sort());
-      }
-    } catch (error) {
-      console.error('Error fetching sizes:', error);
-    }
-  };
-
-  const fetchSellersData = async () => {
-    try {
-      const response = await fetch('/api/admin/sellers');
-      if (response.ok) {
-        const sellersData = await response.json();
-        // Фильтруем только админов и продавцов
-        const filteredSellers = sellersData.filter((seller: { role: string }) => 
-          seller.role === 'ADMIN' || seller.role === 'SELLER'
-        );
-        setSellers(filteredSellers);
-      }
-    } catch (error) {
-      console.error('Error fetching sellers:', error);
-    }
-  };
-
+  // Загружаем продукты при монтировании
   useEffect(() => {
-    fetchCategories();
-    fetchColorsData();
-    fetchSizesData();
-    fetchSellersData();
-  }, []);
+    loadProducts(1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Сбрасываем на первую страницу при изменении фильтров или сортировки
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]);
+    loadProducts(1); // Загружаем с первой страницы при изменении фильтров
+  }, [searchTerm, categoryFilter, colorFilter, sizeFilter, sellerFilter, statusFilter, sortBy, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Загружаем товары при изменении страницы
   useEffect(() => {
-    fetchProducts(currentPage);
-  }, [currentPage, fetchProducts]);
+    if (currentPage > 1) { // Избегаем дублирования первой загрузки
+      loadProducts(currentPage);
+    }
+  }, [currentPage, loadProducts]);
 
   // Auto-close mobile filters when screen size changes to desktop
   useEffect(() => {
@@ -396,7 +329,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts(currentPage);
+        loadProducts(currentPage);
         closeModals();
         // Показываем уведомление после закрытия модального окна
         setTimeout(() => {
@@ -432,7 +365,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts(currentPage);
+        loadProducts(currentPage);
         closeModals();
         // Показываем уведомление после закрытия модального окна
         setTimeout(() => {
@@ -479,7 +412,7 @@ function ProductsPageContent() {
       });
 
       if (response.ok) {
-        await fetchProducts(currentPage);
+        loadProducts(currentPage);
         closeModals();
         showSuccess('Товар удален', 'Товар был помечен как удаленный');
       } else {
@@ -501,11 +434,18 @@ function ProductsPageContent() {
     }).format(price) + ' с.';
   };
 
-  if (loading) {
+  // Показываем ошибку если есть
+  if (productsError) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-6 text-center">
+          <p className="text-red-400">Ошибка загрузки данных: {productsError}</p>
+          <button 
+            onClick={() => loadProducts(currentPage)}
+            className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Попробовать снова
+          </button>
         </div>
       </AdminLayout>
     );
@@ -533,7 +473,11 @@ function ProductsPageContent() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative overflow-visible z-10">
+        <LazyChartWrapper onVisible={loadSupportData}>
+          {loading.categories || loading.colors || loading.sizes || loading.sellers ? (
+            <FiltersSkeleton />
+          ) : (
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 relative overflow-visible z-10">
           <div className="space-y-4">
             {/* Search and Sort Row */}
             <div className="flex flex-row gap-3">
@@ -913,7 +857,9 @@ function ProductsPageContent() {
               </div>
             </div>
           </div>
-        </div>
+            </div>
+          )}
+        </LazyChartWrapper>
 
         {/* Products Grid */}
         <div className="space-y-3">
@@ -943,6 +889,22 @@ function ProductsPageContent() {
                   Создать товар
                 </button>
               )}
+            </div>
+          ) : loading.products ? (
+            <div className="space-y-3">
+              {/* Показываем скелетоны при первичной загрузке */}
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index}>
+                  {/* Mobile Layout */}
+                  <div className="lg:hidden">
+                    <MobileProductCardSkeleton />
+                  </div>
+                  {/* Desktop Layout */}
+                  <div className="hidden lg:block">
+                    <ProductCardSkeleton />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : !paginationLoading ? (
             <div className="space-y-3">

@@ -15,12 +15,10 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('AuthGuard: Проверяем аутентификацию...');
         
         // Сначала проверяем, есть ли токен в localStorage
         const token = getAuthToken();
         if (!token) {
-          console.log('AuthGuard: Токен не найден в localStorage');
           window.location.href = '/admin/login';
           return;
         }
@@ -29,10 +27,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         const response = await fetchWithAuth('/api/admin/verify-token');
         
         if (response.ok) {
-          console.log('AuthGuard: Пользователь аутентифицирован');
           setIsAuthenticated(true);
         } else {
-          console.log('AuthGuard: Токен недействителен, перенаправляем на логин');
           window.location.href = '/admin/login';
         }
       } catch (error) {

@@ -22,37 +22,37 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Store - Admin Panel",
+  title: "Unimark Admin",
   description: "Система администрирования интернет-магазина",
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/logo-for-pwa.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "/unimark-logo.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "//logo-for-pwa.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "//unimark-logo.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Store Admin",
+    title: "Unimark Admin",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "Store Admin",
-    title: "Store - Admin Panel",
+    siteName: "Unimark Admin",
+    title: "Unimark - Admin Panel",
     description: "Система администрирования интернет-магазина",
   },
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "application-name": "Store Admin",
+    "application-name": "Unimark Admin",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": "Store Admin",
+    "apple-mobile-web-app-title": "Unimark Admin",
     "msapplication-TileColor": "#121a2a",
     "msapplication-tap-highlight": "no",
   },

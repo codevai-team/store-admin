@@ -66,13 +66,12 @@ export async function POST(request: Request) {
       timestamp: Date.now()
     });
     
-    // Для отладки: показываем все коды
-    console.log('Все коды в хранилище:', verificationCodes.getAllCodes());
+    // Сохраняем код для верификации
 
     // Отправляем код через Telegram
     const telegramMessage = `🔐 *Код подтверждения входа*
     
-*Store Admin Panel*
+*Unimark Admin Panel*
 
 Ваш код для завершения входа в систему:
 

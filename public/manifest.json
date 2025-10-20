@@ -1,6 +1,6 @@
 {
-  "name": "Store Admin",
-  "short_name": "Store Admin",
+  "name": "Unimark Admin",
+  "short_name": "Unimark Admin",
   "description": "Система администрирования интернет-магазина",
   "start_url": "/admin/dashboard",
   "display": "standalone",
@@ -11,7 +11,7 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "/logo-for-pwa.svg",
+      "src": "/unimark-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

@@ -122,8 +122,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Using temp directory:', tempDir);
-    console.log('Input file path:', inputPath);
+    // Подготавливаем временные файлы
 
     try {
       // Сохраняем оригинальное изображение во временный файл
@@ -143,9 +142,7 @@ export async function POST(request: NextRequest) {
       // Определяем команду Python в зависимости от платформы
       const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
       
-      console.log('Running Python command:', pythonCommand);
-      console.log('Python script path:', pythonScript);
-      console.log('Input path:', inputPath);
+      // Запускаем Python скрипт для удаления фона
       
       const pythonProcess = spawn(pythonCommand, [pythonScript, inputPath], {
         stdio: ['pipe', 'pipe', 'pipe']

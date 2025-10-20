@@ -224,7 +224,6 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
       const unusedImages = allUploadedUrls.filter((url: string) => !finalImageUrls.includes(url));
       
       if (unusedImages.length > 0) {
-        console.log('Deleting unused images:', unusedImages);
         await fetch('/api/upload/cleanup', {
           method: 'POST',
           headers: {
@@ -282,9 +281,7 @@ const SimpleAddProductModal = forwardRef<SimpleAddProductModalRef, SimpleAddProd
       const initialImages = originalImages || [];
       const newImages = uploadedImages.filter(img => !initialImages.includes(img));
       
-      console.log('Initial images:', initialImages);
-      console.log('Uploaded images:', uploadedImages);
-      console.log('New images to delete:', newImages);
+      // Очистка неиспользуемых изображений
       
       for (const imageUrl of newImages) {
         try {

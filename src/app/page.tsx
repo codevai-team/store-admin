@@ -16,7 +16,6 @@ export default function Home() {
         // Проверяем, есть ли токен в localStorage
         const token = getAuthToken();
         if (!token) {
-          console.log('Токен не найден в localStorage, перенаправляем на логин');
           window.location.href = '/admin/login';
           return;
         }
@@ -25,10 +24,8 @@ export default function Home() {
         const response = await fetchWithAuth('/api/admin/verify-token');
         
         if (response.ok) {
-          console.log('Автоматический вход успешен, перенаправляем на дашборд');
           window.location.href = '/admin/dashboard';
         } else {
-          console.log('Токен недействителен, перенаправляем на логин');
           window.location.href = '/admin/login';
         }
       } catch (error) {
@@ -51,8 +48,8 @@ export default function Home() {
           {/* Логотип админ-панели */}
           <div className="mb-8">
             <Image
-              src="/admin-store-logo.svg"
-              alt="Store Admin"
+              src="/unimark-logo.svg"
+              alt="Unimark Admin"
               width={120}
               height={120}
               className="mx-auto"

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // Функция для форматирования времени "сколько времени назад"
 function getTimeAgo(date: Date): string {
@@ -38,10 +36,12 @@ function getTimeAgo(date: Date): string {
 
 export async function GET(request: Request) {
   try {
-    // Получаем параметры фильтрации по датам из URL
+    // Получаем параметры фильтрации по датам из URL (как на странице статистики)
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const section = searchParams.get('section'); // 'overview', 'charts', 'recentOrders', или null для всех данных
+    
     
     // Создаем фильтр по датам если параметры переданы
 
@@ -50,11 +50,11 @@ export async function GET(request: Request) {
     let totalOrders = 0;
     let totalRevenue = 0;
     let pendingOrders = 0;
-    let totalUsers = 0;
     let totalCategories = 0;
     let activeProducts = 0;
     let totalCouriers = 0;
     let totalSellers = 0;
+    let netRevenue = 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let recentOrders: any[] = [];
 
@@ -74,11 +74,11 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Считаем заказы по полю updatedAt (дате обновления)
-      const orderDateFilter = startDate && endDate ? {
+      // Считаем заказы по полю updatedAt (как на странице статистики)
+      const orderDateFilter = dateFrom && dateTo ? {
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {};
       
@@ -91,7 +91,6 @@ export async function GET(request: Request) {
     }
 
     try {
-      totalUsers = await prisma.user.count();
       totalCouriers = await prisma.user.count({
         where: { role: 'COURIER', status: 'ACTIVE' }
       });
@@ -151,11 +150,11 @@ export async function GET(request: Request) {
     let courierPerformance: Array<{ name: string; delivered: number; revenue: number }> = [];
     try {
       // Создаем фильтр по датам для доставленных заказов
-      const courierOrderDateFilter = startDate && endDate ? {
+      const courierOrderDateFilter = dateFrom && dateTo ? {
         status: 'DELIVERED' as const,
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {
         status: 'DELIVERED' as const
@@ -421,73 +420,84 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Подсчитываем общую выручку через orderItems по полю updatedAt заказа
-      const revenueOrderDateFilter = startDate && endDate ? {
-        updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+      // Получаем данные из API долгов продавцов (как на странице статистики)
+      // Создаем фильтр по датам для заказов (используем createdAt как в API долгов)
+      const dateFilter = dateFrom && dateTo ? {
+        createdAt: {
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {};
-      
-      // Подсчет доставленных заказов в периоде
-      
-      const orderItemsForRevenue = await prisma.orderItem.findMany({
+
+      // Получаем все доставленные заказы с товарами и продавцами (точно как в API долгов)
+      const deliveredOrders = await prisma.order.findMany({
         where: {
-          order: {
-            status: 'DELIVERED' as const,
-            ...revenueOrderDateFilter
-          }
+          status: 'DELIVERED',
+          ...dateFilter
         },
-        select: {
-          price: true,
-          amount: true
+        include: {
+          orderItems: {
+            include: {
+              product: {
+                include: {
+                  seller: {
+                    include: {
+                      commissions: {
+                        orderBy: {
+                          createdAt: 'desc'
+                        },
+                        take: 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       });
+
+      // Рассчитываем общую выручку и чистую прибыль (точно как в API долгов)
+      let calculatedTotalRevenue = 0;
+      let calculatedNetRevenue = 0;
+
+      deliveredOrders.forEach(order => {
+        order.orderItems.forEach(item => {
+          const itemTotal = Number(item.price) * item.amount;
+          const sellerCommission = Number(item.product.seller.commissions[0]?.rate || 0);
+          const adminPercentage = sellerCommission / 100;
+          
+          // Общая выручка
+          calculatedTotalRevenue += itemTotal;
+          
+          // Базовая цена продавца = itemTotal / (1 + adminPercentage)
+          const basePrice = adminPercentage > 0 
+            ? itemTotal / (1 + adminPercentage)
+            : itemTotal;
+          
+          // Прибыль админа = itemTotal - basePrice
+          const adminProfit = itemTotal - basePrice;
+          calculatedNetRevenue += adminProfit;
+        });
+      });
+
+      totalRevenue = Math.round(calculatedTotalRevenue * 100) / 100;
+      netRevenue = Math.round(calculatedNetRevenue * 100) / 100;
       
-      // Получение элементов заказов для подсчета дохода
-      
-      // Используем сырой SQL запрос для точного подсчета, как в вашем примере
-      let revenueResult: Array<{ total_revenue: number }>;
-      if (startDate && endDate) {
-        revenueResult = await prisma.$queryRaw`
-          SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
-          FROM order_items oi
-          JOIN orders o ON oi.order_id = o.id
-          WHERE o.status = 'delivered'
-          AND o.updated_at >= ${new Date(startDate)}
-          AND o.updated_at <= ${new Date(endDate)}
-        `;
-      } else {
-        revenueResult = await prisma.$queryRaw`
-          SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
-          FROM order_items oi
-          JOIN orders o ON oi.order_id = o.id
-          WHERE o.status = 'delivered'
-        `;
-      }
-      
-      // Используем результат SQL запроса как основной
-      if (revenueResult[0]?.total_revenue !== undefined) {
-        totalRevenue = parseFloat(revenueResult[0].total_revenue.toString());
-      } else {
-        // Fallback: ручной подсчет через orderItems
-        totalRevenue = orderItemsForRevenue.reduce((sum, item) => {
-          const price = parseFloat(item.price.toString());
-          const itemTotal = price * item.amount;
-          return sum + itemTotal;
-        }, 0);
-      }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка подсчета дохода
     }
 
+    // Чистая выручка уже рассчитана выше в том же блоке, что и общая выручка
+
+
     try {
-      // Считаем ожидающие заказы по полю updatedAt (дате обновления)
-      const pendingOrderDateFilter = startDate && endDate ? {
+      // Считаем ожидающие заказы по полю updatedAt (как на странице статистики)
+      const pendingOrderDateFilter = dateFrom && dateTo ? {
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {};
       
@@ -504,10 +514,10 @@ export async function GET(request: Request) {
 
     try {
       // Последние заказы с правильными связями и фильтром по updatedAt
-      const recentOrderDateFilter = startDate && endDate ? {
+      const recentOrderDateFilter = dateFrom && dateTo ? {
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {};
       
@@ -621,9 +631,9 @@ export async function GET(request: Request) {
 
     // Генерируем данные по доходам для выбранного периода
     try {
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+      if (dateFrom && dateTo) {
+        const start = new Date(dateFrom);
+        const end = new Date(dateTo);
         const diffTime = Math.abs(end.getTime() - start.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
@@ -809,9 +819,9 @@ export async function GET(request: Request) {
 
     // Генерируем данные по дням для выбранного периода
     try {
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+      if (dateFrom && dateTo) {
+        const start = new Date(dateFrom);
+        const end = new Date(dateTo);
         const days = [];
         
         // Создаем массив дат для периода
@@ -879,10 +889,10 @@ export async function GET(request: Request) {
 
     try {
       // Данные по статусам заказов с учетом фильтра по updatedAt
-      const statusOrderDateFilter = startDate && endDate ? {
+      const statusOrderDateFilter = dateFrom && dateTo ? {
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         }
       } : {};
       
@@ -935,10 +945,10 @@ export async function GET(request: Request) {
 
     try {
       // Топ-10 товары по количеству продаж (только доставленные заказы за период)
-      const topProductsOrderDateFilter = startDate && endDate ? {
+      const topProductsOrderDateFilter = dateFrom && dateTo ? {
         updatedAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(dateFrom),
+          lte: new Date(dateTo)
         },
         status: 'DELIVERED' as const
       } : {
@@ -1028,21 +1038,119 @@ export async function GET(request: Request) {
     }
 
     // Используем реальные данные если есть, иначе демо-данные
-    const hasRealData = totalOrders > 0 || totalProducts > 0 || totalUsers > 0;
 
+    // Если запрашивается только определенная секция, возвращаем только её
+    if (section === 'overview') {
+      const response = NextResponse.json({
+        overview: {
+          totalProducts: totalProducts,
+          totalOrders: totalOrders,
+          totalRevenue: totalRevenue,
+          pendingOrders: pendingOrders,
+          netRevenue: netRevenue,
+          totalCategories: totalCategories,
+          activeProducts: activeProducts,
+          totalCouriers: totalCouriers,
+          totalSellers: totalSellers
+        }
+      });
+      
+      // Кэшируем overview на 30 секунд
+      response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+      return response;
+    }
+
+    if (section === 'charts') {
+      const response = NextResponse.json({
+        charts: {
+          // Всегда используем реальные данные, если они есть, иначе демо-данные
+          monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
+          topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
+          categories: categories.length > 0 ? categories : mockData.categories,
+          orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
+          dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
+          userStats: userStats.length > 0 ? userStats : mockData.userStats,
+          courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
+          productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
+          recentActivity: recentActivity.length > 0 ? recentActivity : mockData.recentActivity
+        }
+      });
+      
+      // Кэшируем charts на 2 минуты
+      response.headers.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+      return response;
+    }
+
+    if (section === 'recentOrders') {
+      const response = NextResponse.json({
+        recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
+          const totalPrice = order.orderItems.reduce((sum: number, item: { price: number; amount: number }) => {
+            return sum + (Number(item.price) * item.amount);
+          }, 0);
+          
+          return {
+            id: order.id,
+            orderNumber: `ORD-${order.id.slice(-6).toUpperCase()}`,
+            customerName: order.customerName,
+            totalPrice: totalPrice,
+            status: order.status,
+            createdAt: order.createdAt,
+            itemsCount: order.orderItems?.length || 0,
+            courierName: order.courier?.fullname || null
+          };
+        }) : [
+          {
+            id: '1',
+            orderNumber: 'ORD-001',
+            customerName: 'Анна Иванова',
+            totalPrice: 4500,
+            status: 'DELIVERED' as const,
+            createdAt: new Date().toISOString(),
+            itemsCount: 2,
+            courierName: 'Иван Петров'
+          },
+          {
+            id: '2',
+            orderNumber: 'ORD-002',
+            customerName: 'Мария Петрова',
+            totalPrice: 3200,
+            status: 'ENROUTE',
+            createdAt: new Date(Date.now() - 3600000).toISOString(),
+            itemsCount: 1,
+            courierName: 'Мария Сидорова'
+          },
+          {
+            id: '3',
+            orderNumber: 'ORD-003',
+            customerName: 'Елена Сидорова',
+            totalPrice: 5600,
+            status: 'CREATED',
+            createdAt: new Date(Date.now() - 7200000).toISOString(),
+            itemsCount: 3,
+            courierName: null
+          }
+        ]
+      });
+      
+      // Кэшируем recent orders на 1 минуту
+      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+      return response;
+    }
+
+    // Возвращаем все данные если секция не указана (обратная совместимость)
     return NextResponse.json({
       overview: {
         totalProducts: totalProducts, // Всегда реальное значение
         totalOrders: totalOrders, // Всегда реальное значение (может быть 0)
         totalRevenue: totalRevenue, // Всегда реальное значение (может быть 0)
         pendingOrders: pendingOrders, // Всегда реальное значение (может быть 0)
-        totalUsers: totalUsers, // Всегда реальное значение
+        netRevenue: netRevenue, // Чистая выручка (процент админа)
         totalCategories: totalCategories, // Всегда реальное значение
         activeProducts: activeProducts, // Всегда реальное значение
         totalCouriers: totalCouriers, // Всегда реальное значение
         totalSellers: totalSellers // Всегда реальное значение
       },
-      charts: hasRealData ? {
+      charts: {
         monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
         topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
         categories: categories.length > 0 ? categories : mockData.categories,
@@ -1052,7 +1160,7 @@ export async function GET(request: Request) {
         courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
         productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
         recentActivity: recentActivity.length > 0 ? recentActivity : mockData.recentActivity
-      } : mockData,
+      },
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
         // Подсчитываем общую стоимость заказа через orderItems
         const totalPrice = order.orderItems.reduce((sum: number, item: { price: number; amount: number }) => {
@@ -1114,7 +1222,7 @@ export async function GET(request: Request) {
         totalOrders: 0,
         totalRevenue: 0, // Не используем демо-данные для дохода
         pendingOrders: 0,
-        totalUsers: 0,
+        netRevenue: 0, // Чистая выручка
         totalCategories: 0,
         activeProducts: 0,
         totalCouriers: 0,
@@ -1192,7 +1300,5 @@ export async function GET(request: Request) {
         }
       ]
     });
-  } finally {
-    await prisma.$disconnect();
   }
 }

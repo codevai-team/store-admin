@@ -7,10 +7,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { token, code } = body;
     
-    console.log('Получен запрос на верификацию кода:', { token: token ? 'есть' : 'нет', code });
+    // Обрабатываем запрос на верификацию кода
 
     if (!token || !code) {
-      console.log('Отсутствует токен или код');
       return NextResponse.json(
         { message: 'Токен и код обязательны' },
         { status: 400 }
@@ -40,16 +39,12 @@ export async function POST(request: Request) {
     // Очищаем старые коды
     verificationCodes.cleanup();
     
-    // Для отладки: показываем все коды
-    console.log('Все коды в хранилище при верификации:', verificationCodes.getAllCodes());
+    // Проверяем сохраненный код
     
     // Проверяем код
     const storedCodeData = verificationCodes.get(decoded.login as string);
-    console.log('Сохраненный код для пользователя:', decoded.login, storedCodeData);
     
     if (!storedCodeData) {
-      console.log('Код не найден для пользователя:', decoded.login);
-      console.log('Доступные коды:', verificationCodes.getAllCodes());
       return NextResponse.json(
         { message: 'Код не найден или истек' },
         { status: 400 }
@@ -67,10 +62,8 @@ export async function POST(request: Request) {
     }
 
     // Сравниваем код
-    console.log('Сравниваем коды:', { введенный: code.trim(), сохраненный: storedCodeData.code });
     
     if (storedCodeData.code !== code.trim()) {
-      console.log('Коды не совпадают');
       return NextResponse.json(
         { 
           success: false,
@@ -80,7 +73,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('Код верный, создаем финальный токен');
+    // Код верный, создаем финальный токен
 
     // Удаляем использованный код
     verificationCodes.delete(decoded.login as string);
@@ -96,7 +89,7 @@ export async function POST(request: Request) {
     .setExpirationTime('1d')
     .sign(secret);
 
-    console.log('Финальный токен создан, устанавливаем куки');
+    // Устанавливаем куки с токеном
 
     // Устанавливаем куки с финальным токеном
     const response = NextResponse.json(
@@ -115,7 +108,6 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24, // 1 день
     });
 
-    console.log('Куки установлены, возвращаем успешный ответ');
     return response;
 
   } catch (error) {

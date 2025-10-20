@@ -75,8 +75,8 @@ export default function AdminLogin() {
         <div className="flex flex-col items-center">
           <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 relative">
             <Image
-              src="/admin-store-logo.svg"
-              alt="Store Logo"
+              src="/unimark-logo.svg"
+              alt="Unimark Logo"
               fill
               className="object-contain"
               priority
@@ -187,7 +187,7 @@ export default function AdminLogin() {
             </div>
             <div className="relative flex justify-center text-xs sm:text-sm">
               <span className="px-2 bg-gray-800 text-gray-400">
-                Store Admin
+              Unimark Admin
               </span>
             </div>
           </div>

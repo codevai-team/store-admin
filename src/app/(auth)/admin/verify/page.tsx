@@ -139,9 +139,6 @@ function AdminVerifyContent() {
     setIsLoading(true);
 
     try {
-      console.log('Отправляем код на верификацию:', codeToSubmit);
-      console.log('Токен:', token);
-      
       const response = await fetch('/api/admin/verify-code', {
         method: 'POST',
         headers: {
@@ -153,9 +150,7 @@ function AdminVerifyContent() {
         }),
       });
 
-      console.log('Статус ответа:', response.status);
       const data = await response.json();
-      console.log('Данные ответа:', data);
       
       if (!response.ok) {
         throw new Error(data.message || 'Ошибка верификации');
@@ -172,7 +167,6 @@ function AdminVerifyContent() {
       }
 
       // Успешная верификация - сохраняем токен и перенаправляем в дашборд
-      console.log('Верификация успешна, сохраняем токен и перенаправляем на дашборд');
       
       // Сохраняем финальный токен в localStorage для автоматического входа в будущем
       if (data.token) {
@@ -181,7 +175,6 @@ function AdminVerifyContent() {
       
       // Даем время для установки куки, затем перенаправляем
       setTimeout(() => {
-        console.log('Выполняем перенаправление через window.location.replace');
         window.location.replace('/admin/dashboard');
       }, 100);
     } catch (err) {
@@ -230,8 +223,8 @@ function AdminVerifyContent() {
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 relative">
             <Image
-              src="/admin-store-logo.svg"
-              alt="Store Logo"
+              src="/unimark-logo.svg"
+              alt="Unimark Logo"
               fill
               className="object-contain"
               priority

@@ -120,10 +120,9 @@ export async function DELETE(request: NextRequest) {
       if (error.$metadata?.httpStatusCode === 404 || 
           error.name === 'NoSuchKey' ||
           error.message?.includes('NoSuchKey')) {
-        console.log('File not found, considering as successful deletion:', fileName);
+        // File not found, considering as successful deletion
       } else {
-        // Для других ошибок логируем и продолжаем
-        console.warn('S3 delete warning (continuing anyway):', error.message || 'Unknown error');
+        // Для других ошибок продолжаем
       }
     }
 
@@ -147,15 +146,13 @@ function extractFileNameFromUrl(fileUrl: string): string | null {
     const url = new URL(fileUrl);
     const pathParts = url.pathname.split('/').filter(part => part.length > 0);
     
-    console.log('Extracting file name from URL:', fileUrl);
-    console.log('Path parts:', pathParts);
+    // Извлекаем имя файла из URL
     
     // Ищем индекс bucket name
     const bucketIndex = pathParts.findIndex(part => part === BUCKET_NAME);
     if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
       // Возвращаем все части после bucket name
       const fileName = pathParts.slice(bucketIndex + 1).join('/');
-      console.log('Extracted file name:', fileName);
       return fileName;
     }
     
@@ -163,11 +160,9 @@ function extractFileNameFromUrl(fileUrl: string): string | null {
     const productsIndex = pathParts.findIndex(part => part === 'products');
     if (productsIndex !== -1 && productsIndex < pathParts.length - 1) {
       const fileName = pathParts.slice(productsIndex).join('/');
-      console.log('Extracted file name (alternative):', fileName);
       return fileName;
     }
     
-    console.log('Could not extract file name from URL');
     return null;
   } catch (error) {
     console.error('Error extracting file name:', error);

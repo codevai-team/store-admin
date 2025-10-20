@@ -38,6 +38,9 @@ interface User {
     products: number;
     deliveredOrders: number;
   };
+  commissions?: {
+    rate: number;
+  }[];
 }
 
 interface UserFormData {
@@ -46,6 +49,7 @@ interface UserFormData {
   role: 'SELLER' | 'COURIER';
   status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   password: string;
+  commissionRate?: number;
 }
 
 type SortOption = 'fullname' | 'role' | 'createdAt' | 'productsCount' | 'deliveredOrdersCount';
@@ -83,7 +87,8 @@ function StaffPageContent() {
     fullname: '',
     phoneNumber: '',
     role: 'SELLER',
-    password: ''
+    password: '',
+    commissionRate: 0
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -214,7 +219,7 @@ function StaffPageContent() {
 
   // Обработчики модальных окон
   const openCreateModal = () => {
-    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '', commissionRate: 0 });
     setIsCreateModalOpen(true);
   };
 
@@ -225,7 +230,8 @@ function StaffPageContent() {
       phoneNumber: user.phoneNumber,
       role: user.role,
       status: user.status,
-      password: ''
+      password: '',
+      commissionRate: user.commissions && user.commissions.length > 0 ? user.commissions[0].rate : 0
     });
     setIsEditModalOpen(true);
   };
@@ -248,7 +254,7 @@ function StaffPageContent() {
     setEditingUser(null);
     setDeletingUser(null);
     setViewingUser(null);
-    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+    setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '', commissionRate: 0 });
   };
 
   // Создание пользователя
@@ -269,7 +275,7 @@ function StaffPageContent() {
       if (response.ok) {
         await fetchUsers();
         setIsCreateModalOpen(false);
-        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '', commissionRate: 0 });
       } else {
         const error = await response.json();
         alert(error.error || 'Ошибка создания сотрудника');
@@ -301,7 +307,7 @@ function StaffPageContent() {
         await fetchUsers();
         setIsEditModalOpen(false);
         setEditingUser(null);
-        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '' });
+        setFormData({ fullname: '', phoneNumber: '', role: 'SELLER', password: '', commissionRate: 0 });
       } else {
         const error = await response.json();
         alert(error.error || 'Ошибка обновления сотрудника');
@@ -449,6 +455,14 @@ function StaffPageContent() {
                         </>
                       )}
                     </div>
+                    {user.role === 'SELLER' && user.commissions && user.commissions.length > 0 && (
+                      <div className="flex items-center space-x-1 text-xs text-orange-400">
+                        <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
+                        <span>{user.commissions[0].rate}% комиссия</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -534,6 +548,14 @@ function StaffPageContent() {
                         </>
                       )}
                     </div>
+                    {user.role === 'SELLER' && user.commissions && user.commissions.length > 0 && (
+                      <div className="flex items-center space-x-1 text-sm text-orange-400">
+                        <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
+                        <span>{user.commissions[0].rate}% комиссия</span>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-1 text-sm text-gray-400">
                       <CalendarDaysIcon className="h-4 w-4 flex-shrink-0" />
                       <span>{formatDate(user.createdAt)}</span>
@@ -1028,6 +1050,33 @@ function StaffPageContent() {
                     />
                   </div>
 
+                  {/* Процент комиссии (только для продавцов) */}
+                  {formData.role === 'SELLER' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Процент комиссии (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.commissionRate || 0}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          if (value >= 0 && value <= 100) {
+                            setFormData({ ...formData, commissionRate: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="0"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                      />
+                      <p className="mt-1 text-xs text-gray-400">
+                        Процент, который будет добавляться к товарам этого продавца (0-100%)
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
                     <button
                       type="button"
@@ -1128,6 +1177,33 @@ function StaffPageContent() {
                       icon={<UsersIcon className="h-4 w-4" />}
                     />
                   </div>
+
+                  {/* Процент комиссии (только для продавцов) */}
+                  {formData.role === 'SELLER' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Процент комиссии (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.commissionRate || 0}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          if (value >= 0 && value <= 100) {
+                            setFormData({ ...formData, commissionRate: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="0"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                      />
+                      <p className="mt-1 text-xs text-gray-400">
+                        Процент, который будет добавляться к товарам этого продавца (0-100%)
+                      </p>
+                    </div>
+                  )}
 
                   {/* Статус */}
                   <div>
@@ -1397,6 +1473,26 @@ function StaffPageContent() {
                           {viewingUser.role === 'SELLER' ? 'Товаров' : 'Заказов доставлено'}
                         </div>
                       </div>
+                      
+                      {/* Процент комиссии для продавцов */}
+                      {viewingUser.role === 'SELLER' && (
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 sm:p-4 text-center">
+                          <div className="flex items-center justify-center mb-2">
+                            <svg className="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                            </svg>
+                          </div>
+                          <div className="text-xl sm:text-2xl font-bold text-orange-300">
+                            {viewingUser.commissions && viewingUser.commissions.length > 0 
+                              ? `${viewingUser.commissions[0].rate}%`
+                              : '0%'
+                            }
+                          </div>
+                          <div className="text-xs sm:text-sm text-orange-400">
+                            Комиссия
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

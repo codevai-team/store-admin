@@ -23,7 +23,6 @@ export function saveAuthToken(token: string, expiresInHours: number = 24): void 
     };
     
     localStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(authData));
-    console.log('Токен сохранен в localStorage');
   } catch (error) {
     console.error('Ошибка сохранения токена в localStorage:', error);
   }
@@ -43,7 +42,6 @@ export function getAuthToken(): string | null {
     
     // Проверяем, не истек ли токен
     if (Date.now() > authData.expiresAt) {
-      console.log('Токен истек, удаляем из localStorage');
       removeAuthToken();
       return null;
     }
@@ -62,7 +60,6 @@ export function getAuthToken(): string | null {
 export function removeAuthToken(): void {
   try {
     localStorage.removeItem(AUTH_TOKEN_KEY);
-    console.log('Токен удален из localStorage');
   } catch (error) {
     console.error('Ошибка удаления токена из localStorage:', error);
   }
@@ -129,13 +126,10 @@ export async function attemptAutoLogin(): Promise<boolean> {
     let token = getAuthToken();
     
     if (token) {
-      console.log('Найден токен в localStorage, проверяем...');
       const isValid = await verifyTokenWithAPI(token);
       if (isValid) {
-        console.log('Автоматический вход выполнен успешно (localStorage)');
         return true;
       } else {
-        console.log('Токен из localStorage недействителен, удаляем');
         removeAuthToken();
       }
     }
@@ -143,17 +137,14 @@ export async function attemptAutoLogin(): Promise<boolean> {
     // Если localStorage пуст, проверяем cookies
     token = getTokenFromCookies();
     if (token) {
-      console.log('Найден токен в cookies, проверяем...');
       const isValid = await verifyTokenWithAPI(token);
       if (isValid) {
-        console.log('Автоматический вход выполнен успешно (cookies)');
         // Сохраняем токен в localStorage для будущих использований
         saveAuthToken(token, 24);
         return true;
       }
     }
 
-    console.log('Автоматический вход не удался');
     return false;
   } catch (error) {
     console.error('Ошибка автоматического входа:', error);

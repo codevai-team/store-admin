@@ -18,6 +18,7 @@ interface UserFormData {
   phoneNumber: string;
   role: string;
   password: string;
+  commissionRate?: number;
 }
 
 export default function AddUserModal({
@@ -31,6 +32,7 @@ export default function AddUserModal({
     phoneNumber: '',
     role: 'SELLER',
     password: '',
+    commissionRate: 0,
   });
 
   const [errors, setErrors] = useState<Partial<UserFormData>>({});
@@ -47,7 +49,7 @@ export default function AddUserModal({
     
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Телефон обязателен';
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phoneNumber)) {
+    } else if (!/^\+?[\d\s\-()]+$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Неверный формат телефона';
     }
 
@@ -70,6 +72,7 @@ export default function AddUserModal({
       phoneNumber: '',
       role: 'SELLER',
       password: '',
+      commissionRate: 0,
     });
     setErrors({});
     onClose();
@@ -181,6 +184,34 @@ export default function AddUserModal({
               <option value="COURIER">Курьер</option>
             </select>
           </div>
+
+          {/* Процент комиссии (только для продавцов) */}
+          {formData.role === 'SELLER' && (
+            <div>
+              <label htmlFor="commissionRate" className="block text-sm font-medium text-gray-300 mb-2">
+                Процент комиссии (%)
+              </label>
+              <input
+                type="number"
+                id="commissionRate"
+                value={formData.commissionRate || 0}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  if (value >= 0 && value <= 100) {
+                    setFormData(prev => ({ ...prev, commissionRate: value }));
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                placeholder="0"
+                min="0"
+                max="100"
+                step="0.01"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Процент, который будет добавляться к товарам этого продавца (0-100%)
+              </p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700/50">

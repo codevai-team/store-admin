@@ -237,7 +237,6 @@ export default function ImageUploadModal({
       const unusedImages = allModalImages.filter(url => !finalImageUrls.includes(url));
       
       if (unusedImages.length > 0) {
-        console.log('Deleting unused images from ImageUploadModal:', unusedImages);
         await fetch('/api/upload/cleanup', {
           method: 'POST',
           headers: {

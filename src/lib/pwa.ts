@@ -18,11 +18,11 @@ export function registerServiceWorker() {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW зарегистрирован успешно:', registration.scope);
+        .then(() => {
+          // SW зарегистрирован успешно
         })
-        .catch((registrationError) => {
-          console.log('Ошибка регистрации SW:', registrationError);
+        .catch(() => {
+          // Ошибка регистрации SW
         });
     });
   }

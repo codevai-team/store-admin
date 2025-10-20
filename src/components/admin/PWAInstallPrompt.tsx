@@ -58,13 +58,9 @@ export default function PWAInstallPrompt() {
 
     try {
       await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+      await deferredPrompt.userChoice;
       
-      if (outcome === 'accepted') {
-        console.log('Пользователь принял установку PWA');
-      } else {
-        console.log('Пользователь отклонил установку PWA');
-      }
+      // Установка завершена
       
       setDeferredPrompt(null);
       setShowInstallPrompt(false);
@@ -106,7 +102,7 @@ export default function PWAInstallPrompt() {
               Установить приложение
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Добавьте Store Admin на главный экран для быстрого доступа
+              Добавьте Unimark Admin на главный экран для быстрого доступа
             </p>
             <div className="mt-3 flex space-x-2">
               <button

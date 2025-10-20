@@ -20,6 +20,9 @@ interface User {
     products: number;
     deliveredOrders: number;
   };
+  commissions?: {
+    rate: number;
+  }[];
 }
 
 interface EditUserModalProps {
@@ -36,6 +39,7 @@ interface UserFormData {
   role: string;
   status: string;
   password: string;
+  commissionRate?: number;
 }
 
 export default function EditUserModal({
@@ -51,6 +55,7 @@ export default function EditUserModal({
     role: 'SELLER',
     status: 'ACTIVE',
     password: '',
+    commissionRate: 0,
   });
 
   const [errors, setErrors] = useState<Partial<UserFormData>>({});
@@ -64,6 +69,7 @@ export default function EditUserModal({
         role: user.role,
         status: user.status,
         password: '',
+        commissionRate: user.commissions && user.commissions.length > 0 ? user.commissions[0].rate : 0,
       });
       setErrors({});
     }
@@ -81,7 +87,7 @@ export default function EditUserModal({
     
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Телефон обязателен';
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phoneNumber)) {
+    } else if (!/^\+?[\d\s\-()]+$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Неверный формат телефона';
     }
 
@@ -101,6 +107,7 @@ export default function EditUserModal({
       role: 'SELLER',
       status: 'ACTIVE',
       password: '',
+      commissionRate: 0,
     });
     setErrors({});
     onClose();
@@ -230,6 +237,34 @@ export default function EditUserModal({
                 <option value="COURIER">Курьер</option>
               </select>
             </div>
+
+            {/* Процент комиссии (только для продавцов) */}
+            {formData.role === 'SELLER' && (
+              <div>
+                <label htmlFor="commissionRate" className="block text-sm font-medium text-gray-300 mb-2">
+                  Процент комиссии (%)
+                </label>
+                <input
+                  type="number"
+                  id="commissionRate"
+                  value={formData.commissionRate || 0}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    if (value >= 0 && value <= 100) {
+                      setFormData(prev => ({ ...prev, commissionRate: value }));
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+                  placeholder="0"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Процент, который будет добавляться к товарам этого продавца (0-100%)
+                </p>
+              </div>
+            )}
 
             {/* Статус */}
             <div>

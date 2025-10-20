@@ -96,6 +96,15 @@ export async function GET(request: NextRequest) {
               deliveredOrders: true,
             },
           },
+          commissions: {
+            select: {
+              rate: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
         },
       }),
       prisma.user.count({ where }),
@@ -125,7 +134,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fullname, phoneNumber, role = 'SELLER', password } = body;
+    const { fullname, phoneNumber, role = 'SELLER', password, commissionRate } = body;
 
     // Валидация
     if (!fullname || !phoneNumber || !password) {
@@ -144,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Валидация телефона
-    const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+    const phoneRegex = /^\+?[\d\s\-()]+$/;
     if (!phoneRegex.test(phoneNumber)) {
       return NextResponse.json(
         { error: 'Неверный формат номера телефона' },
@@ -167,32 +176,47 @@ export async function POST(request: NextRequest) {
     // Хеширование пароля
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        fullname,
-        phoneNumber,
-        password: hashedPassword,
-        role: role as UserRole,
-        status: UserStatus.ACTIVE,
-      },
-      select: {
-        id: true,
-        fullname: true,
-        phoneNumber: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        _count: {
-          select: {
-            products: {
-              where: {
-                status: ProductStatus.ACTIVE
-              }
+    // Создание пользователя в транзакции
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          fullname,
+          phoneNumber,
+          password: hashedPassword,
+          role: role as UserRole,
+          status: UserStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+          fullname: true,
+          phoneNumber: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          _count: {
+            select: {
+              products: {
+                where: {
+                  status: ProductStatus.ACTIVE
+                }
+              },
+              deliveredOrders: true,
             },
-            deliveredOrders: true,
           },
         },
-      },
+      });
+
+      // Если это продавец и указан процент комиссии, создаем запись комиссии
+      if (role === 'SELLER' && commissionRate !== undefined && commissionRate !== null) {
+        await tx.sellerCommission.create({
+          data: {
+            sellerId: newUser.id,
+            rate: commissionRate,
+          },
+        });
+      }
+
+      return newUser;
     });
 
     return NextResponse.json(user, { status: 201 });

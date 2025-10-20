@@ -386,7 +386,6 @@ function OrdersPageContent() {
     const now = Date.now();
     // Предотвращаем вызовы чаще чем раз в 2 секунды
     if (now - lastAddNewOrdersTime.current < 2000) {
-      console.log('updateOrdersIncrementally: Skipping - too soon since last call');
       return;
     }
     lastAddNewOrdersTime.current = now;
@@ -396,11 +395,8 @@ function OrdersPageContent() {
                              debouncedSearchTerm.trim() || sortBy !== 'newest' || sortOrder !== 'desc';
     
     if (hasActiveFilters) {
-      console.log('updateOrdersIncrementally: Skipping due to active filters, search or custom sorting');
       return;
     }
-    
-    console.log('updateOrdersIncrementally: Starting to check for new and updated orders');
     try {
       const params = new URLSearchParams({
         page: '1',
@@ -414,7 +410,6 @@ function OrdersPageContent() {
       const response = await fetch(`/api/admin/orders?${params}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(`updateOrdersIncrementally: Fetched ${data.orders.length} orders from API`);
         
         setOrders(prevOrders => {
           const existingOrdersMap = new Map(prevOrders.map(order => [order.id, order]));
@@ -431,7 +426,6 @@ function OrdersPageContent() {
               const isNew = lastOrderUpdateTime ? orderUpdateTime > lastOrderUpdateTime : true;
               if (isNew) {
                 newOrders.push(apiOrder);
-                console.log(`New order found: ${apiOrder.id}`);
               }
             } else {
               // Проверяем, изменился ли существующий заказ
@@ -440,12 +434,9 @@ function OrdersPageContent() {
               
               if (apiOrderTime > existingOrderTime) {
                 updatedOrders.push(apiOrder);
-                console.log(`Updated order found: ${apiOrder.id} (${apiOrderTime.toISOString()} > ${existingOrderTime.toISOString()})`);
               }
             }
           });
-          
-          console.log(`updateOrdersIncrementally: Found ${newOrders.length} new orders and ${updatedOrders.length} updated orders`);
           
           // Показываем уведомления для новых заказов
           newOrders.forEach((order: Order) => {
@@ -464,13 +455,11 @@ function OrdersPageContent() {
           
           // Показываем уведомления для обновленных заказов (более сдержанно)
           if (updatedOrders.length > 0) {
-            console.log(`Обновлено заказов: ${updatedOrders.length}`);
             // Можно добавить уведомление, но не для каждого заказа отдельно
             // showSuccess('Обновления', `Обновлено ${updatedOrders.length} заказов`);
           }
           
           if (newOrders.length === 0 && updatedOrders.length === 0) {
-            console.log('updateOrdersIncrementally: No changes found');
             return prevOrders;
           }
           
@@ -492,7 +481,6 @@ function OrdersPageContent() {
             return dateB.getTime() - dateA.getTime();
           });
           
-          console.log('updateOrdersIncrementally: Reordered orders by updated_at');
           return finalOrders;
         });
         
@@ -518,7 +506,6 @@ function OrdersPageContent() {
       const response = await fetch(`/api/admin/orders/${selectedOrder.id}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Updated order data:', data); // Для отладки
         setSelectedOrder(data);
       }
     } catch (error) {
@@ -617,7 +604,6 @@ function OrdersPageContent() {
                                debouncedSearchTerm.trim() || sortBy !== 'newest' || sortOrder !== 'desc';
       
       if (hasActiveFilters) {
-        console.log('Auto refresh: Skipping due to active filters, search or custom sorting');
         return;
       }
       
@@ -632,7 +618,6 @@ function OrdersPageContent() {
         setIsCheckingOrders(true);
         
         try {
-          console.log('Auto refresh: Checking for new and updated orders...');
           // Вызываем функцию инкрементального обновления
           // Она проверяет как новые, так и измененные заказы
           if (addNewOrdersRef.current) {
@@ -641,8 +626,6 @@ function OrdersPageContent() {
         } finally {
           setIsCheckingOrders(false);
         }
-      } else {
-        console.log('Auto refresh: Skipping due to open modals');
       }
     }, 5000); // 5 секунд
 
