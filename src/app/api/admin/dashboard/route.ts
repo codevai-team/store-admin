@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { toBishkekTime, getBishkekNow, getLastNDaysInBishkek } from '@/lib/timezone';
+
 
 // Функция для форматирования времени "сколько времени назад"
 function getTimeAgo(date: Date): string {
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const now = getBishkekNow();
+  const bishkekDate = toBishkekTime(date);
+  const diffInSeconds = Math.floor((now.getTime() - bishkekDate.getTime()) / 1000);
   
   if (diffInSeconds < 60) {
     return `${diffInSeconds} сек назад`;
@@ -44,6 +47,7 @@ export async function GET(request: Request) {
     
     
     // Создаем фильтр по датам если параметры переданы
+    // Конвертируем входящие даты в UTC с учетом временной зоны Бишкека
 
     // Безопасные запросы с fallback для пустой БД
     let totalProducts = 0;
@@ -421,9 +425,9 @@ export async function GET(request: Request) {
 
     try {
       // Получаем данные из API долгов продавцов (как на странице статистики)
-      // Создаем фильтр по датам для заказов (используем createdAt как в API долгов)
+      // Создаем фильтр по датам для заказов (используем updatedAt для консистентности с графиками)
       const dateFilter = dateFrom && dateTo ? {
-        createdAt: {
+        updatedAt: {
           gte: new Date(dateFrom),
           lte: new Date(dateTo)
         }
@@ -484,6 +488,7 @@ export async function GET(request: Request) {
       totalRevenue = Math.round(calculatedTotalRevenue * 100) / 100;
       netRevenue = Math.round(calculatedNetRevenue * 100) / 100;
       
+      
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка подсчета дохода
@@ -541,93 +546,13 @@ export async function GET(request: Request) {
       // Ошибка получения последних заказов
     }
 
-    // Генерируем демо-данные для диаграмм если база пустая
-    const mockData = {
-      monthlyRevenue: [
-        { month: 'Янв', revenue: 45000, canceledRevenue: 5000, orders: 12 },
-        { month: 'Фев', revenue: 52000, canceledRevenue: 3000, orders: 15 },
-        { month: 'Мар', revenue: 48000, canceledRevenue: 7000, orders: 14 },
-        { month: 'Апр', revenue: 61000, canceledRevenue: 4000, orders: 18 },
-        { month: 'Май', revenue: 55000, canceledRevenue: 6000, orders: 16 },
-        { month: 'Июн', revenue: 67000, canceledRevenue: 2000, orders: 20 }
-      ],
-      topProducts: [
-        { name: 'Платье летнее', sold: 45, revenue: 67500 },
-        { name: 'Блузка классическая', sold: 32, revenue: 48000 },
-        { name: 'Юбка мини', sold: 28, revenue: 42000 },
-        { name: 'Джинсы прямые', sold: 24, revenue: 36000 },
-        { name: 'Топ базовый', sold: 20, revenue: 30000 },
-        { name: 'Кардиган теплый', sold: 18, revenue: 27000 },
-        { name: 'Брюки классические', sold: 15, revenue: 22500 },
-        { name: 'Свитер вязаный', sold: 12, revenue: 18000 },
-        { name: 'Рубашка белая', sold: 10, revenue: 15000 },
-        { name: 'Шорты джинсовые', sold: 8, revenue: 12000 }
-      ],
-      categories: [
-        { name: 'Платья', products: 15, orders: 45, revenue: 135000 },
-        { name: 'Блузки', products: 12, orders: 32, revenue: 96000 },
-        { name: 'Юбки', products: 8, orders: 28, revenue: 84000 }
-      ],
-      orderStatus: [
-        { status: 'Завершен', count: 45, revenue: 135000 },
-        { status: 'Отправлен', count: 12, revenue: 36000 },
-        { status: 'Оплачен', count: 8, revenue: 24000 },
-        { status: 'Ожидает', count: 5, revenue: 15000 }
-      ],
-      dailyOrders: [
-        { date: '01.12', orders: 3, deliveredOrders: 2, revenue: 9000 },
-        { date: '02.12', orders: 5, deliveredOrders: 4, revenue: 15000 },
-        { date: '03.12', orders: 2, deliveredOrders: 1, revenue: 6000 },
-        { date: '04.12', orders: 7, deliveredOrders: 6, revenue: 21000 },
-        { date: '05.12', orders: 4, deliveredOrders: 3, revenue: 12000 },
-        { date: '06.12', orders: 6, deliveredOrders: 5, revenue: 18000 },
-        { date: '07.12', orders: 8, deliveredOrders: 7, revenue: 24000 }
-      ],
-      userStats: [
-        { role: 'Продавцы', count: 12, active: 10 },
-        { role: 'Курьеры', count: 8, active: 6 },
-        { role: 'Администраторы', count: 2, active: 2 }
-      ],
-      courierPerformance: [
-        { name: 'Иван Петров', delivered: 45, revenue: 135000, rating: 4.8 },
-        { name: 'Мария Сидорова', delivered: 38, revenue: 114000, rating: 4.6 },
-        { name: 'Алексей Козлов', delivered: 32, revenue: 96000, rating: 4.4 }
-      ],
-      productInsights: {
-        totalColors: 15,
-        totalSizes: 8,
-        averagePrice: 2500,
-        deliveryCancelRate: {
-          delivered: 75,
-          canceled: 25
-        },
-        topSellingColors: [
-          { color: 'Черный', count: 45 },
-          { color: 'Белый', count: 38 },
-          { color: 'Синий', count: 32 }
-        ],
-        topSellingSizes: [
-          { size: 'M', count: 52 },
-          { size: 'L', count: 48 },
-          { size: 'S', count: 35 }
-        ]
-      },
-        recentActivity: [
-          { type: 'order', message: 'Новый заказ #ORD-001', time: '2 мин назад', createdAt: new Date().toISOString() },
-          { type: 'product', message: 'Добавлен товар "Платье летнее"', time: '15 мин назад', createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
-          { type: 'user', message: 'Зарегистрирован новый продавец', time: '1 час назад', createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
-          { type: 'order', message: 'Заказ #ORD-002 доставлен', time: '2 часа назад', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
-          { type: 'product', message: 'Добавлен товар "Блузка классическая"', time: '3 часа назад', createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() },
-          { type: 'user', message: 'Зарегистрирован новый курьер', time: '4 часа назад', createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() }
-        ]
-    };
 
     // Получаем данные для графиков
-    let monthlyRevenue: unknown[] = [];
-    let dailyOrders: unknown[] = [];
-    let topProducts: unknown[] = [];
-    let categories: unknown[] = [];
-    let orderStatus: unknown[] = [];
+    let monthlyRevenue: Array<{ month: string; revenue: number; canceledRevenue: number; orders: number }> = [];
+    let dailyOrders: Array<{ date: string; orders: number; deliveredOrders: number; revenue: number }> = [];
+    let topProducts: Array<{ name: string; sold: number; revenue: number }> = [];
+    let categories: Array<{ name: string; products: number; orders: number; revenue: number }> = [];
+    let orderStatus: Array<{ status: string; count: number; revenue: number }> = [];
 
     // Генерируем данные по доходам для выбранного периода
     try {
@@ -668,14 +593,34 @@ export async function GET(request: Request) {
               }
             });
             
-            const dayRevenueResult: Array<{ total_revenue: number }> = await prisma.$queryRaw`
-              SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
-              FROM order_items oi
-              JOIN orders o ON oi.order_id = o.id
-              WHERE o.status = 'delivered'
-              AND o.updated_at >= ${dayStart}
-              AND o.updated_at <= ${dayEnd}
-            `;
+            
+            // Используем Prisma для получения доходов от доставленных заказов
+            const deliveredOrdersForDay = await prisma.order.findMany({
+              where: {
+                status: 'DELIVERED',
+                updatedAt: {
+                  gte: dayStart,
+                  lte: dayEnd
+                }
+              },
+              include: {
+                orderItems: {
+                  select: {
+                    amount: true,
+                    price: true
+                  }
+                }
+              }
+            });
+            
+            // Рассчитываем доход от доставленных заказов
+            const dayRevenue = deliveredOrdersForDay.reduce((totalRevenue, order) => {
+              const orderRevenue = order.orderItems.reduce((orderSum, item) => {
+                return orderSum + (Number(item.price) * item.amount);
+              }, 0);
+              return totalRevenue + orderRevenue;
+            }, 0);
+            
             
             const dayCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
               SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
@@ -686,7 +631,7 @@ export async function GET(request: Request) {
               AND o.updated_at <= ${dayEnd}
             `;
             
-            const revenue = dayRevenueResult[0]?.total_revenue ? parseFloat(dayRevenueResult[0].total_revenue.toString()) : 0;
+            const revenue = dayRevenue;
             const canceledRevenue = dayCanceledRevenueResult[0]?.canceled_revenue ? parseFloat(dayCanceledRevenueResult[0].canceled_revenue.toString()) : 0;
             
             return {
@@ -811,10 +756,66 @@ export async function GET(request: Request) {
             };
           }));
         }
+      } else {
+        // Если нет диапазона дат, генерируем данные за последние 7 дней
+        const days = getLastNDaysInBishkek(7);
+        
+        monthlyRevenue = await Promise.all(days.map(async (day) => {
+          const dayStart = new Date(day);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(day);
+          dayEnd.setHours(23, 59, 59, 999);
+          
+          const dayOrdersCount = await prisma.order.count({
+            where: {
+              updatedAt: {
+                gte: dayStart,
+                lte: dayEnd
+              }
+            }
+          });
+          
+          const dayRevenueResult: Array<{ total_revenue: number }> = await prisma.$queryRaw`
+            SELECT COALESCE(SUM(oi.amount * oi.price), 0) as total_revenue
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.status = 'delivered'
+            AND o.updated_at >= ${dayStart}
+            AND o.updated_at <= ${dayEnd}
+          `;
+          
+          const dayCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
+            SELECT COALESCE(SUM(oi.amount * oi.price), 0) as canceled_revenue
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.status = 'canceled'
+            AND o.updated_at >= ${dayStart}
+            AND o.updated_at <= ${dayEnd}
+          `;
+          
+          const revenue = dayRevenueResult[0]?.total_revenue ? parseFloat(dayRevenueResult[0].total_revenue.toString()) : 0;
+          const canceledRevenue = dayCanceledRevenueResult[0]?.canceled_revenue ? parseFloat(dayCanceledRevenueResult[0].canceled_revenue.toString()) : 0;
+          
+          return {
+            month: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+            revenue: revenue,
+            canceledRevenue: canceledRevenue,
+            orders: dayOrdersCount
+          };
+        }));
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_) {
-      // Ошибка получения данных по доходам
+      
+    } catch (error) {
+      // Ошибка получения данных по доходам - создаем пустые данные
+      console.error('ERROR in revenue calculation:', error);
+      const days = getLastNDaysInBishkek(7);
+      
+      monthlyRevenue = days.map(day => ({
+        month: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        revenue: 0,
+        canceledRevenue: 0,
+        orders: 0
+      }));
     }
 
     // Генерируем данные по дням для выбранного периода
@@ -881,10 +882,71 @@ export async function GET(request: Request) {
             revenue: revenue
           };
         }));
+      } else {
+        // Если нет диапазона дат, генерируем данные за последние 7 дней
+        const days = getLastNDaysInBishkek(7);
+        
+        dailyOrders = await Promise.all(days.map(async (day) => {
+          const dayStart = new Date(day);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(day);
+          dayEnd.setHours(23, 59, 59, 999);
+          
+          const dayOrders = await prisma.order.count({
+            where: {
+              updatedAt: {
+                gte: dayStart,
+                lte: dayEnd
+              }
+            }
+          });
+          
+          const dayDeliveredOrders = await prisma.order.count({
+            where: {
+              updatedAt: {
+                gte: dayStart,
+                lte: dayEnd
+              },
+              status: 'DELIVERED' as const
+            }
+          });
+          
+          const dayRevenue = await prisma.orderItem.findMany({
+            where: {
+              order: {
+                updatedAt: {
+                  gte: dayStart,
+                  lte: dayEnd
+                },
+                status: 'DELIVERED' as const
+              }
+            },
+            select: { price: true, amount: true }
+          });
+          
+          const revenue = dayRevenue.reduce((sum, item) => {
+            return sum + (Number(item.price) * item.amount);
+          }, 0);
+          
+          return {
+            date: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+            orders: dayOrders,
+            deliveredOrders: dayDeliveredOrders,
+            revenue: revenue
+          };
+        }));
       }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
-      // Ошибка получения данных по дням
+      // Ошибка получения данных по дням - создаем пустые данные
+      const days = getLastNDaysInBishkek(7);
+      
+      dailyOrders = days.map(day => ({
+        date: day.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        orders: 0,
+        deliveredOrders: 0,
+        revenue: 0
+      }));
     }
 
     try {
@@ -1063,16 +1125,16 @@ export async function GET(request: Request) {
     if (section === 'charts') {
       const response = NextResponse.json({
         charts: {
-          // Всегда используем реальные данные, если они есть, иначе демо-данные
-          monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
-          topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
-          categories: categories.length > 0 ? categories : mockData.categories,
-          orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
-          dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
-          userStats: userStats.length > 0 ? userStats : mockData.userStats,
-          courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
-          productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
-          recentActivity: recentActivity.length > 0 ? recentActivity : mockData.recentActivity
+          // Всегда используем реальные данные, даже если они пустые (0)
+          monthlyRevenue: monthlyRevenue,
+          topProducts: topProducts,
+          categories: categories,
+          orderStatus: orderStatus,
+          dailyOrders: dailyOrders,
+          userStats: userStats,
+          courierPerformance: courierPerformance,
+          productInsights: productInsights,
+          recentActivity: recentActivity
         }
       });
       
@@ -1151,15 +1213,16 @@ export async function GET(request: Request) {
         totalSellers: totalSellers // Всегда реальное значение
       },
       charts: {
-        monthlyRevenue: monthlyRevenue.length > 0 ? monthlyRevenue : mockData.monthlyRevenue,
-        topProducts: topProducts.length > 0 ? topProducts : mockData.topProducts,
-        categories: categories.length > 0 ? categories : mockData.categories,
-        orderStatus: orderStatus.length > 0 ? orderStatus : mockData.orderStatus,
-        dailyOrders: dailyOrders.length > 0 ? dailyOrders : mockData.dailyOrders,
-        userStats: userStats.length > 0 ? userStats : mockData.userStats,
-        courierPerformance: courierPerformance.length > 0 ? courierPerformance : mockData.courierPerformance,
-        productInsights: productInsights.totalColors > 0 || productInsights.totalSizes > 0 ? productInsights : mockData.productInsights,
-        recentActivity: recentActivity.length > 0 ? recentActivity : mockData.recentActivity
+        // Всегда используем реальные данные, даже если они пустые (0)
+        monthlyRevenue: monthlyRevenue,
+        topProducts: topProducts,
+        categories: categories,
+        orderStatus: orderStatus,
+        dailyOrders: dailyOrders,
+        userStats: userStats,
+        courierPerformance: courierPerformance,
+        productInsights: productInsights,
+        recentActivity: recentActivity
       },
       recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
         // Подсчитываем общую стоимость заказа через orderItems

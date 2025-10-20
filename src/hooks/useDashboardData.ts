@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatBishkekDate, createBishkekDateTime } from '@/lib/timezone';
 
 interface DateRange {
   startDate: Date;
@@ -71,20 +72,10 @@ export function useDashboardData(selectedRange: DateRange) {
     try {
       setLoading(prev => ({ ...prev, overview: true }));
       
-      const formatLocalDate = (date: Date) => {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      };
-      
-      const getDateTimeString = (date: string, time: string) => {
-        if (!date) return '';
-        const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
-        return `${date}T${timeWithSeconds}`;
-      };
-      
-      const startDateStr = formatLocalDate(selectedRange.startDate);
-      const endDateStr = formatLocalDate(selectedRange.endDate);
-      const dateFromString = getDateTimeString(startDateStr, '00:00');
-      const dateToString = getDateTimeString(endDateStr, '23:59');
+      const startDateStr = formatBishkekDate(selectedRange.startDate);
+      const endDateStr = formatBishkekDate(selectedRange.endDate);
+      const dateFromString = createBishkekDateTime(startDateStr, '00:00');
+      const dateToString = createBishkekDateTime(endDateStr, '23:59');
       
       const params = new URLSearchParams({
         dateFrom: dateFromString,
@@ -112,20 +103,10 @@ export function useDashboardData(selectedRange: DateRange) {
     try {
       setLoading(prev => ({ ...prev, charts: true }));
       
-      const formatLocalDate = (date: Date) => {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      };
-      
-      const getDateTimeString = (date: string, time: string) => {
-        if (!date) return '';
-        const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
-        return `${date}T${timeWithSeconds}`;
-      };
-      
-      const startDateStr = formatLocalDate(selectedRange.startDate);
-      const endDateStr = formatLocalDate(selectedRange.endDate);
-      const dateFromString = getDateTimeString(startDateStr, '00:00');
-      const dateToString = getDateTimeString(endDateStr, '23:59');
+      const startDateStr = formatBishkekDate(selectedRange.startDate);
+      const endDateStr = formatBishkekDate(selectedRange.endDate);
+      const dateFromString = createBishkekDateTime(startDateStr, '00:00');
+      const dateToString = createBishkekDateTime(endDateStr, '23:59');
       
       const params = new URLSearchParams({
         dateFrom: dateFromString,
@@ -153,20 +134,10 @@ export function useDashboardData(selectedRange: DateRange) {
     try {
       setLoading(prev => ({ ...prev, recentOrders: true }));
       
-      const formatLocalDate = (date: Date) => {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      };
-      
-      const getDateTimeString = (date: string, time: string) => {
-        if (!date) return '';
-        const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
-        return `${date}T${timeWithSeconds}`;
-      };
-      
-      const startDateStr = formatLocalDate(selectedRange.startDate);
-      const endDateStr = formatLocalDate(selectedRange.endDate);
-      const dateFromString = getDateTimeString(startDateStr, '00:00');
-      const dateToString = getDateTimeString(endDateStr, '23:59');
+      const startDateStr = formatBishkekDate(selectedRange.startDate);
+      const endDateStr = formatBishkekDate(selectedRange.endDate);
+      const dateFromString = createBishkekDateTime(startDateStr, '00:00');
+      const dateToString = createBishkekDateTime(endDateStr, '23:59');
       
       const params = new URLSearchParams({
         dateFrom: dateFromString,
