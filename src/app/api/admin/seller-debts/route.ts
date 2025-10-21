@@ -10,9 +10,27 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('dateTo');
     const sellerId = searchParams.get('sellerId'); // Добавляем фильтр по продавцу
     
+    console.log('💰 [Seller Debts API] Получен запрос (используем updatedAt):', {
+      url: request.url,
+      params: {
+        dateFrom,
+        dateTo,
+        sellerId
+      },
+      parsedDates: {
+        dateFromParsed: dateFrom ? new Date(dateFrom).toISOString() : null,
+        dateToParsed: dateTo ? new Date(dateTo).toISOString() : null
+      },
+      filterField: 'updatedAt',
+      timestamp: new Date().toISOString()
+    });
+    
     // Создаем фильтр по датам для заказов
+    // Используем updatedAt вместо createdAt, так как нас интересует когда заказ был доставлен
+    // Даты уже приходят в правильном формате с временной зоной Бишкека (+06:00)
+    // JavaScript автоматически конвертирует их в UTC при создании Date объекта
     const dateFilter = dateFrom && dateTo ? {
-      createdAt: {
+      updatedAt: {
         gte: new Date(dateFrom),
         lte: new Date(dateTo)
       }
