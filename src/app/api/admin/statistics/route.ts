@@ -39,19 +39,16 @@ export async function GET(request: Request) {
       const existingUpdatedAt = where.updatedAt as Prisma.DateTimeFilter || {};
       where.updatedAt = {
         ...existingUpdatedAt,
-        gte: new Date(dateFrom)
+        gte: new Date(dateFrom) // dateFrom уже приходит в правильном формате с +06:00
       };
     }
     
     if (dateTo) {
-      // Для dateTo устанавливаем конец дня (23:59:59.999)
-      const endDate = new Date(dateTo);
-      endDate.setHours(23, 59, 59, 999);
-      
+      // dateTo уже приходит в правильном формате с +06:00 и временем 23:59
       const existingUpdatedAt = where.updatedAt as Prisma.DateTimeFilter || {};
       where.updatedAt = {
         ...existingUpdatedAt,
-        lte: endDate
+        lte: new Date(dateTo)
       };
     }
 

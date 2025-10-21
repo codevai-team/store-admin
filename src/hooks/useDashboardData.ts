@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { formatBishkekDate, createBishkekDateTime } from '@/lib/timezone';
+import { formatBishkekDate, createBishkekDateTime, getBishkekTimestamp } from '@/lib/timezone';
 
 interface DateRange {
   startDate: Date;
@@ -83,6 +83,21 @@ export function useDashboardData(selectedRange: DateRange) {
         section: 'overview'
       });
       
+      console.log('🔄 [useDashboardData] Отправка запроса Overview:', {
+        selectedRange: {
+          label: selectedRange.label,
+          startDate: selectedRange.startDate.toISOString(),
+          endDate: selectedRange.endDate.toISOString()
+        },
+        apiParams: {
+          dateFrom: dateFromString,
+          dateTo: dateToString,
+          section: 'overview'
+        },
+        url: `/api/admin/dashboard?${params}`,
+        timestamp: getBishkekTimestamp()
+      });
+      
       const response = await fetch(`/api/admin/dashboard?${params}`);
       
       if (!response.ok) {
@@ -90,10 +105,17 @@ export function useDashboardData(selectedRange: DateRange) {
       }
       
       const data = await response.json();
+      
+      console.log('✅ [useDashboardData] Получены данные Overview:', {
+        overview: data.overview,
+        dataSize: JSON.stringify(data).length + ' bytes',
+        timestamp: getBishkekTimestamp()
+      });
+      
       setOverview(data.overview);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-      console.error('Overview fetch error:', err);
+      console.error('❌ [useDashboardData] Overview fetch error:', err);
     } finally {
       setLoading(prev => ({ ...prev, overview: false }));
     }
@@ -114,6 +136,21 @@ export function useDashboardData(selectedRange: DateRange) {
         section: 'charts'
       });
       
+      console.log('📊 [useDashboardData] Отправка запроса Charts:', {
+        selectedRange: {
+          label: selectedRange.label,
+          startDate: selectedRange.startDate.toISOString(),
+          endDate: selectedRange.endDate.toISOString()
+        },
+        apiParams: {
+          dateFrom: dateFromString,
+          dateTo: dateToString,
+          section: 'charts'
+        },
+        url: `/api/admin/dashboard?${params}`,
+        timestamp: getBishkekTimestamp()
+      });
+      
       const response = await fetch(`/api/admin/dashboard?${params}`);
       
       if (!response.ok) {
@@ -121,10 +158,17 @@ export function useDashboardData(selectedRange: DateRange) {
       }
       
       const data = await response.json();
+      
+      console.log('✅ [useDashboardData] Получены данные Charts:', {
+        charts: data.charts,
+        dataSize: JSON.stringify(data).length + ' bytes',
+        timestamp: getBishkekTimestamp()
+      });
+      
       setCharts(data.charts);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-      console.error('❌ Charts fetch error:', err);
+      console.error('❌ [useDashboardData] Charts fetch error:', err);
     } finally {
       setLoading(prev => ({ ...prev, charts: false }));
     }
@@ -145,6 +189,21 @@ export function useDashboardData(selectedRange: DateRange) {
         section: 'recentOrders'
       });
       
+      console.log('📋 [useDashboardData] Отправка запроса Recent Orders:', {
+        selectedRange: {
+          label: selectedRange.label,
+          startDate: selectedRange.startDate.toISOString(),
+          endDate: selectedRange.endDate.toISOString()
+        },
+        apiParams: {
+          dateFrom: dateFromString,
+          dateTo: dateToString,
+          section: 'recentOrders'
+        },
+        url: `/api/admin/dashboard?${params}`,
+        timestamp: getBishkekTimestamp()
+      });
+      
       const response = await fetch(`/api/admin/dashboard?${params}`);
       
       if (!response.ok) {
@@ -152,10 +211,18 @@ export function useDashboardData(selectedRange: DateRange) {
       }
       
       const data = await response.json();
+      
+      console.log('✅ [useDashboardData] Получены данные Recent Orders:', {
+        recentOrders: data.recentOrders,
+        ordersCount: data.recentOrders?.length || 0,
+        dataSize: JSON.stringify(data).length + ' bytes',
+        timestamp: getBishkekTimestamp()
+      });
+      
       setRecentOrders(data.recentOrders);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-      console.error('Recent orders fetch error:', err);
+      console.error('❌ [useDashboardData] Recent orders fetch error:', err);
     } finally {
       setLoading(prev => ({ ...prev, recentOrders: false }));
     }

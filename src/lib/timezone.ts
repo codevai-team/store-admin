@@ -62,3 +62,37 @@ export function getLastNDaysInBishkek(days: number = 7): Date[] {
   
   return result;
 }
+
+/**
+ * Создает дату в UTC, которая соответствует текущему времени в Бишкеке
+ * Эта функция нужна для корректного сохранения в БД через Prisma
+ * @returns Дата в UTC, которая при отображении в Бишкеке покажет правильное время
+ */
+export function getBishkekTimeAsUTC(): Date {
+  const now = new Date();
+  const bishkekTime = toBishkekTime(now);
+  
+  // Создаем UTC дату, которая при конвертации в Бишкек даст правильное время
+  const utcTime = new Date(
+    bishkekTime.getTime() - (BISHKEK_OFFSET_HOURS * 60 * 60 * 1000)
+  );
+  
+  return utcTime;
+}
+
+/**
+ * Форматирует текущее время Бишкека в ISO строку с указанием временной зоны
+ * @returns Строка в формате ISO с временной зоной +06:00 для логирования
+ */
+export function getBishkekTimestamp(): string {
+  const bishkekTime = getBishkekNow();
+  const year = bishkekTime.getFullYear();
+  const month = String(bishkekTime.getMonth() + 1).padStart(2, '0');
+  const day = String(bishkekTime.getDate()).padStart(2, '0');
+  const hours = String(bishkekTime.getHours()).padStart(2, '0');
+  const minutes = String(bishkekTime.getMinutes()).padStart(2, '0');
+  const seconds = String(bishkekTime.getSeconds()).padStart(2, '0');
+  const milliseconds = String(bishkekTime.getMilliseconds()).padStart(3, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+06:00`;
+}

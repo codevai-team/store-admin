@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, UserRole, ProductStatus, UserStatus, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { getBishkekTimeAsUTC } from '@/lib/timezone';
 
 const prisma = new PrismaClient();
 
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Создание пользователя в транзакции
     const user = await prisma.$transaction(async (tx) => {
+      const bishkekTime = getBishkekTimeAsUTC();
       const newUser = await tx.user.create({
         data: {
           fullname,
@@ -185,6 +187,7 @@ export async function POST(request: NextRequest) {
           password: hashedPassword,
           role: role as UserRole,
           status: UserStatus.ACTIVE,
+          createdAt: bishkekTime,
         },
         select: {
           id: true,

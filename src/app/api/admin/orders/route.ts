@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, Prisma, OrderStatus } from '@prisma/client';
+import { getBishkekTimeAsUTC } from '@/lib/timezone';
 
 const prisma = new PrismaClient();
 
@@ -62,15 +63,15 @@ export async function GET(request: Request) {
     if (dateFrom || dateTo) {
       where.updatedAt = {};
       if (dateFrom) {
-        // Проверяем, содержит ли строка время
-        const fromDate = dateFrom.includes('T') ? new Date(dateFrom) : new Date(dateFrom + 'T00:00:00.000Z');
+        // dateFrom уже приходит в правильном формате с +06:00 из фронтенда
+        const fromDate = new Date(dateFrom);
         if (!isNaN(fromDate.getTime())) {
           where.updatedAt.gte = fromDate;
         }
       }
       if (dateTo) {
-        // Проверяем, содержит ли строка время
-        const toDate = dateTo.includes('T') ? new Date(dateTo) : new Date(dateTo + 'T23:59:59.999Z');
+        // dateTo уже приходит в правильном формате с +06:00 из фронтенда
+        const toDate = new Date(dateTo);
         if (!isNaN(toDate.getTime())) {
           where.updatedAt.lte = toDate;
         }
@@ -309,12 +310,15 @@ export async function POST(request: Request) {
 
     // Создаем заказ в транзакции
     const result = await prisma.$transaction(async (tx) => {
-      // Создаем заказ
+      // Создаем заказ с правильным временем для Бишкека
+      const bishkekTime = getBishkekTimeAsUTC();
       const order = await tx.order.create({
         data: {
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
-          deliveryAddress: customerAddress.trim()
+          deliveryAddress: customerAddress.trim(),
+          createdAt: bishkekTime,
+          updatedAt: bishkekTime
         }
       });
 

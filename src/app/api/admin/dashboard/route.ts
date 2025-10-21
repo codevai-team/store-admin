@@ -1,6 +1,90 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { toBishkekTime, getBishkekNow, getLastNDaysInBishkek } from '@/lib/timezone';
+import { toBishkekTime, getBishkekNow, getLastNDaysInBishkek, getBishkekTimestamp } from '@/lib/timezone';
+
+// Функция для создания правильного фильтра по датам с учетом временной зоны Бишкека
+function createDateFilter(dateFrom: string | null, dateTo: string | null) {
+  if (!dateFrom || !dateTo) return {};
+  
+  // Даты уже приходят в правильном формате с временной зоной Бишкека (+06:00)
+  // JavaScript автоматически конвертирует их в UTC при создании Date объекта
+  const startDateUTC = new Date(dateFrom);
+  const endDateUTC = new Date(dateTo);
+  
+  console.log('🕐 [createDateFilter] Конвертация дат:', {
+    input: { dateFrom, dateTo },
+    parsed: {
+      startDateUTC: startDateUTC.toISOString(),
+      endDateUTC: endDateUTC.toISOString()
+    },
+    bishkekTime: {
+      start: toBishkekTime(startDateUTC).toISOString(),
+      end: toBishkekTime(endDateUTC).toISOString()
+    },
+    timestamp: getBishkekTimestamp()
+  });
+  
+  return {
+    createdAt: {
+      gte: startDateUTC,
+      lte: endDateUTC
+    }
+  };
+}
+
+// Функция для получения правильных дат начала и конца для графиков
+function getCorrectedDates(dateFrom: string | null, dateTo: string | null) {
+  if (!dateFrom || !dateTo) return null;
+  
+  // Даты уже приходят в правильном формате с временной зоной Бишкека (+06:00)
+  // JavaScript автоматически конвертирует их в UTC при создании Date объекта
+  const startDateUTC = new Date(dateFrom);
+  const endDateUTC = new Date(dateTo);
+  
+  return {
+    start: startDateUTC,
+    end: endDateUTC
+  };
+}
+
+// Функция для создания фильтра по конкретному дню с учетом временной зоны Бишкека
+function createDayFilter(day: Date) {
+  // Создаем начало и конец дня в Бишкекском времени
+  const bishkekDay = toBishkekTime(day);
+  const dayStart = new Date(bishkekDay);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(bishkekDay);
+  dayEnd.setHours(23, 59, 59, 999);
+  
+  // Конвертируем обратно в UTC для БД
+  const startUTC = new Date(dayStart.getTime() - (6 * 60 * 60 * 1000));
+  const endUTC = new Date(dayEnd.getTime() - (6 * 60 * 60 * 1000));
+  
+  return {
+    createdAt: {
+      gte: startUTC,
+      lte: endUTC
+    }
+  };
+}
+
+// Функция для создания фильтра по периоду (неделя/месяц) с учетом временной зоны Бишкека
+function createPeriodFilter(start: Date, end: Date) {
+  // Конвертируем даты в Бишкекское время, затем обратно в UTC для БД
+  const bishkekStart = toBishkekTime(start);
+  const bishkekEnd = toBishkekTime(end);
+  
+  // Конвертируем обратно в UTC для БД
+  const startUTC = new Date(bishkekStart.getTime() - (6 * 60 * 60 * 1000));
+  const endUTC = new Date(bishkekEnd.getTime() - (6 * 60 * 60 * 1000));
+  
+  return {
+    createdAt: {
+      gte: startUTC,
+      lte: endUTC
+    }
+  };
+}
 
 
 // Функция для форматирования времени "сколько времени назад"
@@ -45,6 +129,21 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('dateTo');
     const section = searchParams.get('section'); // 'overview', 'charts', 'recentOrders', или null для всех данных
     
+    console.log('🚀 [Dashboard API] Получен запрос:', {
+      url: request.url,
+      params: {
+        dateFrom,
+        dateTo,
+        section
+      },
+      parsedDates: {
+        dateFromParsed: dateFrom ? new Date(dateFrom).toISOString() : null,
+        dateToParsed: dateTo ? new Date(dateTo).toISOString() : null,
+        dateFromBishkek: dateFrom ? toBishkekTime(new Date(dateFrom)).toISOString() : null,
+        dateToBishkek: dateTo ? toBishkekTime(new Date(dateTo)).toISOString() : null
+      },
+      timestamp: getBishkekTimestamp()
+    });
     
     // Создаем фильтр по датам если параметры переданы
     // Конвертируем входящие даты в UTC с учетом временной зоны Бишкека
@@ -78,16 +177,23 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Считаем заказы по полю updatedAt (как на странице статистики)
-      const orderDateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        }
-      } : {};
+      // Считаем заказы по полю createdAt (дата создания заказа)
+      const orderDateFilter = createDateFilter(dateFrom, dateTo);
+      
+      console.log('📊 [Dashboard API] Фильтр для подсчета заказов:', {
+        originalDates: { dateFrom, dateTo },
+        orderDateFilter,
+        timestamp: getBishkekTimestamp()
+      });
       
       totalOrders = await prisma.order.count({
         where: orderDateFilter
+      });
+
+      console.log('📊 [Dashboard API] Найдено заказов:', {
+        totalOrders,
+        filter: orderDateFilter,
+        timestamp: getBishkekTimestamp()
       });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
@@ -157,8 +263,8 @@ export async function GET(request: Request) {
       const courierOrderDateFilter = dateFrom && dateTo ? {
         status: 'DELIVERED' as const,
         updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
+          gte: new Date(dateFrom), // dateFrom уже приходит в правильном формате с +06:00
+          lte: new Date(dateTo)    // dateTo уже приходит в правильном формате с +06:00
         }
       } : {
         status: 'DELIVERED' as const
@@ -425,13 +531,8 @@ export async function GET(request: Request) {
 
     try {
       // Получаем данные из API долгов продавцов (как на странице статистики)
-      // Создаем фильтр по датам для заказов (используем updatedAt для консистентности с графиками)
-      const dateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        }
-      } : {};
+      // Создаем фильтр по датам для заказов (используем createdAt - дата создания заказа)
+      const dateFilter = createDateFilter(dateFrom, dateTo);
 
       // Получаем все доставленные заказы с товарами и продавцами (точно как в API долгов)
       const deliveredOrders = await prisma.order.findMany({
@@ -461,6 +562,19 @@ export async function GET(request: Request) {
         }
       });
 
+      console.log('💰 [Dashboard API] Поиск доставленных заказов для расчета дохода:', {
+        dateFilter,
+        foundOrders: deliveredOrders.length,
+        orderIds: deliveredOrders.map(o => o.id),
+        orderDates: deliveredOrders.map(o => ({
+          id: o.id,
+          createdAt: o.createdAt,
+          updatedAt: o.updatedAt,
+          status: o.status
+        })),
+        timestamp: getBishkekTimestamp()
+      });
+
       // Рассчитываем общую выручку и чистую прибыль (точно как в API долгов)
       let calculatedTotalRevenue = 0;
       let calculatedNetRevenue = 0;
@@ -487,6 +601,15 @@ export async function GET(request: Request) {
 
       totalRevenue = Math.round(calculatedTotalRevenue * 100) / 100;
       netRevenue = Math.round(calculatedNetRevenue * 100) / 100;
+
+      console.log('💰 [Dashboard API] Расчет дохода завершен:', {
+        calculatedTotalRevenue,
+        calculatedNetRevenue,
+        finalTotalRevenue: totalRevenue,
+        finalNetRevenue: netRevenue,
+        ordersProcessed: deliveredOrders.length,
+        timestamp: getBishkekTimestamp()
+      });
       
       
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -498,13 +621,8 @@ export async function GET(request: Request) {
 
 
     try {
-      // Считаем ожидающие заказы по полю updatedAt (как на странице статистики)
-      const pendingOrderDateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        }
-      } : {};
+      // Считаем ожидающие заказы по полю createdAt (дата создания заказа)
+      const pendingOrderDateFilter = createDateFilter(dateFrom, dateTo);
       
       pendingOrders = await prisma.order.count({ 
         where: { 
@@ -512,24 +630,25 @@ export async function GET(request: Request) {
           ...pendingOrderDateFilter
         }
       });
+
+      console.log('⏳ [Dashboard API] Найдено ожидающих заказов:', {
+        pendingOrders,
+        filter: pendingOrderDateFilter,
+        timestamp: getBishkekTimestamp()
+      });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка подсчета ожидающих заказов
     }
 
     try {
-      // Последние заказы с правильными связями и фильтром по updatedAt
-      const recentOrderDateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        }
-      } : {};
+      // Последние заказы с правильными связями и фильтром по createdAt
+      const recentOrderDateFilter = createDateFilter(dateFrom, dateTo);
       
       recentOrders = await prisma.order.findMany({
         take: 4,
         where: recentOrderDateFilter,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           orderItems: {
             include: {
@@ -557,10 +676,20 @@ export async function GET(request: Request) {
     // Генерируем данные по доходам для выбранного периода
     try {
       if (dateFrom && dateTo) {
-        const start = new Date(dateFrom);
-        const end = new Date(dateTo);
+        const correctedDates = getCorrectedDates(dateFrom, dateTo);
+        if (!correctedDates) return;
+        
+        const { start, end } = correctedDates;
         const diffTime = Math.abs(end.getTime() - start.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        console.log('📈 [Dashboard API] Генерация данных для графика "Динамика доходов":', {
+          originalDates: { dateFrom, dateTo },
+          correctedDates: { start: start.toISOString(), end: end.toISOString() },
+          diffDays,
+          groupBy: diffDays > 90 ? 'month' : diffDays > 14 ? 'week' : 'day',
+          timestamp: getBishkekTimestamp()
+        });
         
         // Определяем интервал группировки в зависимости от длительности периода
         let groupBy = 'day';
@@ -579,17 +708,14 @@ export async function GET(request: Request) {
           }
           
           monthlyRevenue = await Promise.all(days.map(async (day) => {
-            const dayStart = new Date(day);
-            dayStart.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(day);
-            dayEnd.setHours(23, 59, 59, 999);
+            // Используем правильный фильтр с учетом временной зоны Бишкека
+            const dayFilter = createDayFilter(day);
             
+            // Считаем только доставленные заказы для синей линии графика
             const dayOrdersCount = await prisma.order.count({
               where: {
-                updatedAt: {
-                  gte: dayStart,
-                  lte: dayEnd
-                }
+                status: 'DELIVERED',
+                ...dayFilter
               }
             });
             
@@ -598,10 +724,7 @@ export async function GET(request: Request) {
             const deliveredOrdersForDay = await prisma.order.findMany({
               where: {
                 status: 'DELIVERED',
-                updatedAt: {
-                  gte: dayStart,
-                  lte: dayEnd
-                }
+                ...dayFilter
               },
               include: {
                 orderItems: {
@@ -627,8 +750,8 @@ export async function GET(request: Request) {
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
               WHERE o.status = 'canceled'
-              AND o.updated_at >= ${dayStart}
-              AND o.updated_at <= ${dayEnd}
+              AND o.created_at >= ${dayFilter.createdAt.gte}
+              AND o.created_at <= ${dayFilter.createdAt.lte}
             `;
             
             const revenue = dayRevenue;
@@ -660,12 +783,14 @@ export async function GET(request: Request) {
           }
           
           monthlyRevenue = await Promise.all(weeks.map(async (week) => {
+            // Используем правильный фильтр с учетом временной зоны Бишкека
+            const weekFilter = createPeriodFilter(week.start, week.end);
+            
+            // Считаем только доставленные заказы для синей линии графика
             const weekOrdersCount = await prisma.order.count({
               where: {
-                updatedAt: {
-                  gte: week.start,
-                  lte: week.end
-                }
+                status: 'DELIVERED',
+                ...weekFilter
               }
             });
             
@@ -674,8 +799,8 @@ export async function GET(request: Request) {
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
               WHERE o.status = 'delivered'
-              AND o.updated_at >= ${week.start}
-              AND o.updated_at <= ${week.end}
+              AND o.created_at >= ${weekFilter.createdAt.gte}
+              AND o.created_at <= ${weekFilter.createdAt.lte}
             `;
             
             const weekCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
@@ -683,8 +808,8 @@ export async function GET(request: Request) {
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
               WHERE o.status = 'canceled'
-              AND o.updated_at >= ${week.start}
-              AND o.updated_at <= ${week.end}
+              AND o.created_at >= ${weekFilter.createdAt.gte}
+              AND o.created_at <= ${weekFilter.createdAt.lte}
             `;
             
             const revenue = weekRevenueResult[0]?.total_revenue ? parseFloat(weekRevenueResult[0].total_revenue.toString()) : 0;
@@ -715,12 +840,14 @@ export async function GET(request: Request) {
           }
           
           monthlyRevenue = await Promise.all(months.map(async (month) => {
+            // Используем правильный фильтр с учетом временной зоны Бишкека
+            const monthFilter = createPeriodFilter(month.start, month.end);
+            
+            // Считаем только доставленные заказы для синей линии графика
             const monthOrdersCount = await prisma.order.count({
               where: {
-                updatedAt: {
-                  gte: month.start,
-                  lte: month.end
-                }
+                status: 'DELIVERED',
+                ...monthFilter
               }
             });
             
@@ -729,8 +856,8 @@ export async function GET(request: Request) {
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
               WHERE o.status = 'delivered'
-              AND o.updated_at >= ${month.start}
-              AND o.updated_at <= ${month.end}
+              AND o.created_at >= ${monthFilter.createdAt.gte}
+              AND o.created_at <= ${monthFilter.createdAt.lte}
             `;
             
             const monthCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
@@ -738,8 +865,8 @@ export async function GET(request: Request) {
               FROM order_items oi
               JOIN orders o ON oi.order_id = o.id
               WHERE o.status = 'canceled'
-              AND o.updated_at >= ${month.start}
-              AND o.updated_at <= ${month.end}
+              AND o.created_at >= ${monthFilter.createdAt.gte}
+              AND o.created_at <= ${monthFilter.createdAt.lte}
             `;
             
             const revenue = monthRevenueResult[0]?.total_revenue ? parseFloat(monthRevenueResult[0].total_revenue.toString()) : 0;
@@ -761,17 +888,14 @@ export async function GET(request: Request) {
         const days = getLastNDaysInBishkek(7);
         
         monthlyRevenue = await Promise.all(days.map(async (day) => {
-          const dayStart = new Date(day);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = new Date(day);
-          dayEnd.setHours(23, 59, 59, 999);
+          // Используем правильный фильтр с учетом временной зоны Бишкека
+          const dayFilter = createDayFilter(day);
           
+          // Считаем только доставленные заказы для синей линии графика
           const dayOrdersCount = await prisma.order.count({
             where: {
-              updatedAt: {
-                gte: dayStart,
-                lte: dayEnd
-              }
+              status: 'DELIVERED',
+              ...dayFilter
             }
           });
           
@@ -780,8 +904,8 @@ export async function GET(request: Request) {
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
             WHERE o.status = 'delivered'
-            AND o.updated_at >= ${dayStart}
-            AND o.updated_at <= ${dayEnd}
+            AND o.created_at >= ${dayFilter.createdAt.gte}
+            AND o.created_at <= ${dayFilter.createdAt.lte}
           `;
           
           const dayCanceledRevenueResult: Array<{ canceled_revenue: number }> = await prisma.$queryRaw`
@@ -789,8 +913,8 @@ export async function GET(request: Request) {
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
             WHERE o.status = 'canceled'
-            AND o.updated_at >= ${dayStart}
-            AND o.updated_at <= ${dayEnd}
+            AND o.created_at >= ${dayFilter.createdAt.gte}
+            AND o.created_at <= ${dayFilter.createdAt.lte}
           `;
           
           const revenue = dayRevenueResult[0]?.total_revenue ? parseFloat(dayRevenueResult[0].total_revenue.toString()) : 0;
@@ -821,8 +945,8 @@ export async function GET(request: Request) {
     // Генерируем данные по дням для выбранного периода
     try {
       if (dateFrom && dateTo) {
-        const start = new Date(dateFrom);
-        const end = new Date(dateTo);
+        const start = new Date(dateFrom); // dateFrom уже приходит в правильном формате с +06:00
+        const end = new Date(dateTo);     // dateTo уже приходит в правильном формате с +06:00
         const days = [];
         
         // Создаем массив дат для периода
@@ -830,30 +954,20 @@ export async function GET(request: Request) {
           days.push(new Date(d));
         }
         
-        // Получаем данные по заказам для каждого дня по updatedAt
+        // Получаем данные по заказам для каждого дня с правильной фильтрацией по createdAt
         dailyOrders = await Promise.all(days.map(async (day) => {
-          const dayStart = new Date(day);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = new Date(day);
-          dayEnd.setHours(23, 59, 59, 999);
+          // Используем правильный фильтр с учетом временной зоны Бишкека
+          const dayFilter = createDayFilter(day);
           
           // Все заказы за день
           const dayOrders = await prisma.order.count({
-            where: {
-              updatedAt: {
-                gte: dayStart,
-                lte: dayEnd
-              }
-            }
+            where: dayFilter
           });
           
           // Только доставленные заказы за день
           const dayDeliveredOrders = await prisma.order.count({
             where: {
-              updatedAt: {
-                gte: dayStart,
-                lte: dayEnd
-              },
+              ...dayFilter,
               status: 'DELIVERED' as const
             }
           });
@@ -861,10 +975,7 @@ export async function GET(request: Request) {
           const dayRevenue = await prisma.orderItem.findMany({
             where: {
               order: {
-                updatedAt: {
-                  gte: dayStart,
-                  lte: dayEnd
-                },
+                ...dayFilter,
                 status: 'DELIVERED' as const
               }
             },
@@ -887,26 +998,16 @@ export async function GET(request: Request) {
         const days = getLastNDaysInBishkek(7);
         
         dailyOrders = await Promise.all(days.map(async (day) => {
-          const dayStart = new Date(day);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = new Date(day);
-          dayEnd.setHours(23, 59, 59, 999);
+          // Используем правильный фильтр с учетом временной зоны Бишкека
+          const dayFilter = createDayFilter(day);
           
           const dayOrders = await prisma.order.count({
-            where: {
-              updatedAt: {
-                gte: dayStart,
-                lte: dayEnd
-              }
-            }
+            where: dayFilter
           });
           
           const dayDeliveredOrders = await prisma.order.count({
             where: {
-              updatedAt: {
-                gte: dayStart,
-                lte: dayEnd
-              },
+              ...dayFilter,
               status: 'DELIVERED' as const
             }
           });
@@ -914,10 +1015,7 @@ export async function GET(request: Request) {
           const dayRevenue = await prisma.orderItem.findMany({
             where: {
               order: {
-                updatedAt: {
-                  gte: dayStart,
-                  lte: dayEnd
-                },
+                ...dayFilter,
                 status: 'DELIVERED' as const
               }
             },
@@ -950,13 +1048,14 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Данные по статусам заказов с учетом фильтра по updatedAt
-      const statusOrderDateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        }
-      } : {};
+      // Данные по статусам заказов с правильной фильтрацией по createdAt
+      const statusOrderDateFilter = createDateFilter(dateFrom, dateTo);
+      
+      console.log('📊 [Dashboard API] Генерация данных для графика "Статусы заказов":', {
+        originalDates: { dateFrom, dateTo },
+        statusOrderDateFilter,
+        timestamp: getBishkekTimestamp()
+      });
       
       const statusData = await prisma.order.groupBy({
         by: ['status'],
@@ -965,9 +1064,15 @@ export async function GET(request: Request) {
           id: true
         }
       });
+      
+      console.log('📊 [Dashboard API] Найдено статусов заказов:', {
+        statusCount: statusData.length,
+        statuses: statusData.map(s => ({ status: s.status, count: s._count.id })),
+        timestamp: getBishkekTimestamp()
+      });
 
       orderStatus = await Promise.all(statusData.map(async (item) => {
-        // Получаем общую стоимость для каждого статуса с учетом фильтра по updatedAt
+        // Получаем общую стоимость для каждого статуса с правильным фильтром по createdAt
         const statusRevenue = await prisma.orderItem.findMany({
           where: {
             order: {
@@ -1008,10 +1113,7 @@ export async function GET(request: Request) {
     try {
       // Топ-10 товары по количеству продаж (только доставленные заказы за период)
       const topProductsOrderDateFilter = dateFrom && dateTo ? {
-        updatedAt: {
-          gte: new Date(dateFrom),
-          lte: new Date(dateTo)
-        },
+        ...createDateFilter(dateFrom, dateTo),
         status: 'DELIVERED' as const
       } : {
         status: 'DELIVERED' as const
@@ -1103,18 +1205,27 @@ export async function GET(request: Request) {
 
     // Если запрашивается только определенная секция, возвращаем только её
     if (section === 'overview') {
+      const overviewData = {
+        totalProducts: totalProducts,
+        totalOrders: totalOrders,
+        totalRevenue: totalRevenue,
+        pendingOrders: pendingOrders,
+        netRevenue: netRevenue,
+        totalCategories: totalCategories,
+        activeProducts: activeProducts,
+        totalCouriers: totalCouriers,
+        totalSellers: totalSellers
+      };
+      
+      console.log('📊 [Dashboard API] Возвращаем данные Overview:', {
+        section: 'overview',
+        data: overviewData,
+        dateFilter: { dateFrom, dateTo },
+        timestamp: getBishkekTimestamp()
+      });
+      
       const response = NextResponse.json({
-        overview: {
-          totalProducts: totalProducts,
-          totalOrders: totalOrders,
-          totalRevenue: totalRevenue,
-          pendingOrders: pendingOrders,
-          netRevenue: netRevenue,
-          totalCategories: totalCategories,
-          activeProducts: activeProducts,
-          totalCouriers: totalCouriers,
-          totalSellers: totalSellers
-        }
+        overview: overviewData
       });
       
       // Кэшируем overview на 30 секунд
@@ -1123,19 +1234,29 @@ export async function GET(request: Request) {
     }
 
     if (section === 'charts') {
+      const chartsData = {
+        // Всегда используем реальные данные, даже если они пустые (0)
+        monthlyRevenue: monthlyRevenue,
+        topProducts: topProducts,
+        categories: categories,
+        orderStatus: orderStatus,
+        dailyOrders: dailyOrders,
+        userStats: userStats,
+        courierPerformance: courierPerformance,
+        productInsights: productInsights,
+        recentActivity: recentActivity
+      };
+      
+      console.log('📈 [Dashboard API] Возвращаем данные Charts:', {
+        section: 'charts',
+        dataKeys: Object.keys(chartsData),
+        dateFilter: { dateFrom, dateTo },
+        dataSize: JSON.stringify(chartsData).length + ' bytes',
+        timestamp: getBishkekTimestamp()
+      });
+      
       const response = NextResponse.json({
-        charts: {
-          // Всегда используем реальные данные, даже если они пустые (0)
-          monthlyRevenue: monthlyRevenue,
-          topProducts: topProducts,
-          categories: categories,
-          orderStatus: orderStatus,
-          dailyOrders: dailyOrders,
-          userStats: userStats,
-          courierPerformance: courierPerformance,
-          productInsights: productInsights,
-          recentActivity: recentActivity
-        }
+        charts: chartsData
       });
       
       // Кэшируем charts на 2 минуты
@@ -1144,23 +1265,22 @@ export async function GET(request: Request) {
     }
 
     if (section === 'recentOrders') {
-      const response = NextResponse.json({
-        recentOrders: recentOrders.length > 0 ? recentOrders.map(order => {
-          const totalPrice = order.orderItems.reduce((sum: number, item: { price: number; amount: number }) => {
-            return sum + (Number(item.price) * item.amount);
-          }, 0);
-          
-          return {
-            id: order.id,
-            orderNumber: `ORD-${order.id.slice(-6).toUpperCase()}`,
-            customerName: order.customerName,
-            totalPrice: totalPrice,
-            status: order.status,
-            createdAt: order.createdAt,
-            itemsCount: order.orderItems?.length || 0,
-            courierName: order.courier?.fullname || null
-          };
-        }) : [
+      const recentOrdersData = recentOrders.length > 0 ? recentOrders.map(order => {
+        const totalPrice = order.orderItems.reduce((sum: number, item: { price: number; amount: number }) => {
+          return sum + (Number(item.price) * item.amount);
+        }, 0);
+        
+        return {
+          id: order.id,
+          orderNumber: `ORD-${order.id.slice(-6).toUpperCase()}`,
+          customerName: order.customerName,
+          totalPrice: totalPrice,
+          status: order.status,
+          createdAt: order.createdAt,
+          itemsCount: order.orderItems?.length || 0,
+          courierName: order.courier?.fullname || null
+        };
+      }) : [
           {
             id: '1',
             orderNumber: 'ORD-001',
@@ -1191,7 +1311,18 @@ export async function GET(request: Request) {
             itemsCount: 3,
             courierName: null
           }
-        ]
+        ];
+      
+      console.log('📋 [Dashboard API] Возвращаем данные Recent Orders:', {
+        section: 'recentOrders',
+        ordersCount: recentOrdersData.length,
+        isRealData: recentOrders.length > 0,
+        dateFilter: { dateFrom, dateTo },
+        timestamp: getBishkekTimestamp()
+      });
+      
+      const response = NextResponse.json({
+        recentOrders: recentOrdersData
       });
       
       // Кэшируем recent orders на 1 минуту
@@ -1200,6 +1331,12 @@ export async function GET(request: Request) {
     }
 
     // Возвращаем все данные если секция не указана (обратная совместимость)
+    console.log('🔄 [Dashboard API] Возвращаем полные данные (все секции):', {
+      section: 'all',
+      dateFilter: { dateFrom, dateTo },
+      timestamp: getBishkekTimestamp()
+    });
+    
     return NextResponse.json({
       overview: {
         totalProducts: totalProducts, // Всегда реальное значение

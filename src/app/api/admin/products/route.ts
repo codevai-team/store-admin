@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getBishkekTimeAsUTC } from '@/lib/timezone';
 
 // GET - получить товары с пагинацией
 export async function GET(request: Request) {
@@ -263,7 +264,8 @@ export async function POST(request: Request) {
 
     // Создаем товар в транзакции с увеличенным таймаутом
     const result = await prisma.$transaction(async (tx) => {
-      // Создаем товар
+      // Создаем товар с правильным временем для Бишкека
+      const bishkekTime = getBishkekTimeAsUTC();
       const product = await tx.product.create({
         data: {
           name: name.trim(),
@@ -273,7 +275,9 @@ export async function POST(request: Request) {
           status: status as 'ACTIVE' | 'INACTIVE' | 'DELETED',
           price: parseFloat(price.toString()),
           imageUrl: Array.isArray(imageUrl) ? imageUrl : [],
-          attributes: attributes || {}
+          attributes: attributes || {},
+          createdAt: bishkekTime,
+          updatedAt: bishkekTime
         }
       });
 
