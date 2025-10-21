@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { toBishkekTime, getBishkekNow, getLastNDaysInBishkek, getBishkekTimestamp } from '@/lib/timezone';
+import { toBishkekTime, getBishkekNow, getLastNDaysInBishkek } from '@/lib/timezone';
 
 // Функция для создания правильного фильтра по датам с учетом временной зоны Бишкека
 function createDateFilter(dateFrom: string | null, dateTo: string | null) {
@@ -11,18 +11,6 @@ function createDateFilter(dateFrom: string | null, dateTo: string | null) {
   const startDateUTC = new Date(dateFrom);
   const endDateUTC = new Date(dateTo);
   
-  console.log('🕐 [createDateFilter] Конвертация дат:', {
-    input: { dateFrom, dateTo },
-    parsed: {
-      startDateUTC: startDateUTC.toISOString(),
-      endDateUTC: endDateUTC.toISOString()
-    },
-    bishkekTime: {
-      start: toBishkekTime(startDateUTC).toISOString(),
-      end: toBishkekTime(endDateUTC).toISOString()
-    },
-    timestamp: getBishkekTimestamp()
-  });
   
   return {
     createdAt: {
@@ -129,21 +117,6 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('dateTo');
     const section = searchParams.get('section'); // 'overview', 'charts', 'recentOrders', или null для всех данных
     
-    console.log('🚀 [Dashboard API] Получен запрос:', {
-      url: request.url,
-      params: {
-        dateFrom,
-        dateTo,
-        section
-      },
-      parsedDates: {
-        dateFromParsed: dateFrom ? new Date(dateFrom).toISOString() : null,
-        dateToParsed: dateTo ? new Date(dateTo).toISOString() : null,
-        dateFromBishkek: dateFrom ? toBishkekTime(new Date(dateFrom)).toISOString() : null,
-        dateToBishkek: dateTo ? toBishkekTime(new Date(dateTo)).toISOString() : null
-      },
-      timestamp: getBishkekTimestamp()
-    });
     
     // Создаем фильтр по датам если параметры переданы
     // Конвертируем входящие даты в UTC с учетом временной зоны Бишкека
@@ -180,21 +153,11 @@ export async function GET(request: Request) {
       // Считаем заказы по полю createdAt (дата создания заказа)
       const orderDateFilter = createDateFilter(dateFrom, dateTo);
       
-      console.log('📊 [Dashboard API] Фильтр для подсчета заказов:', {
-        originalDates: { dateFrom, dateTo },
-        orderDateFilter,
-        timestamp: getBishkekTimestamp()
-      });
       
       totalOrders = await prisma.order.count({
         where: orderDateFilter
       });
 
-      console.log('📊 [Dashboard API] Найдено заказов:', {
-        totalOrders,
-        filter: orderDateFilter,
-        timestamp: getBishkekTimestamp()
-      });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка подсчета заказов
@@ -562,18 +525,6 @@ export async function GET(request: Request) {
         }
       });
 
-      console.log('💰 [Dashboard API] Поиск доставленных заказов для расчета дохода:', {
-        dateFilter,
-        foundOrders: deliveredOrders.length,
-        orderIds: deliveredOrders.map(o => o.id),
-        orderDates: deliveredOrders.map(o => ({
-          id: o.id,
-          createdAt: o.createdAt,
-          updatedAt: o.updatedAt,
-          status: o.status
-        })),
-        timestamp: getBishkekTimestamp()
-      });
 
       // Рассчитываем общую выручку и чистую прибыль (точно как в API долгов)
       let calculatedTotalRevenue = 0;
@@ -602,14 +553,6 @@ export async function GET(request: Request) {
       totalRevenue = Math.round(calculatedTotalRevenue * 100) / 100;
       netRevenue = Math.round(calculatedNetRevenue * 100) / 100;
 
-      console.log('💰 [Dashboard API] Расчет дохода завершен:', {
-        calculatedTotalRevenue,
-        calculatedNetRevenue,
-        finalTotalRevenue: totalRevenue,
-        finalNetRevenue: netRevenue,
-        ordersProcessed: deliveredOrders.length,
-        timestamp: getBishkekTimestamp()
-      });
       
       
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -631,11 +574,6 @@ export async function GET(request: Request) {
         }
       });
 
-      console.log('⏳ [Dashboard API] Найдено ожидающих заказов:', {
-        pendingOrders,
-        filter: pendingOrderDateFilter,
-        timestamp: getBishkekTimestamp()
-      });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // Ошибка подсчета ожидающих заказов
@@ -683,13 +621,6 @@ export async function GET(request: Request) {
         const diffTime = Math.abs(end.getTime() - start.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        console.log('📈 [Dashboard API] Генерация данных для графика "Динамика доходов":', {
-          originalDates: { dateFrom, dateTo },
-          correctedDates: { start: start.toISOString(), end: end.toISOString() },
-          diffDays,
-          groupBy: diffDays > 90 ? 'month' : diffDays > 14 ? 'week' : 'day',
-          timestamp: getBishkekTimestamp()
-        });
         
         // Определяем интервал группировки в зависимости от длительности периода
         let groupBy = 'day';
@@ -929,9 +860,8 @@ export async function GET(request: Request) {
         }));
       }
       
-    } catch (error) {
+    } catch {
       // Ошибка получения данных по доходам - создаем пустые данные
-      console.error('ERROR in revenue calculation:', error);
       const days = getLastNDaysInBishkek(7);
       
       monthlyRevenue = days.map(day => ({
@@ -1051,11 +981,6 @@ export async function GET(request: Request) {
       // Данные по статусам заказов с правильной фильтрацией по createdAt
       const statusOrderDateFilter = createDateFilter(dateFrom, dateTo);
       
-      console.log('📊 [Dashboard API] Генерация данных для графика "Статусы заказов":', {
-        originalDates: { dateFrom, dateTo },
-        statusOrderDateFilter,
-        timestamp: getBishkekTimestamp()
-      });
       
       const statusData = await prisma.order.groupBy({
         by: ['status'],
@@ -1065,11 +990,6 @@ export async function GET(request: Request) {
         }
       });
       
-      console.log('📊 [Dashboard API] Найдено статусов заказов:', {
-        statusCount: statusData.length,
-        statuses: statusData.map(s => ({ status: s.status, count: s._count.id })),
-        timestamp: getBishkekTimestamp()
-      });
 
       orderStatus = await Promise.all(statusData.map(async (item) => {
         // Получаем общую стоимость для каждого статуса с правильным фильтром по createdAt
@@ -1217,12 +1137,6 @@ export async function GET(request: Request) {
         totalSellers: totalSellers
       };
       
-      console.log('📊 [Dashboard API] Возвращаем данные Overview:', {
-        section: 'overview',
-        data: overviewData,
-        dateFilter: { dateFrom, dateTo },
-        timestamp: getBishkekTimestamp()
-      });
       
       const response = NextResponse.json({
         overview: overviewData
@@ -1247,13 +1161,6 @@ export async function GET(request: Request) {
         recentActivity: recentActivity
       };
       
-      console.log('📈 [Dashboard API] Возвращаем данные Charts:', {
-        section: 'charts',
-        dataKeys: Object.keys(chartsData),
-        dateFilter: { dateFrom, dateTo },
-        dataSize: JSON.stringify(chartsData).length + ' bytes',
-        timestamp: getBishkekTimestamp()
-      });
       
       const response = NextResponse.json({
         charts: chartsData
@@ -1313,13 +1220,6 @@ export async function GET(request: Request) {
           }
         ];
       
-      console.log('📋 [Dashboard API] Возвращаем данные Recent Orders:', {
-        section: 'recentOrders',
-        ordersCount: recentOrdersData.length,
-        isRealData: recentOrders.length > 0,
-        dateFilter: { dateFrom, dateTo },
-        timestamp: getBishkekTimestamp()
-      });
       
       const response = NextResponse.json({
         recentOrders: recentOrdersData
@@ -1331,11 +1231,6 @@ export async function GET(request: Request) {
     }
 
     // Возвращаем все данные если секция не указана (обратная совместимость)
-    console.log('🔄 [Dashboard API] Возвращаем полные данные (все секции):', {
-      section: 'all',
-      dateFilter: { dateFrom, dateTo },
-      timestamp: getBishkekTimestamp()
-    });
     
     return NextResponse.json({
       overview: {

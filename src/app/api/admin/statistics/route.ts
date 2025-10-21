@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('dateTo');
     const search = searchParams.get('search');
     
+    
     // Строим условия фильтрации
     const where: Prisma.OrderWhereInput = {
       status: {
@@ -264,8 +265,7 @@ export async function GET(request: Request) {
       orders: processedOrders
     });
 
-  } catch (error) {
-    console.error('Ошибка при получении статистики:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Ошибка при получении статистики' },
       { status: 500 }

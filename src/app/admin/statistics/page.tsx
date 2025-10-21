@@ -232,7 +232,7 @@ function StatisticsPageContent() {
   const getDateTimeString = (date: string, time: string) => {
     if (!date) return '';
     const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
-    return `${date}T${timeWithSeconds}`;
+    return `${date}T${timeWithSeconds}+06:00`;
   };
 
   const handleDateFromEdit = () => {
@@ -637,8 +637,7 @@ function StatisticsPageContent() {
       
       const data = await response.json();
       setSellerDebts(data);
-    } catch (error) {
-      console.error('Error fetching seller debts:', error);
+    } catch {
       showError('Ошибка', 'Ошибка при загрузке долгов продавцам');
     }
   }, [dateFromFilter, dateToFilter, timeFromFilter, timeToFilter, selectedUser, selectedRole, showError]);
